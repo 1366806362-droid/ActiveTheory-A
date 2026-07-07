@@ -17,6 +17,7 @@ import { initializeIdentitySystem } from './identity.js';
 import { createLights } from './light.js';
 import { startLoop } from './loop.js';
 import { createBrandMaterial } from './material.js';
+import { createEnvironmentMap } from './environmentMap.js';
 import {
   initializeNarrativeSystem,
   updateNarrative
@@ -26,6 +27,7 @@ import {
   initializeRenderState,
   renderState
 } from './renderState.js';
+import { createPostProcessing } from './postprocessing.js';
 import { createRenderer } from './renderer.js';
 import { createScene } from './scene.js';
 import {
@@ -33,6 +35,7 @@ import {
   registerScene,
   setActiveScene
 } from './scenes.js';
+import { updateShaderCore } from './shaderCore.js';
 import { applySpatialDesign } from './spatial.js';
 
 export function initializeEngine() {
@@ -52,26 +55,44 @@ export function initializeEngine() {
   const lights = createLights();
   applySpatialDesign(renderState);
   initializeRenderState({ scene: activeScene, camera, renderer, cube, lights });
+  const environmentMap = createEnvironmentMap({ renderer, scene: activeScene, cube });
   startCameraEmotion();
   initializeNarrativeSystem();
   initializeDepthSystem();
   initializeAtmosphereSystem();
   initializeCohesionSystem();
 
-  app.appendChild(renderer.domElement);
+  app.replaceChildren(renderer.domElement);
+  const postProcessing = createPostProcessing({
+    renderer,
+    scene: activeScene,
+    camera
+  });
 
-  startLoop({
+  const stopEngineLoop = startLoop({
     scene: activeScene,
     camera,
     renderer,
     renderState,
     applyRenderState,
+    renderFrame: postProcessing.render,
     updates: [
       updateNarrative,
       updateDepth,
       updateCameraEmotion,
       updateAtmosphere,
-      updateCohesion
+      updateCohesion,
+      updateShaderCore
     ]
   });
+
+  if (import.meta.hot) {
+    import.meta.hot.dispose(() => {
+      stopEngineLoop();
+      environmentMap.dispose();
+      postProcessing.dispose();
+      renderer.dispose();
+      renderer.domElement.remove();
+    });
+  }
 }

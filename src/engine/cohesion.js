@@ -12,21 +12,21 @@ const COHESION_RULES = Object.freeze({
     fogNear: 1.2,
     fogFar: 6.5,
     depthPulse: 0.025,
-    emissive: 0.85
+    emissive: 0.6
   }),
   focus: Object.freeze({
     exposure: 0.8,
     fogNear: 1.12,
     fogFar: 6.15,
     depthPulse: 0.035,
-    emissive: 0.9
+    emissive: 0.66
   }),
   drift: Object.freeze({
     exposure: 0.72,
     fogNear: 1.35,
     fogFar: 6.85,
     depthPulse: 0.06,
-    emissive: 0.8
+    emissive: 0.56
   })
 });
 

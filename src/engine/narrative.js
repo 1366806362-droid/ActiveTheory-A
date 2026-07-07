@@ -14,8 +14,8 @@ const NARRATIVE_STATES = Object.freeze({
       motion: 0.035
     }),
     backgroundColor: '#05070c',
-    emissiveIntensity: 0.85,
-    emissivePulse: 0.035,
+    emissiveIntensity: 0.6,
+    emissivePulse: 0.025,
     cubeOffset: 0
   }),
   focus: Object.freeze({
@@ -33,8 +33,8 @@ const NARRATIVE_STATES = Object.freeze({
       motion: 0.05
     }),
     backgroundColor: '#08101d',
-    emissiveIntensity: 0.9,
-    emissivePulse: 0.05,
+    emissiveIntensity: 0.66,
+    emissivePulse: 0.035,
     cubeOffset: 0
   }),
   drift: Object.freeze({
@@ -52,8 +52,8 @@ const NARRATIVE_STATES = Object.freeze({
       motion: 0.07
     }),
     backgroundColor: '#02050a',
-    emissiveIntensity: 0.8,
-    emissivePulse: 0.06,
+    emissiveIntensity: 0.56,
+    emissivePulse: 0.04,
     cubeOffset: 0.08
   })
 });
@@ -91,8 +91,6 @@ export function getNarrativeState() {
 
 export function updateNarrative(renderState, delta) {
   narrativeState.elapsed += delta;
-  narrativeState.sequenceElapsed += delta;
-  updateNarrativeSequence();
   applyNarrativeRules(renderState, narrativeState.elapsed);
 }
 

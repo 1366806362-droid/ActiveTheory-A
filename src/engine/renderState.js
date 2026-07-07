@@ -12,26 +12,26 @@ export const renderState = {
     z: 0
   },
   cubeColor: '#0a4b8a',
-  emissive: 0.85,
+  emissive: 0.6,
   light: {
     key: {
-      color: '#7bb6ff',
-      intensity: 3.2,
-      position: { x: 10, y: 3, z: 5 }
+      color: '#8bbdff',
+      intensity: 3.6,
+      position: { x: 6, y: 5.5, z: 1.5 }
     },
     rim: {
       color: '#00e5ff',
-      intensity: 2.8,
-      position: { x: -10, y: 4, z: -6 }
+      intensity: 3.2,
+      position: { x: -4.5, y: 2.4, z: -3.2 }
     },
     fill: {
-      color: '#0a1a2a',
-      intensity: 0.25,
-      position: { x: -3, y: -4, z: 2 }
+      color: '#081827',
+      intensity: 0.16,
+      position: { x: -4, y: 1, z: 3 }
     },
     ambient: {
-      color: '#03060a',
-      intensity: 0.05
+      color: '#02050a',
+      intensity: 0.035
     }
   },
   cameraPosition: {

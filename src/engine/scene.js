@@ -77,14 +77,14 @@ function createCubeEdges(geometry) {
 function createEnvironmentLayer() {
   const environment = new THREE.Group();
 
+  createVolumePlanes().forEach((plane) => {
+    environment.add(plane);
+  });
   createVerticalPillars().forEach((pillar) => {
     environment.add(pillar);
   });
   createFloatingFrames().forEach((frame) => {
     environment.add(frame);
-  });
-  createVolumePlanes().forEach((plane) => {
-    environment.add(plane);
   });
 
   return environment;
@@ -93,16 +93,17 @@ function createEnvironmentLayer() {
 function createVerticalPillars() {
   const material = new THREE.MeshStandardMaterial({
     color: 0x0a1626,
-    emissive: 0x020b14,
-    emissiveIntensity: 0.25,
+    emissive: 0x0f3c66,
+    emissiveIntensity: 0.45,
+    fog: false,
     metalness: 0.15,
     roughness: 0.85
   });
   const pillarData = [
-    { height: 3.2, width: 0.08, position: [-2.2, -1.8] },
-    { height: 4.4, width: 0.1, position: [2.1, -2.2] },
-    { height: 3.8, width: 0.09, position: [-1.1, -2.7] },
-    { height: 5, width: 0.12, position: [1.2, -3.1] }
+    { height: 5.8, width: 0.14, position: [-3.1, -4.5] },
+    { height: 6.6, width: 0.18, position: [3.1, -4.8] },
+    { height: 5.2, width: 0.12, position: [-1.35, -5.5] },
+    { height: 7, width: 0.16, position: [1.5, -6.1] }
   ];
 
   return pillarData.map(({ height, width, position }) => {
@@ -118,19 +119,20 @@ function createVerticalPillars() {
 function createFloatingFrames() {
   const frameMaterial = new THREE.LineBasicMaterial({
     color: 0x00ccff,
-    opacity: 0.25,
-    transparent: true
+    opacity: 0.35,
+    transparent: true,
+    fog: false
   });
   const frameData = [
     {
-      size: [1.7, 2.4],
-      position: [-1.9, 1.15, -1.9],
-      rotation: [0.18, 0.45, -0.08]
+      size: [3, 4.2],
+      position: [-2.7, 1.15, -3.8],
+      rotation: [0.16, 0.52, -0.08]
     },
     {
-      size: [1.4, 2],
-      position: [1.8, 1.25, -2.3],
-      rotation: [-0.12, -0.5, 0.1]
+      size: [2.7, 3.8],
+      position: [2.7, 1.25, -4.2],
+      rotation: [-0.1, -0.58, 0.1]
     }
   ];
 
@@ -149,25 +151,26 @@ function createFloatingFrames() {
 function createVolumePlanes() {
   const material = new THREE.MeshStandardMaterial({
     color: 0x08213f,
-    opacity: 0.12,
+    opacity: 0.18,
     transparent: true,
     depthWrite: false,
+    fog: false,
     metalness: 0,
     roughness: 1,
     side: THREE.DoubleSide
   });
   const planeData = [
     {
-      size: [2.8, 2.1],
-      position: [-1.35, 0.95, -1.35],
-      rotation: [0.08, 0.35, 0.06],
-      opacity: 0.12
+      size: [4, 3],
+      position: [-1.9, 0.78, -3.5],
+      rotation: [0.06, 0.38, 0.05],
+      opacity: 0.18
     },
     {
-      size: [3.2, 2.4],
-      position: [1.25, 0.85, -2.1],
-      rotation: [-0.05, -0.28, -0.08],
-      opacity: 0.1
+      size: [4.4, 3.2],
+      position: [1.85, 0.72, -4.8],
+      rotation: [-0.04, -0.34, -0.07],
+      opacity: 0.18
     }
   ];
 
