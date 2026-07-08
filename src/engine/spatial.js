@@ -16,14 +16,14 @@ export function applySpatialDesign(state = renderState) {
   spatialState.subject = 'cube';
   spatialState.camera = 'mainCamera';
 
-  state.cubePosition.x = -0.38;
-  state.cubePosition.y = 0.08;
+  state.cubePosition.x = -0.32;
+  state.cubePosition.y = 0.12;
   state.cubePosition.z = 0;
-  state.cameraPosition.x = 1.2;
-  state.cameraPosition.y = 1.35;
-  state.cameraPosition.z = 3.85;
-  state.cameraOffset.targetX = 0.16;
-  state.cameraOffset.targetY = 0.2;
+  state.cameraPosition.x = 1.05;
+  state.cameraPosition.y = 1.52;
+  state.cameraPosition.z = 3.35;
+  state.cameraOffset.targetX = 0.08;
+  state.cameraOffset.targetY = 0.28;
   state.cameraOffset.targetZ = 0;
 
   return spatialState;

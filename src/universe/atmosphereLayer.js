@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const ATMOSPHERE_PARTICLE_COUNT = 180;
+const ATMOSPHERE_PARTICLE_COUNT = 340;
 
 function seededRandom(seed) {
   let value = seed;
@@ -17,21 +17,21 @@ export function createAtmosphereLayer() {
   const positions = new Float32Array(ATMOSPHERE_PARTICLE_COUNT * 3);
   const colors = new Float32Array(ATMOSPHERE_PARTICLE_COUNT * 3);
   const baseColor = new THREE.Color(0x031126);
-  const hazeColor = new THREE.Color(0x0b3157);
+  const hazeColor = new THREE.Color(0x0d3b68);
   const color = new THREE.Color();
 
   for (let i = 0; i < ATMOSPHERE_PARTICLE_COUNT; i += 1) {
     const i3 = i * 3;
     const layer = random();
-    const width = 16 + layer * 18;
-    const height = 8 + layer * 10;
+    const width = 20 + layer * 32;
+    const height = 10 + layer * 18;
 
-    positions[i3] = (random() - 0.5) * width;
-    positions[i3 + 1] = 0.8 + (random() - 0.5) * height;
-    positions[i3 + 2] = -4 - random() * 24;
+    positions[i3] = (random() - 0.5) * width + Math.sin(layer * Math.PI * 4) * 1.5;
+    positions[i3 + 1] = 0.9 + (random() - 0.5) * height;
+    positions[i3 + 2] = -4.5 - Math.pow(random(), 0.68) * 42;
 
-    color.copy(baseColor).lerp(hazeColor, random() * 0.45);
-    const depthFade = 0.18 + layer * 0.28;
+    color.copy(baseColor).lerp(hazeColor, random() * 0.58);
+    const depthFade = 0.16 + layer * 0.36;
     colors[i3] = color.r * depthFade;
     colors[i3 + 1] = color.g * depthFade;
     colors[i3 + 2] = color.b * depthFade;
@@ -42,11 +42,11 @@ export function createAtmosphereLayer() {
   geometry.computeBoundingSphere();
 
   const material = new THREE.PointsMaterial({
-    size: 1.45,
+    size: 2.15,
     sizeAttenuation: true,
     vertexColors: true,
     transparent: true,
-    opacity: 0.13,
+    opacity: 0.14,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
     fog: false
@@ -54,13 +54,15 @@ export function createAtmosphereLayer() {
   const points = new THREE.Points(geometry, material);
 
   points.name = 'ActiveTheoryAtmosphereLayer';
-  points.position.set(0, 0.4, -2);
+  points.position.set(0, 0.55, -3.4);
 
   function update(delta, time) {
-    points.rotation.y += delta * 0.006;
-    points.rotation.z = Math.sin(time * 0.025) * 0.018;
-    points.position.x = Math.sin(time * 0.018) * 0.42;
-    material.opacity = 0.105 + Math.sin(time * 0.06) * 0.018;
+    points.rotation.y += delta * 0.0045;
+    points.rotation.x = Math.sin(time * 0.014) * 0.012;
+    points.rotation.z = Math.sin(time * 0.021) * 0.016;
+    points.position.x = Math.sin(time * 0.014) * 0.5;
+    points.position.z = -3.4 + Math.sin(time * 0.01) * 1;
+    material.opacity = 0.12 + Math.sin(time * 0.046) * 0.018;
   }
 
   function dispose() {

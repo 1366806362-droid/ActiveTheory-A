@@ -37,14 +37,12 @@ import {
 } from './scenes.js';
 import { updateShaderCore } from './shaderCore.js';
 import { applySpatialDesign } from './spatial.js';
-import {
-  createUniverseRoot,
-  updateUniverseRoot
-} from '../universe/universeRoot.js';
+import { createHeroScene } from '../scenes/heroScene.js';
 import {
   initializeInteraction,
   updateInteraction
 } from '../universe/interaction.js';
+import { createSceneManager } from '../world/sceneManager.js';
 
 export function initializeEngine() {
   const app = document.querySelector('#app');
@@ -63,9 +61,10 @@ export function initializeEngine() {
 
   const activeScene = getActiveScene();
   const lights = createLights();
-  const universeRoot = createUniverseRoot();
+  const heroScene = createHeroScene();
+  const sceneManager = createSceneManager({ heroScene });
   const interaction = initializeInteraction();
-  activeScene.add(universeRoot.root);
+  activeScene.add(sceneManager.root);
   applySpatialDesign(renderState);
   initializeRenderState({ scene: activeScene, camera, renderer, cube, lights });
   const environmentMap = createEnvironmentMap({ renderer, scene: activeScene, cube });
@@ -75,7 +74,7 @@ export function initializeEngine() {
   initializeAtmosphereSystem();
   initializeCohesionSystem();
 
-  app.replaceChildren(renderer.domElement);
+  app.replaceChildren(renderer.domElement, heroScene.overlay);
   const postProcessing = createPostProcessing({
     renderer,
     scene: activeScene,
@@ -97,7 +96,7 @@ export function initializeEngine() {
       updateAtmosphere,
       updateCohesion,
       updateShaderCore,
-      updateUniverseRoot
+      sceneManager.update
     ]
   });
 
@@ -105,7 +104,7 @@ export function initializeEngine() {
     import.meta.hot.dispose(() => {
       stopEngineLoop();
       interaction.dispose();
-      universeRoot.dispose();
+      sceneManager.dispose();
       environmentMap.dispose();
       postProcessing.dispose();
       renderer.dispose();
