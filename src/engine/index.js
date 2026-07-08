@@ -37,6 +37,14 @@ import {
 } from './scenes.js';
 import { updateShaderCore } from './shaderCore.js';
 import { applySpatialDesign } from './spatial.js';
+import {
+  createUniverseRoot,
+  updateUniverseRoot
+} from '../universe/universeRoot.js';
+import {
+  initializeInteraction,
+  updateInteraction
+} from '../universe/interaction.js';
 
 export function initializeEngine() {
   const app = document.querySelector('#app');
@@ -46,13 +54,18 @@ export function initializeEngine() {
   initializeCamera(renderer);
   const camera = getCamera();
   const brandMaterial = createBrandMaterial();
-  const { scene, cube } = createScene(brandMaterial);
+  const { scene, cube, environment } = createScene(brandMaterial);
+  cube.visible = false;
+  environment.visible = false;
 
   registerScene('mainScene', scene);
   setActiveScene('mainScene');
 
   const activeScene = getActiveScene();
   const lights = createLights();
+  const universeRoot = createUniverseRoot();
+  const interaction = initializeInteraction();
+  activeScene.add(universeRoot.root);
   applySpatialDesign(renderState);
   initializeRenderState({ scene: activeScene, camera, renderer, cube, lights });
   const environmentMap = createEnvironmentMap({ renderer, scene: activeScene, cube });
@@ -80,15 +93,19 @@ export function initializeEngine() {
       updateNarrative,
       updateDepth,
       updateCameraEmotion,
+      updateInteraction,
       updateAtmosphere,
       updateCohesion,
-      updateShaderCore
+      updateShaderCore,
+      updateUniverseRoot
     ]
   });
 
   if (import.meta.hot) {
     import.meta.hot.dispose(() => {
       stopEngineLoop();
+      interaction.dispose();
+      universeRoot.dispose();
       environmentMap.dispose();
       postProcessing.dispose();
       renderer.dispose();

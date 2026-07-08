@@ -33,17 +33,20 @@ export function startCameraEmotion() {
 
 export function updateCameraEmotion(renderState, delta, time) {
   const profile = CAMERA_EMOTION_PROFILES[getNarrativeState()] ?? CAMERA_EMOTION_PROFILES.calm;
-  const breathX = Math.sin(time * 0.2) * 0.18 * profile.motionScale;
-  const breathY = Math.sin(time * 0.15) * 0.16 * profile.motionScale;
-  const breathZ = Math.sin(time * 0.1) * 0.2 * profile.motionScale;
-  const depthDrift = Math.sin(time * 0.07) * 0.18 * profile.depthDriftScale;
+  const cinematicDriftX = Math.sin(time * 0.065) * 0.34 * profile.motionScale;
+  const secondaryDriftX = Math.sin(time * 0.031) * 0.12;
+  const cinematicDriftY = Math.sin(time * 0.045) * 0.1 * profile.motionScale;
+  const dollyBreath = Math.sin(time * 0.055) * 0.42 * profile.depthDriftScale;
+  const depthFloat = Math.sin(time * 0.021) * 0.16;
+  const targetBreathX = Math.sin(time * 0.052) * 0.14;
+  const targetBreathY = Math.sin(time * 0.041) * 0.055;
 
-  renderState.cameraOffset.x = breathX;
-  renderState.cameraOffset.y = breathY;
-  renderState.cameraOffset.z = profile.zOffset - profile.compression + depthDrift + breathZ;
-  renderState.cameraOffset.targetX = profile.targetXOffset;
-  renderState.cameraOffset.targetY = profile.targetYOffset;
-  renderState.cameraOffset.targetZ = 0;
+  renderState.cameraOffset.x = cinematicDriftX + secondaryDriftX;
+  renderState.cameraOffset.y = cinematicDriftY;
+  renderState.cameraOffset.z = profile.zOffset - profile.compression + dollyBreath + depthFloat - 0.08;
+  renderState.cameraOffset.targetX = profile.targetXOffset + targetBreathX;
+  renderState.cameraOffset.targetY = profile.targetYOffset + targetBreathY;
+  renderState.cameraOffset.targetZ = Math.sin(time * 0.035) * 0.08;
 }
 
 export const cameraEmotionManager = {
