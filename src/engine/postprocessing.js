@@ -9,9 +9,9 @@ export function createPostProcessing({ renderer, scene, camera }) {
   const renderPass = new RenderPass(scene, camera);
   const bloomPass = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.44,
-    0.28,
-    0.48
+    0.34,
+    0.18,
+    0.56
   );
   const outputPass = new OutputPass();
 

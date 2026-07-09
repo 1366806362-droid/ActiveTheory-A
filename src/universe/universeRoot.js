@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createAtmosphereLayer } from './atmosphereLayer.js';
 import { createEnergyCore } from './core.js';
+import { createGalaxyPlanets } from './galaxyPlanets.js';
 import { getInteractionState } from './interaction.js';
 import { createNodeSystem } from './nodeSystem.js';
 import { createParticleField } from './particleField.js';
@@ -9,6 +10,7 @@ const universeState = {
   root: null,
   atmosphereLayer: null,
   energyCore: null,
+  galaxyPlanets: null,
   nodeSystem: null,
   particleField: null
 };
@@ -17,15 +19,18 @@ export function createUniverseRoot() {
   const root = new THREE.Group();
   const atmosphereLayer = createAtmosphereLayer();
   const energyCore = createEnergyCore();
+  const galaxyPlanets = createGalaxyPlanets();
   const nodeSystem = createNodeSystem();
   const particleField = createParticleField();
 
   root.name = 'ActiveTheoryUniverseRoot';
-  root.add(atmosphereLayer.points, particleField.points, nodeSystem.group, energyCore.group);
+  nodeSystem.group.visible = false;
+  root.add(atmosphereLayer.points, particleField.points, galaxyPlanets.group, energyCore.group);
 
   universeState.root = root;
   universeState.atmosphereLayer = atmosphereLayer;
   universeState.energyCore = energyCore;
+  universeState.galaxyPlanets = galaxyPlanets;
   universeState.nodeSystem = nodeSystem;
   universeState.particleField = particleField;
 
@@ -33,8 +38,12 @@ export function createUniverseRoot() {
     root,
     atmosphereLayer,
     energyCore,
+    galaxyPlanets,
     nodeSystem,
     particleCount: particleField.count,
+    getPlanetWorldPosition(name, target) {
+      return galaxyPlanets.getPlanetWorldPosition(name, target);
+    },
     update: updateUniverseRoot,
     dispose: disposeUniverseRoot
   };
@@ -49,7 +58,7 @@ export function updateUniverseRoot(renderState, delta, time) {
 
   universeState.atmosphereLayer.update(delta, time);
   universeState.particleField.update(delta, time, interaction);
-  universeState.nodeSystem.update(delta, time);
+  universeState.galaxyPlanets.update(delta, time);
   universeState.energyCore.update(delta, time, interaction);
   universeState.root.rotation.y = Math.sin(time * 0.025) * 0.035;
   universeState.root.position.x = interaction.parallaxX * 0.06;
@@ -63,6 +72,10 @@ export function disposeUniverseRoot() {
 
   if (universeState.energyCore) {
     universeState.energyCore.dispose();
+  }
+
+  if (universeState.galaxyPlanets) {
+    universeState.galaxyPlanets.dispose();
   }
 
   if (universeState.particleField) {
@@ -80,6 +93,7 @@ export function disposeUniverseRoot() {
   universeState.root = null;
   universeState.atmosphereLayer = null;
   universeState.energyCore = null;
+  universeState.galaxyPlanets = null;
   universeState.nodeSystem = null;
   universeState.particleField = null;
 }

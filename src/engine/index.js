@@ -52,8 +52,11 @@ export function initializeEngine() {
   initializeCamera(renderer);
   const camera = getCamera();
   const brandMaterial = createBrandMaterial();
-  const { scene, cube, environment } = createScene(brandMaterial);
+  const { scene, cube, ground, grid, background, environment } = createScene(brandMaterial);
   cube.visible = false;
+  ground.visible = false;
+  grid.visible = false;
+  background.visible = false;
   environment.visible = false;
 
   registerScene('mainScene', scene);
@@ -74,7 +77,7 @@ export function initializeEngine() {
   initializeAtmosphereSystem();
   initializeCohesionSystem();
 
-  app.replaceChildren(renderer.domElement, heroScene.overlay);
+  app.replaceChildren(renderer.domElement, heroScene.overlay, heroScene.scrollHint);
   const postProcessing = createPostProcessing({
     renderer,
     scene: activeScene,

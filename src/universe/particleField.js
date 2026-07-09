@@ -3,13 +3,13 @@ import * as THREE from 'three';
 const LAYERS = [
   {
     name: 'near',
-    count: 320,
+    count: 52,
     width: 18,
     height: 10,
     zMin: 1.6,
     zMax: 8,
-    size: 0.058,
-    opacity: 0.22,
+    size: 0.046,
+    opacity: 0.1,
     speed: 0.006,
     interaction: 0.42,
     fieldRadius: 3.4,
@@ -20,13 +20,13 @@ const LAYERS = [
   },
   {
     name: 'mid',
-    count: 1500,
-    width: 30,
-    height: 16,
+    count: 300,
+    width: 24,
+    height: 13,
     zMin: -16,
     zMax: 2,
-    size: 0.032,
-    opacity: 0.32,
+    size: 0.02,
+    opacity: 0.12,
     speed: 0.014,
     interaction: 0.22,
     fieldRadius: 5.2,
@@ -37,14 +37,14 @@ const LAYERS = [
   },
   {
     name: 'far',
-    count: 1400,
-    width: 46,
-    height: 24,
+    count: 2200,
+    width: 68,
+    height: 36,
     zMin: -44,
     zMax: -14,
-    size: 0.018,
-    opacity: 0.24,
-    speed: 0.022,
+    size: 0.0055,
+    opacity: 0.08,
+    speed: 0.01,
     interaction: 0.08,
     fieldRadius: 7.4,
     gravity: 0.12,
@@ -108,17 +108,18 @@ function createParticleLayer(layer, seed) {
   const baseColor = new THREE.Color(0x102b4c);
   const accentColor = new THREE.Color(0x00ccff);
   const hazeColor = new THREE.Color(0x4f7fa8);
+  const particleTexture = createSoftParticleTexture();
 
   for (let i = 0; i < layer.count; i += 1) {
     const i3 = i * 3;
     const depth = random();
-    const cluster = Math.pow(random(), 4);
-    const spread = 0.55 + random() * 0.75;
+    const cluster = layer.name === 'mid' ? Math.pow(random(), 3.1) : Math.pow(random(), 4.6);
+    const spread = layer.name === 'far' ? 0.96 + random() * 0.72 : 0.5 + random() * 0.65;
     const x = (random() - 0.5) * layer.width * spread;
     const y = (random() - 0.5) * layer.height * spread;
 
-    positions[i3] = x + Math.sin(depth * Math.PI * 7) * cluster * 2.2;
-    positions[i3 + 1] = y + Math.cos(depth * Math.PI * 5) * cluster * 1.1;
+    positions[i3] = x + Math.sin(depth * Math.PI * 7) * cluster * (layer.name === 'mid' ? 2.0 : 1.55);
+    positions[i3 + 1] = y + Math.cos(depth * Math.PI * 5) * cluster * (layer.name === 'mid' ? 1.0 : 0.8);
     positions[i3 + 2] = layer.zMin + random() * (layer.zMax - layer.zMin);
     basePositions[i3] = positions[i3];
     basePositions[i3 + 1] = positions[i3 + 1];
@@ -127,13 +128,13 @@ function createParticleLayer(layer, seed) {
 
     color.copy(baseColor).lerp(hazeColor, random() * 0.3);
 
-    if (layer.name === 'near' && random() > 0.86) {
-      color.lerp(accentColor, 0.36 + random() * 0.34);
+    if (layer.name === 'near' && random() > 0.9) {
+      color.lerp(accentColor, 0.28 + random() * 0.24);
     } else if (random() > 0.94) {
-      color.lerp(accentColor, 0.16 + random() * 0.18);
+      color.lerp(accentColor, 0.12 + random() * 0.14);
     }
 
-    const depthFade = layer.name === 'near' ? 0.34 + depth * 0.42 : 0.18 + depth * 0.34;
+    const depthFade = layer.name === 'far' ? 0.045 + depth * 0.085 : layer.name === 'near' ? 0.18 + depth * 0.3 : 0.1 + depth * 0.18;
     colors[i3] = color.r * depthFade;
     colors[i3 + 1] = color.g * depthFade;
     colors[i3 + 2] = color.b * depthFade;
@@ -146,6 +147,7 @@ function createParticleLayer(layer, seed) {
   const material = new THREE.PointsMaterial({
     size: layer.size,
     sizeAttenuation: true,
+    map: particleTexture,
     vertexColors: true,
     transparent: true,
     opacity: layer.opacity,
@@ -184,7 +186,7 @@ function createParticleLayer(layer, seed) {
     points.position.x = Math.sin(time * (0.035 + index * 0.01)) * 0.24 + influenceX * layer.interaction * 0.38;
     points.position.y = 1.2 + Math.sin(time * (0.028 + index * 0.008)) * 0.1 + influenceY * layer.interaction * 0.2;
     points.position.z = -5 + Math.sin(time * (0.022 + index * 0.006)) * (0.45 + index * 0.18);
-    material.opacity = layer.opacity + active * layer.interaction * 0.08;
+    material.opacity = layer.opacity + active * layer.interaction * 0.025;
 
     for (let i = 0; i < layer.count; i += 1) {
       const i3 = i * 3;
@@ -273,6 +275,7 @@ function createParticleLayer(layer, seed) {
   function dispose() {
     geometry.dispose();
     material.dispose();
+    particleTexture.dispose();
   }
 
   return {
@@ -281,6 +284,29 @@ function createParticleLayer(layer, seed) {
     update,
     dispose
   };
+}
+
+function createSoftParticleTexture() {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  const size = 64;
+  const center = size * 0.5;
+  const gradient = context.createRadialGradient(center, center, 0, center, center, center);
+
+  canvas.width = size;
+  canvas.height = size;
+  gradient.addColorStop(0, 'rgba(255,255,255,0.82)');
+  gradient.addColorStop(0.22, 'rgba(190,245,255,0.48)');
+  gradient.addColorStop(0.55, 'rgba(88,202,255,0.14)');
+  gradient.addColorStop(1, 'rgba(0,0,0,0)');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, size, size);
+
+  const texture = new THREE.CanvasTexture(canvas);
+
+  texture.needsUpdate = true;
+
+  return texture;
 }
 
 export const particleFieldManager = {

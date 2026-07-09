@@ -83,6 +83,28 @@ canvas {
   font-weight: 700;
 }
 
+.hero-scroll-hint {
+  position: fixed;
+  left: clamp(24px, 5vw, 72px);
+  bottom: clamp(24px, 5vh, 52px);
+  z-index: 2;
+  color: rgba(137, 229, 255, 0.58);
+  font: 700 10px/1 Inter, ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.18em;
+  pointer-events: none;
+  text-transform: uppercase;
+  transition: opacity 180ms linear;
+}
+
+.hero-scroll-hint::after {
+  display: block;
+  width: 68px;
+  height: 1px;
+  margin-top: 12px;
+  background: linear-gradient(90deg, rgba(116, 230, 255, 0.5), rgba(116, 230, 255, 0));
+  content: '';
+}
+
 @media (max-width: 680px) {
   .hero-copy__status-list {
     grid-template-columns: 1fr;
