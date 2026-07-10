@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 
 export const renderState = {
+  backgroundColor: '#020716',
   fogColor: '#020308',
   fogNear: 1.2,
   fogFar: 6.5,
@@ -39,6 +40,7 @@ export const renderState = {
     y: 1.8,
     z: 3.6
   },
+  cameraFov: 60,
   cameraOffset: {
     x: 0,
     y: 0,
@@ -67,7 +69,7 @@ const renderTargets = {
 };
 
 const reusableColors = {
-  background: new THREE.Color('#000000'),
+  background: new THREE.Color(renderState.backgroundColor),
   fog: new THREE.Color(renderState.fogColor),
   cube: new THREE.Color(renderState.cubeColor),
   emissive: new THREE.Color('#0a2a4a'),
@@ -94,6 +96,7 @@ export function initializeRenderState({ scene, camera, renderer, cube, lights })
   }
 
   if (scene) {
+    reusableColors.background.set(renderState.backgroundColor);
     scene.background = reusableColors.background;
     scene.fog = new THREE.Fog(reusableColors.fog, renderState.fogNear, renderState.fogFar);
 
@@ -124,6 +127,7 @@ export function applyRenderState(state, time = 0) {
   }
 
   if (scene) {
+    reusableColors.background.set(state.backgroundColor);
     scene.background = reusableColors.background;
 
     if (scene.fog) {
@@ -153,6 +157,11 @@ export function applyRenderState(state, time = 0) {
   }
 
   if (camera && cube) {
+    if (Math.abs(camera.fov - state.cameraFov) > 0.001) {
+      camera.fov = state.cameraFov;
+      camera.updateProjectionMatrix();
+    }
+
     camera.position.set(
       state.cameraPosition.x + state.cameraOffset.x,
       state.cameraPosition.y + state.cameraOffset.y,

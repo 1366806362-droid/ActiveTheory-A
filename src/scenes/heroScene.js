@@ -8,28 +8,36 @@ export function createHeroScene() {
   const group = new THREE.Group();
   const universeRoot = createUniverseRoot();
   const { overlay, scrollHint } = createHeroOverlay();
+  const debugMainGalaxyOnly = readDebugFlag('debugMainGalaxyOnly', false);
 
   group.name = 'HeroScene';
   group.add(universeRoot.root);
+  overlay.style.display = debugMainGalaxyOnly ? 'none' : '';
+  scrollHint.style.display = debugMainGalaxyOnly ? 'none' : '';
 
   function update(renderState, delta, time, sceneProgress) {
-    const exitProgress = smoothstep(0.08, 0.34, sceneProgress);
-    const heroPresence = 1 - exitProgress;
+    const heroPresence = 1 - smoothstep(0.68, 0.97, sceneProgress);
+    const brandCoreDeparture = smoothstep(0.34, 0.9, sceneProgress);
+    const sceneDeparture = smoothstep(0.9, 0.99, sceneProgress);
 
-    updateUniverseRoot(renderState, delta, time);
+    updateUniverseRoot(renderState, delta, time, sceneProgress);
+    // The core update restores its idle pose each frame. Apply departure as an
+    // absolute transform so scroll progress cannot compound over time.
+    universeRoot.energyCore.group.scale.multiplyScalar(1 - brandCoreDeparture * 0.46);
+    universeRoot.energyCore.group.position.x = 0.46 - brandCoreDeparture * 0.3;
+    universeRoot.energyCore.group.position.z = -brandCoreDeparture * 0.68;
+    universeRoot.energyCore.group.visible = brandCoreDeparture < 0.98;
     renderState.cameraOffset.x += (0.12 + Math.sin(time * 0.032) * 0.14) * heroPresence;
     renderState.cameraOffset.y += (0.03 + Math.sin(time * 0.024 + 0.7) * 0.055) * heroPresence;
     renderState.cameraOffset.z += (0.34 - Math.sin(time * 0.02) * 0.08) * heroPresence;
     renderState.cameraOffset.targetX += 0.18 * heroPresence;
     renderState.cameraOffset.targetY += (0.02 + Math.sin(time * 0.028) * 0.045) * heroPresence;
-    group.position.set(0, exitProgress * 0.35, -exitProgress * 2.8);
-    group.rotation.set(0, -exitProgress * 0.16, 0);
-    group.scale.setScalar(1 - exitProgress * 0.08);
-    renderState.cameraOffset.z -= exitProgress * 0.86;
-    renderState.cameraOffset.targetY += exitProgress * 0.1;
-    overlay.style.opacity = String(1 - smoothstep(0.03, 0.22, sceneProgress));
-    overlay.style.transform = `translate3d(0, ${-exitProgress * 18}px, 0)`;
-    scrollHint.style.opacity = String(1 - smoothstep(0.02, 0.16, sceneProgress));
+    group.position.set(0, 0, -sceneDeparture * 0.9);
+    group.rotation.set(0, 0, 0);
+    group.scale.setScalar(1 - sceneDeparture * 0.82);
+    overlay.style.opacity = String(1 - smoothstep(0.06, 0.4, sceneProgress));
+    overlay.style.transform = `translate3d(0, ${-smoothstep(0.06, 0.4, sceneProgress) * 14}px, 0)`;
+    scrollHint.style.opacity = String(1 - smoothstep(0.02, 0.18, sceneProgress));
   }
 
   function dispose() {
@@ -47,6 +55,9 @@ export function createHeroScene() {
     universeRoot,
     getPlanetWorldPosition(name, target) {
       return universeRoot.getPlanetWorldPosition(name, target);
+    },
+    setPlanetEntryProgress(name, progress) {
+      universeRoot.setPlanetEntryProgress(name, progress);
     },
     update,
     dispose
@@ -82,6 +93,16 @@ function smoothstep(edge0, edge1, value) {
   const x = Math.min(Math.max((value - edge0) / (edge1 - edge0), 0), 1);
 
   return x * x * (3 - 2 * x);
+}
+
+function readDebugFlag(name, fallback) {
+  const params = new URLSearchParams(window.location.search);
+
+  if (!params.has(name)) {
+    return fallback;
+  }
+
+  return params.get(name) !== '0' && params.get(name) !== 'false';
 }
 
 export const heroSceneManager = {

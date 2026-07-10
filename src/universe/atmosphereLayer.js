@@ -96,35 +96,26 @@ export function createAtmosphereLayer() {
 function createDistantGalaxyLayers() {
   const galaxyGeometry = new THREE.PlaneGeometry(10, 5);
   const clusterGeometry = new THREE.PlaneGeometry(7, 4);
-  const materialA = createDistantGalaxyMaterial(0x3678d8, 0x8a5cff, 0.22, 0.4);
-  const materialB = createDistantGalaxyMaterial(0x234f9a, 0x6d48b8, 0.18, 1.9);
-  const materialC = createDistantClusterMaterial(0x8bd8ff, 0x5040a0, 0.13, 3.2);
+  const materialA = createDistantGalaxyMaterial(0x2b6fc0, 0x6548a8, 0.055, 0.4);
+  const materialC = createDistantClusterMaterial(0x8bd8ff, 0x5040a0, 0.1, 3.2);
   const galaxyA = new THREE.Mesh(galaxyGeometry, materialA);
-  const galaxyB = new THREE.Mesh(galaxyGeometry, materialB);
   const cluster = new THREE.Mesh(clusterGeometry, materialC);
 
   galaxyA.name = 'HeroFarSpiralGalaxyA';
-  galaxyB.name = 'HeroFarSpiralGalaxyB';
   cluster.name = 'HeroFarStarCluster';
-  galaxyA.position.set(-6.8, 3.0, -26);
-  galaxyB.position.set(7.7, 1.35, -30);
+  galaxyA.position.set(-7.6, 3.35, -38);
   cluster.position.set(-5.2, -2.2, -28);
   galaxyA.rotation.z = -0.34;
-  galaxyB.rotation.z = 0.18;
   cluster.rotation.z = 0.12;
-  galaxyA.scale.set(1.48, 0.96, 1);
-  galaxyB.scale.set(1.12, 0.84, 1);
+  galaxyA.scale.set(2.35, 1.48, 1);
   cluster.scale.set(1.62, 1.02, 1);
 
   function update(delta, time) {
     materialA.uniforms.uTime.value = time;
-    materialB.uniforms.uTime.value = time;
     materialC.uniforms.uTime.value = time;
-    materialA.uniforms.uOpacity.value = 0.18 + Math.sin(time * 0.014) * 0.018;
-    materialB.uniforms.uOpacity.value = 0.135 + Math.sin(time * 0.011 + 1.7) * 0.014;
-    materialC.uniforms.uOpacity.value = 0.095 + Math.sin(time * 0.017 + 2.4) * 0.012;
-    galaxyA.rotation.z += delta * 0.002;
-    galaxyB.rotation.z -= delta * 0.0015;
+    materialA.uniforms.uOpacity.value = 0.038 + Math.sin(time * 0.014) * 0.006;
+    materialC.uniforms.uOpacity.value = 0.08 + Math.sin(time * 0.017 + 2.4) * 0.01;
+    galaxyA.rotation.z += delta * 0.0006;
     cluster.rotation.z += delta * 0.001;
   }
 
@@ -132,19 +123,18 @@ function createDistantGalaxyLayers() {
     galaxyGeometry.dispose();
     clusterGeometry.dispose();
     materialA.dispose();
-    materialB.dispose();
     materialC.dispose();
   }
 
   return {
-    meshes: [galaxyA, galaxyB, cluster],
+    meshes: [galaxyA, cluster],
     update,
     dispose
   };
 }
 
 function createDeepSpaceGradient() {
-  const geometry = new THREE.PlaneGeometry(44, 26);
+  const geometry = new THREE.SphereGeometry(55, 32, 18);
   const material = new THREE.ShaderMaterial({
     uniforms: {
       uTime: { value: 0 },
@@ -201,13 +191,15 @@ function createDeepSpaceGradient() {
     transparent: true,
     depthWrite: false,
     depthTest: false,
+    side: THREE.BackSide,
     fog: false
   });
   const mesh = new THREE.Mesh(geometry, material);
 
   mesh.name = 'HeroDeepSpaceGradient';
-  mesh.position.set(1.4, 0.2, -24);
+  mesh.position.set(0, 0, 0);
   mesh.rotation.z = -0.04;
+  mesh.renderOrder = -100;
 
   function update(time) {
     material.uniforms.uTime.value = time;
@@ -282,6 +274,7 @@ function createDistantGalaxyMaterial(colorA, colorB, opacity, seed) {
     transparent: true,
     depthWrite: false,
     depthTest: false,
+    side: THREE.DoubleSide,
     blending: THREE.AdditiveBlending,
     fog: false
   });
@@ -336,6 +329,7 @@ function createDistantClusterMaterial(colorA, colorB, opacity, seed) {
     transparent: true,
     depthWrite: false,
     depthTest: false,
+    side: THREE.DoubleSide,
     blending: THREE.AdditiveBlending,
     fog: false
   });
@@ -344,48 +338,38 @@ function createDistantClusterMaterial(colorA, colorB, opacity, seed) {
 function createNebulaLayers() {
   const geometry = new THREE.PlaneGeometry(14, 8);
   const wideGeometry = new THREE.PlaneGeometry(26, 7);
-  const materialA = createProceduralNebulaMaterial(0x176fb8, 0x03142d, 0.44, 0.9);
-  const materialB = createProceduralNebulaMaterial(0x254fb0, 0x030a1e, 0.32, 1.7);
-  const materialC = createProceduralNebulaMaterial(0x54339a, 0x030817, 0.26, 2.4);
+  const materialA = createProceduralNebulaMaterial(0x176fb8, 0x03142d, 0.22, 0.9);
+  const materialC = createProceduralNebulaMaterial(0x54339a, 0x030817, 0.24, 2.4);
   const meshA = new THREE.Mesh(geometry, materialA);
-  const meshB = new THREE.Mesh(geometry, materialB);
   const meshC = new THREE.Mesh(wideGeometry, materialC);
 
   meshA.name = 'HeroDeepBlueNebulaA';
-  meshB.name = 'HeroDeepBlueNebulaB';
   meshC.name = 'HeroDistantGalaxyMist';
-  meshA.position.set(2.6, 0.05, -11.5);
-  meshB.position.set(-4.0, 1.35, -15);
+  meshA.position.set(2.4, -0.3, -16);
   meshC.position.set(1.2, -0.35, -21);
   meshA.rotation.z = -0.18;
-  meshB.rotation.z = 0.26;
   meshC.rotation.z = -0.08;
-  meshA.scale.set(1.08, 1, 1);
-  meshB.scale.set(1.45, 1.02, 1);
+  meshA.scale.set(1.75, 1.36, 1);
   meshC.scale.set(1.16, 1.05, 1);
 
   function update(delta, time) {
-    meshA.rotation.z = -0.18 + Math.sin(time * 0.018) * 0.025;
-    meshB.rotation.z = 0.26 + Math.sin(time * 0.014 + 1.2) * 0.02;
+    meshA.rotation.z = -0.18 + Math.sin(time * 0.018) * 0.012;
     meshC.rotation.z = -0.08 + Math.sin(time * 0.01 + 0.4) * 0.012;
     materialA.uniforms.uTime.value = time;
-    materialB.uniforms.uTime.value = time;
     materialC.uniforms.uTime.value = time;
-    materialA.uniforms.uOpacity.value = 0.39 + Math.sin(time * 0.035) * 0.028;
-    materialB.uniforms.uOpacity.value = 0.28 + Math.sin(time * 0.028 + 1.4) * 0.022;
-    materialC.uniforms.uOpacity.value = 0.22 + Math.sin(time * 0.018 + 0.8) * 0.018;
+    materialA.uniforms.uOpacity.value = 0.18 + Math.sin(time * 0.035) * 0.012;
+    materialC.uniforms.uOpacity.value = 0.2 + Math.sin(time * 0.018 + 0.8) * 0.014;
   }
 
   function dispose() {
     geometry.dispose();
     wideGeometry.dispose();
     materialA.dispose();
-    materialB.dispose();
     materialC.dispose();
   }
 
   return {
-    meshes: [meshA, meshB, meshC],
+    meshes: [meshA, meshC],
     update,
     dispose
   };
@@ -479,6 +463,7 @@ function createProceduralNebulaMaterial(colorA, colorB, opacity, seed) {
     `,
     transparent: true,
     depthWrite: false,
+    side: THREE.DoubleSide,
     blending: THREE.AdditiveBlending,
     fog: false
   });

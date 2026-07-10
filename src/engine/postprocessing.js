@@ -14,18 +14,22 @@ export function createPostProcessing({ renderer, scene, camera }) {
     0.56
   );
   const outputPass = new OutputPass();
+  const showBloom = readDebugFlag('debugMainGalaxyOnly', false)
+    ? false
+    : readDebugFlag('showBloom', true);
 
-  composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  composer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   composer.setSize(window.innerWidth, window.innerHeight);
   composer.addPass(renderPass);
   composer.addPass(bloomPass);
   composer.addPass(outputPass);
+  bloomPass.enabled = showBloom;
 
   function resizePostProcessing() {
     const width = window.innerWidth;
     const height = window.innerHeight;
 
-    composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    composer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     composer.setSize(width, height);
     bloomPass.setSize(width, height);
   }
@@ -47,3 +51,13 @@ export function createPostProcessing({ renderer, scene, camera }) {
 export const postProcessingManager = {
   createPostProcessing
 };
+
+function readDebugFlag(name, fallback) {
+  const params = new URLSearchParams(window.location.search);
+
+  if (!params.has(name)) {
+    return fallback;
+  }
+
+  return params.get(name) !== '0' && params.get(name) !== 'false';
+}

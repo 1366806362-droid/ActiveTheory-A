@@ -44,7 +44,11 @@ import {
 } from '../universe/interaction.js';
 import { createSceneManager } from '../world/sceneManager.js';
 
+const ENGINE_INSTANCE_KEY = '__ACTIVE_THEORY_ENGINE__';
+
 export function initializeEngine() {
+  window[ENGINE_INSTANCE_KEY]?.dispose();
+
   const app = document.querySelector('#app');
   initializeIdentitySystem();
 
@@ -103,8 +107,14 @@ export function initializeEngine() {
     ]
   });
 
-  if (import.meta.hot) {
-    import.meta.hot.dispose(() => {
+  let isDisposed = false;
+  const engineInstance = {
+    dispose() {
+      if (isDisposed) {
+        return;
+      }
+
+      isDisposed = true;
       stopEngineLoop();
       interaction.dispose();
       sceneManager.dispose();
@@ -112,6 +122,18 @@ export function initializeEngine() {
       postProcessing.dispose();
       renderer.dispose();
       renderer.domElement.remove();
+    }
+  };
+
+  window[ENGINE_INSTANCE_KEY] = engineInstance;
+
+  if (import.meta.hot) {
+    import.meta.hot.dispose(() => {
+      engineInstance.dispose();
+
+      if (window[ENGINE_INSTANCE_KEY] === engineInstance) {
+        window[ENGINE_INSTANCE_KEY] = null;
+      }
     });
   }
 }

@@ -37,7 +37,7 @@ const LAYERS = [
   },
   {
     name: 'far',
-    count: 2200,
+    count: 1500,
     width: 68,
     height: 36,
     zMin: -44,
@@ -109,6 +109,8 @@ function createParticleLayer(layer, seed) {
   const accentColor = new THREE.Color(0x00ccff);
   const hazeColor = new THREE.Color(0x4f7fa8);
   const particleTexture = createSoftParticleTexture();
+  let updateFrame = 0;
+  let offsetsSettled = true;
 
   for (let i = 0; i < layer.count; i += 1) {
     const i3 = i * 3;
@@ -179,6 +181,10 @@ function createParticleLayer(layer, seed) {
     const offsetFollow = damping(8.5, delta);
     const recoverFollow = damping(layer.recover, delta);
     const drag = Math.exp(-layer.drag * delta);
+    const trailStep = layer.name === 'near' ? 1 : layer.name === 'mid' ? 2 : 4;
+    let activeTrailLength = 0;
+
+    updateFrame += 1;
 
     points.rotation.y += delta * layer.speed;
     points.rotation.x = -0.08 + Math.sin(time * (0.06 + index * 0.02)) * 0.014 + influenceY * layer.interaction * 0.035;
@@ -187,6 +193,53 @@ function createParticleLayer(layer, seed) {
     points.position.y = 1.2 + Math.sin(time * (0.028 + index * 0.008)) * 0.1 + influenceY * layer.interaction * 0.2;
     points.position.z = -5 + Math.sin(time * (0.022 + index * 0.006)) * (0.45 + index * 0.18);
     material.opacity = layer.opacity + active * layer.interaction * 0.025;
+
+    for (let j = trailLength - 1; j >= 0; j -= 1) {
+      if (trailLife[j] > 0.01) {
+        activeTrailLength = j + 1;
+        break;
+      }
+    }
+
+    // The far field is visual atmosphere, not a direct interaction surface.
+    // Updating it every other frame preserves the depth cue at a fraction of the cost.
+    if (layer.name === 'far' && updateFrame % 2 === 1 && active < 0.02 && activeTrailLength === 0) {
+      return;
+    }
+
+    if (active < 0.02 && activeTrailLength === 0) {
+      if (offsetsSettled) {
+        return;
+      }
+
+      let maxOffsetSq = 0;
+
+      for (let i = 0; i < layer.count; i += 1) {
+        const i3 = i * 3;
+
+        velocities[i3] *= drag;
+        velocities[i3 + 1] *= drag;
+        velocities[i3 + 2] *= drag;
+        offsets[i3] += (0 - offsets[i3]) * recoverFollow;
+        offsets[i3 + 1] += (0 - offsets[i3 + 1]) * recoverFollow;
+        offsets[i3 + 2] += (0 - offsets[i3 + 2]) * recoverFollow;
+        maxOffsetSq = Math.max(
+          maxOffsetSq,
+          offsets[i3] * offsets[i3] +
+            offsets[i3 + 1] * offsets[i3 + 1] +
+            offsets[i3 + 2] * offsets[i3 + 2]
+        );
+        positionArray[i3] = basePositions[i3] + offsets[i3];
+        positionArray[i3 + 1] = basePositions[i3 + 1] + offsets[i3 + 1];
+        positionArray[i3 + 2] = basePositions[i3 + 2] + offsets[i3 + 2];
+      }
+
+      offsetsSettled = maxOffsetSq < 0.000001;
+      positionAttribute.needsUpdate = true;
+      return;
+    }
+
+    offsetsSettled = false;
 
     for (let i = 0; i < layer.count; i += 1) {
       const i3 = i * 3;
@@ -219,7 +272,7 @@ function createParticleLayer(layer, seed) {
       offsets[i3 + 1] += (targetOffsetY - offsets[i3 + 1]) * offsetFollow;
       offsets[i3 + 2] += (targetOffsetZ - offsets[i3 + 2]) * offsetFollow;
 
-      for (let j = 0; j < trailLength; j += 1) {
+      for (let j = 0; j < activeTrailLength; j += trailStep) {
         const life = trailLife[j];
 
         if (life < 0.01) {

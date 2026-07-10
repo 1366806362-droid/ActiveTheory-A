@@ -1,43 +1,513 @@
 import * as THREE from 'three';
+import { createGalaxyCoreCluster } from './galaxyCoreCluster.js';
 
-const PLANETS = [
+const TAU = Math.PI * 2;
+const NEBULAE = [
   {
-    name: 'GEO Universe',
-    color: 0x1b7dff,
-    accent: 0x72d8ff,
-    radius: 1.62,
-    zScale: 0.34,
-    size: 0.118,
-    speed: 0.046,
-    phase: 0.58,
-    offset: 0.12,
-    tilt: [0.04, -0.08, -0.04]
+    name: 'GEO Nebula',
+    label: 'GEO',
+    color: 0x00b8ff,
+    accent: 0xb8f6ff,
+    orbitRadius: 0.79,
+    orbitScaleY: 0.72,
+    size: 0.34,
+    period: 210,
+    spin: 0.052,
+    phase: 1.12,
+    depthScale: 0.22,
+    tilt: [0.384, 0.04, -0.14],
+    labelOffset: [0.03, 0.03, 0.08],
+    hoverX: 0.28,
+    hoverY: 0.12,
+    brightness: 1.05,
+    armCount: 2,
+    coreCount: 4
   },
   {
-    name: '5A Universe',
-    color: 0xffb84d,
-    accent: 0xffe1a3,
-    radius: 1.24,
-    zScale: 0.42,
-    size: 0.1,
-    speed: -0.034,
-    phase: 2.38,
-    offset: -0.06,
-    tilt: [-0.12, 0.2, 0.14]
+    name: '5A Nebula',
+    label: '5A',
+    color: 0x728bff,
+    accent: 0xd8e2ff,
+    orbitRadius: 0.68,
+    orbitScaleY: 0.42,
+    size: 0.32,
+    period: -260,
+    spin: -0.042,
+    phase: 5.25,
+    depthScale: 0.26,
+    tilt: [-0.524, -0.16, 0.28],
+    labelOffset: [-0.13, -0.15, 0.08],
+    hoverX: 0.24,
+    hoverY: -0.45,
+    brightness: 1.12,
+    armCount: 2,
+    coreCount: 4
   },
   {
-    name: 'Brand Mind Universe',
-    color: 0xa76bff,
-    accent: 0xe0c7ff,
-    radius: 1.96,
-    zScale: 0.3,
-    size: 0.106,
-    speed: 0.028,
-    phase: 4.42,
-    offset: 0.08,
-    tilt: [0.32, 0.1, 0.38]
+    name: 'Brand Mind Nebula',
+    label: '\u54c1\u724c\u5fc3\u667a',
+    color: 0xaa7cff,
+    accent: 0xf2e8ff,
+    orbitRadius: 0.66,
+    orbitScaleY: 0.54,
+    size: 0.31,
+    period: 300,
+    spin: 0.036,
+    phase: 2.86,
+    depthScale: 0.2,
+    tilt: [0.663, 0.08, 0.2],
+    labelOffset: [-0.12, 0.22, 0.08],
+    hoverX: -0.18,
+    hoverY: 0.24,
+    brightness: 0.82,
+    armCount: 2,
+    coreCount: 4
   }
 ];
+
+export function createGalaxyPlanets() {
+  const group = new THREE.Group();
+  const particleTexture = createNebulaParticleTexture();
+  const nebulae = NEBULAE.map((config, index) => (
+    createBusinessNebula(config, particleTexture, 9107 + index * 193)
+  ));
+  const targetPosition = new THREE.Vector3();
+  const entryState = {
+    name: null,
+    progress: 0
+  };
+
+  group.name = 'ActiveTheoryBusinessNebulae';
+  group.position.set(0.46, 0.04, 0);
+  group.rotation.set(-0.03, 0.02, 0);
+
+  nebulae.forEach((nebula) => {
+    group.add(nebula.group);
+  });
+
+  function update(delta, time, interaction) {
+    group.rotation.y = Math.sin(time * 0.012) * 0.025;
+    group.rotation.x = -0.03 + Math.sin(time * 0.01) * 0.014;
+
+    nebulae.forEach((nebula, index) => {
+      const isEntryTarget = nebula.name === entryState.name;
+
+      nebula.update(
+        delta,
+        time,
+        index,
+        isEntryTarget ? entryState.progress : 0,
+        entryState.progress,
+        isEntryTarget,
+        interaction
+      );
+    });
+  }
+
+  function dispose() {
+    nebulae.forEach((nebula) => {
+      nebula.dispose();
+    });
+    particleTexture.dispose();
+    group.clear();
+  }
+
+  return {
+    group,
+    getPlanetWorldPosition(name, target = targetPosition) {
+      const nebula = nebulae.find((candidate) => candidate.name === name);
+
+      if (!nebula) {
+        return null;
+      }
+
+      return nebula.nebulaGroup.getWorldPosition(target);
+    },
+    setPlanetEntryProgress(name, progress) {
+      entryState.name = name;
+      entryState.progress = Math.min(Math.max(progress, 0), 1);
+    },
+    setLabelsVisible(visible) {
+      nebulae.forEach((nebula) => nebula.setLabelVisible(visible));
+    },
+    update,
+    dispose
+  };
+}
+
+function createBusinessNebula(config, particleTexture, seed) {
+  const orbitalGroup = new THREE.Group();
+  const nebulaGroup = new THREE.Group();
+  const cluster = createNebulaCluster(config, particleTexture, seed);
+  const dust = createNebulaDust(config, particleTexture, seed + 37);
+  const nodes = createNebulaNodes(config, particleTexture, seed + 71);
+  const coreCluster = createGalaxyCoreCluster({
+    name: `${config.name.replace(/\s+/g, '')}CoreCluster`,
+    starCount: config.name === 'GEO Nebula' ? 84 : 70,
+    highlightCount: config.coreCount,
+    radius: config.size * 0.38,
+    coreColor: config.accent,
+    secondaryColors: [config.color, config.accent],
+    depthRange: config.size * 0.46,
+    bloomIntensity: config.name === 'GEO Nebula' ? 0.54 : 0.4,
+    pulseSpeed: 0.3 + seed % 7 * 0.006,
+    seed: seed + 107
+  });
+  const label = createNebulaLabel(config);
+  let orbitAngle = config.phase;
+
+  orbitalGroup.name = `${config.name.replace(/\s+/g, '')}Orbit`;
+  orbitalGroup.rotation.set(0, 0, 0);
+  nebulaGroup.name = config.name.replace(/\s+/g, '');
+  nebulaGroup.add(
+    dust.points,
+    cluster.points,
+    nodes.points,
+    coreCluster.group
+  );
+  orbitalGroup.add(nebulaGroup, label.sprite);
+
+  function update(delta, time, index, entryProgress, focusProgress, isEntryTarget, interaction) {
+    const freeze = smoothstep(0.05, 0.24, entryProgress);
+    const entryFocus = smoothstep(0.16, 0.66, entryProgress);
+    const angleSpeed = (TAU / Math.abs(config.period)) * Math.sign(config.period) * (1 - freeze);
+    const pulse = 0.5 + Math.sin(time * (0.46 + index * 0.05) + config.phase) * 0.5;
+    const dissolve = isEntryTarget
+      ? smoothstep(0.9, 1, entryProgress)
+      : 0;
+    const targetScale = 1 + entryFocus * 4.8;
+    const backgroundScale = 1 - smoothstep(0.35, 0.78, focusProgress) * 0.18;
+    const visibility = isEntryTarget
+      ? 1 - dissolve
+      : 1 - smoothstep(0.28, 0.72, focusProgress) * 0.96;
+    const labelVisibility = isEntryTarget
+      ? visibility * (1 - smoothstep(0.44, 0.68, entryProgress))
+      : visibility;
+    const hover = calculateHoverStrength(config, interaction);
+    const hoverBoost = 1 + hover * 0.14;
+    const entryBoost = isEntryTarget ? 1 + entryFocus * 0.72 : 1;
+    const visualBoost = hoverBoost * entryBoost;
+
+    orbitAngle += delta * angleSpeed * 0.18;
+    nebulaGroup.position.set(
+      Math.cos(orbitAngle) * config.orbitRadius,
+      Math.sin(orbitAngle) * config.orbitRadius * config.orbitScaleY,
+      Math.sin(orbitAngle) * config.orbitRadius * Math.sin(config.tilt[0])
+    );
+    nebulaGroup.scale.setScalar(isEntryTarget ? targetScale : backgroundScale);
+    nebulaGroup.rotation.z += delta * config.spin * 0.28 * (1 + hover * 0.12);
+    nebulaGroup.rotation.x = 0;
+    nebulaGroup.rotation.y = 0;
+    label.sprite.position.set(
+      nebulaGroup.position.x + config.labelOffset[0],
+      nebulaGroup.position.y + config.labelOffset[1],
+      nebulaGroup.position.z + config.labelOffset[2]
+    );
+    cluster.update(delta, time, pulse, visibility, entryFocus, visualBoost);
+    dust.update(delta, time, pulse, visibility, visualBoost);
+    nodes.update(delta, time, pulse, visibility, entryFocus, visualBoost);
+    coreCluster.update(delta, time, pulse, visibility, entryFocus, visualBoost);
+    label.update(labelVisibility, hover);
+  }
+
+  function dispose() {
+    cluster.dispose();
+    dust.dispose();
+    nodes.dispose();
+    coreCluster.dispose();
+    label.dispose();
+    orbitalGroup.clear();
+  }
+
+  return {
+    name: config.name,
+    group: orbitalGroup,
+    nebulaGroup,
+    setLabelVisible(visible) {
+      label.sprite.visible = visible;
+    },
+    update,
+    dispose
+  };
+}
+
+function createNebulaCluster(config, texture, seed) {
+  const mainArmCount = 96;
+  const auxiliaryArmCount = 36;
+  const count = mainArmCount + auxiliaryArmCount;
+  const random = seededRandom(seed);
+  const geometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const baseColor = new THREE.Color(config.color);
+  const accentColor = new THREE.Color(config.accent);
+  const color = new THREE.Color();
+
+  for (let i = 0; i < count; i += 1) {
+    const i3 = i * 3;
+    const auxiliary = i >= mainArmCount;
+    const localIndex = auxiliary ? i - mainArmCount : i;
+    const branchCount = auxiliary ? auxiliaryArmCount : mainArmCount;
+    const progress = (localIndex + random() * 0.8) / branchCount;
+    const radius = 0.018 + Math.pow(progress, auxiliary ? 1.18 : 1.04) * config.size;
+    const armAngle = auxiliary ? Math.PI + 0.62 : 0.2;
+    const spinAngle = Math.pow(progress, 0.86) * (auxiliary ? 2.05 : 2.85);
+    const cluster = Math.sin(progress * 22 + seed * 0.003) * 0.5 + 0.5;
+    const angularNoise = (random() - 0.5) * (auxiliary ? 0.22 : 0.11);
+    const radialNoise = (random() - 0.5) * config.size * (0.035 + progress * 0.08);
+    const angle = armAngle + spinAngle + angularNoise;
+    const noisyRadius = radius + radialNoise;
+    const thickness = config.size * (0.08 + (1 - progress) * 0.24 + cluster * 0.05);
+    const dropout = (cluster < 0.22 && random() < 0.6) || (auxiliary && random() < 0.3);
+
+    positions[i3] = Math.cos(angle) * noisyRadius;
+    positions[i3 + 1] = Math.sin(angle) * noisyRadius * 0.62;
+    positions[i3 + 2] = (random() - 0.5) * thickness;
+    color.copy(accentColor).lerp(baseColor, progress * 0.82);
+    const brightness = (auxiliary ? 0.3 : 0.94) * (0.72 + cluster * 0.42) * (dropout ? 0.08 : 1) * config.brightness;
+
+    colors[i3] = color.r * brightness;
+    colors[i3 + 1] = color.g * brightness;
+    colors[i3 + 2] = color.b * brightness;
+  }
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.computeBoundingSphere();
+
+  const material = new THREE.PointsMaterial({
+    size: 0.02,
+    sizeAttenuation: true,
+    map: texture,
+    alphaTest: 0.012,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.5,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    fog: false
+  });
+  const points = new THREE.Points(geometry, material);
+
+  points.name = `${config.name.replace(/\s+/g, '')}SpiralCluster`;
+
+  function update(delta, time, pulse, visibility, entryProgress, hoverBoost) {
+    points.rotation.z += delta * config.spin * 0.38;
+    points.rotation.y = Math.sin(time * 0.08 + config.phase) * 0.08;
+    material.opacity = (0.42 + pulse * 0.1 + entryProgress * 0.08) * visibility * hoverBoost * config.brightness;
+    material.size = (0.017 + pulse * 0.002 + entryProgress * 0.005) * (0.98 + (hoverBoost - 1) * 0.25);
+  }
+
+  function dispose() {
+    geometry.dispose();
+    material.dispose();
+  }
+
+  return { points, update, dispose };
+}
+
+function createNebulaDust(config, texture, seed) {
+  const count = 60;
+  const random = seededRandom(seed);
+  const geometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const color = new THREE.Color(config.color);
+
+  for (let i = 0; i < count; i += 1) {
+    const i3 = i * 3;
+    const radius = Math.pow(random(), 0.68) * config.size * 1.75;
+    const angle = random() * TAU;
+
+    positions[i3] = Math.cos(angle) * radius;
+    positions[i3 + 1] = Math.sin(angle) * radius * 0.72;
+    positions[i3 + 2] = (random() - 0.5) * config.size * 0.42;
+    const brightness = (0.42 + random() * 0.32) * config.brightness;
+
+    colors[i3] = color.r * brightness;
+    colors[i3 + 1] = color.g * brightness;
+    colors[i3 + 2] = color.b * brightness;
+  }
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  const material = new THREE.PointsMaterial({
+    size: 0.009,
+    sizeAttenuation: true,
+    map: texture,
+    alphaTest: 0.008,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.28,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    fog: false
+  });
+  const points = new THREE.Points(geometry, material);
+
+  function update(delta, time, pulse, visibility, hoverBoost) {
+    points.rotation.z -= delta * config.spin * 0.12;
+    material.opacity = (0.18 + pulse * 0.12) * visibility * (0.96 + (hoverBoost - 1) * 0.5) * config.brightness;
+  }
+
+  function dispose() {
+    geometry.dispose();
+    material.dispose();
+  }
+
+  return { points, update, dispose };
+}
+
+function createNebulaNodes(config, texture, seed) {
+  const count = 5;
+  const random = seededRandom(seed);
+  const geometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const accent = new THREE.Color(config.accent);
+
+  for (let i = 0; i < count; i += 1) {
+    const i3 = i * 3;
+    const arm = i % config.armCount;
+    const radius = config.size * (0.22 + random() * 0.7);
+    const angle = (arm / config.armCount) * TAU + radius * 15.5 + (random() - 0.5) * 0.24;
+
+    positions[i3] = Math.cos(angle) * radius;
+    positions[i3 + 1] = Math.sin(angle) * radius * 0.62;
+    positions[i3 + 2] = (random() - 0.5) * config.size * 0.2;
+    colors[i3] = accent.r;
+    colors[i3 + 1] = accent.g;
+    colors[i3 + 2] = accent.b;
+  }
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  const material = new THREE.PointsMaterial({
+    size: 0.038,
+    sizeAttenuation: true,
+    map: texture,
+    alphaTest: 0.015,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.7,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    fog: false
+  });
+  const points = new THREE.Points(geometry, material);
+
+  function update(delta, time, pulse, visibility, entryProgress, hoverBoost) {
+    points.rotation.z += delta * config.spin * 0.54;
+    material.opacity = (0.52 + pulse * 0.3 + entryProgress * 0.12) * visibility * hoverBoost * config.brightness;
+    material.size = (0.033 + pulse * 0.01 + entryProgress * 0.012) * (0.98 + (hoverBoost - 1) * 0.4);
+  }
+
+  function dispose() {
+    geometry.dispose();
+    material.dispose();
+  }
+
+  return { points, update, dispose };
+}
+
+function createNebulaLabel(config) {
+  const texture = createLabelTexture(config.label, config.accent);
+  const material = new THREE.SpriteMaterial({
+    map: texture,
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.36,
+    depthWrite: false,
+    depthTest: false,
+    fog: false
+  });
+  const sprite = new THREE.Sprite(material);
+
+  sprite.name = `${config.name.replace(/\s+/g, '')}Label`;
+  sprite.scale.set(0.48, 0.12, 1);
+
+  function update(visibility, hover) {
+    material.opacity = (0.68 + hover * 0.16) * visibility;
+    sprite.scale.set(0.48 + hover * 0.03, 0.12 + hover * 0.008, 1);
+  }
+
+  function dispose() {
+    texture.dispose();
+    material.dispose();
+  }
+
+  return { sprite, update, dispose };
+}
+
+function createLabelTexture(text, color) {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  const width = 512;
+  const height = 128;
+  const labelColor = new THREE.Color(color);
+
+  canvas.width = width;
+  canvas.height = height;
+  context.clearRect(0, 0, width, height);
+  context.font = '700 42px Inter, Arial, sans-serif';
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.letterSpacing = '4px';
+  context.shadowColor = `rgba(${Math.round(labelColor.r * 255)}, ${Math.round(labelColor.g * 255)}, ${Math.round(labelColor.b * 255)}, 0.45)`;
+  context.shadowBlur = 10;
+  context.fillStyle = `rgba(${Math.round(labelColor.r * 235 + 20)}, ${Math.round(labelColor.g * 235 + 20)}, ${Math.round(labelColor.b * 235 + 20)}, 0.9)`;
+  context.fillText(text, width * 0.5, height * 0.5);
+
+  const texture = new THREE.CanvasTexture(canvas);
+
+  texture.colorSpace = THREE.SRGBColorSpace;
+
+  return texture;
+}
+
+function calculateHoverStrength(config, interaction) {
+  if (!interaction) {
+    return 0;
+  }
+
+  const dx = interaction.x - config.hoverX;
+  const dy = interaction.y - config.hoverY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const hover = 1 - smoothstep(0.14, 0.48, distance);
+
+  return hover * interaction.active;
+}
+
+function smoothstep(edge0, edge1, value) {
+  const x = Math.min(Math.max((value - edge0) / (edge1 - edge0), 0), 1);
+
+  return x * x * (3 - 2 * x);
+}
+
+function createNebulaParticleTexture() {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  const size = 64;
+  const center = size * 0.5;
+  const gradient = context.createRadialGradient(center, center, 0, center, center, center);
+
+  canvas.width = size;
+  canvas.height = size;
+  gradient.addColorStop(0, 'rgba(255,255,255,1)');
+  gradient.addColorStop(0.22, 'rgba(220,245,255,0.94)');
+  gradient.addColorStop(0.58, 'rgba(96,175,255,0.38)');
+  gradient.addColorStop(1, 'rgba(0,0,0,0)');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, size, size);
+
+  const texture = new THREE.CanvasTexture(canvas);
+
+  texture.colorSpace = THREE.SRGBColorSpace;
+
+  return texture;
+}
 
 function seededRandom(seed) {
   let value = seed;
@@ -45,435 +515,6 @@ function seededRandom(seed) {
   return function random() {
     value = (value * 1664525 + 1013904223) % 4294967296;
     return value / 4294967296;
-  };
-}
-
-export function createGalaxyPlanets() {
-  const group = new THREE.Group();
-  const planets = PLANETS.map((config, index) => createGalaxyPlanet(config, 7022026 + index * 211));
-  const targetPosition = new THREE.Vector3();
-
-  group.name = 'ActiveTheoryHeroGalaxy';
-  group.position.set(0.5, 0.02, -0.08);
-  group.rotation.set(-0.03, 0.04, 0);
-  group.scale.setScalar(0.92);
-
-  planets.forEach((planet) => {
-    group.add(planet.group);
-  });
-
-  function update(delta, time) {
-    group.rotation.y = Math.sin(time * 0.018) * 0.035;
-    group.rotation.x = -0.03 + Math.sin(time * 0.012) * 0.018;
-
-    planets.forEach((planet, index) => {
-      planet.update(delta, time, index);
-    });
-  }
-
-  function dispose() {
-    planets.forEach((planet) => {
-      planet.dispose();
-    });
-    group.clear();
-  }
-
-  return {
-    group,
-    getPlanetWorldPosition(name, target = targetPosition) {
-      const planet = planets.find((candidate) => candidate.name === name);
-
-      if (!planet) {
-        return null;
-      }
-
-      return planet.planetGroup.getWorldPosition(target);
-    },
-    update,
-    dispose
-  };
-}
-
-function createGalaxyPlanet(config, seed) {
-  const orbitalGroup = new THREE.Group();
-  const planetGroup = new THREE.Group();
-  const shellGeometry = new THREE.SphereGeometry(config.size, 24, 16);
-  const coreGeometry = new THREE.IcosahedronGeometry(config.size * 0.56, 2);
-  const haloGeometry = new THREE.SphereGeometry(config.size * 1.65, 24, 12);
-  const color = new THREE.Color(config.color);
-  const accent = new THREE.Color(config.accent);
-  const shellMaterial = new THREE.MeshPhysicalMaterial({
-    color,
-    emissive: color,
-    emissiveIntensity: 0.2,
-    metalness: 0.08,
-    roughness: 0.16,
-    envMapIntensity: 0.7,
-    clearcoat: 1,
-    clearcoatRoughness: 0.08,
-    transparent: true,
-    opacity: 0.32,
-    transmission: 0.26,
-    thickness: 0.55,
-    ior: 1.48,
-    depthWrite: false,
-    side: THREE.DoubleSide
-  });
-  const coreMaterial = new THREE.MeshBasicMaterial({
-    color: accent,
-    transparent: true,
-    opacity: 0.28,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    wireframe: true,
-    fog: false
-  });
-  const haloMaterial = new THREE.MeshBasicMaterial({
-    color,
-    transparent: true,
-    opacity: 0.08,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    side: THREE.BackSide,
-    fog: false
-  });
-  const shell = new THREE.Mesh(shellGeometry, shellMaterial);
-  const core = new THREE.Mesh(coreGeometry, coreMaterial);
-  const halo = new THREE.Mesh(haloGeometry, haloMaterial);
-  const dust = createPlanetDust(config, seed);
-  const orbit = createGalaxyOrbit(config);
-  const orbitDust = createOrbitDust(config, seed + 41);
-  const connection = createCoreConnection(config);
-
-  orbitalGroup.name = `${config.name.replace(/\s+/g, '')}OrbitSystem`;
-  orbitalGroup.rotation.set(config.tilt[0], config.tilt[1], config.tilt[2]);
-  planetGroup.name = config.name.replace(/\s+/g, '');
-  planetGroup.add(halo, shell, core, dust.points);
-  orbitalGroup.add(orbit.lines, orbitDust.points, connection.lines, planetGroup);
-
-  function update(delta, time, index) {
-    const angle = config.phase + config.offset + time * config.speed;
-    const radiusPulse = Math.sin(time * 0.18 + config.phase) * 0.025;
-    const radius = config.radius + radiusPulse;
-    const yFloat = Math.sin(time * (0.2 + index * 0.035) + config.phase) * 0.045;
-    const pulse = 0.5 + Math.sin(time * (0.52 + index * 0.04) + config.phase) * 0.5;
-    const planetPosition = {
-      x: Math.cos(angle) * radius,
-      y: yFloat,
-      z: Math.sin(angle) * radius * config.zScale
-    };
-
-    planetGroup.position.set(planetPosition.x, planetPosition.y, planetPosition.z);
-    planetGroup.rotation.y += delta * (0.22 + index * 0.07);
-    planetGroup.rotation.x = Math.sin(time * 0.14 + config.phase) * 0.16;
-    shell.material.opacity = 0.23 + pulse * 0.09;
-    shell.material.emissiveIntensity = 0.14 + pulse * 0.1;
-    core.material.opacity = 0.2 + pulse * 0.14;
-    halo.material.opacity = 0.038 + pulse * 0.048;
-    dust.update(delta, time, pulse);
-    orbit.update(delta, time, pulse);
-    orbitDust.update(delta, time, pulse);
-    connection.update(time, pulse, planetPosition);
-  }
-
-  function dispose() {
-    shellGeometry.dispose();
-    coreGeometry.dispose();
-    haloGeometry.dispose();
-    shellMaterial.dispose();
-    coreMaterial.dispose();
-    haloMaterial.dispose();
-    dust.dispose();
-    orbit.dispose();
-    orbitDust.dispose();
-    connection.dispose();
-  }
-
-  return {
-    name: config.name,
-    group: orbitalGroup,
-    planetGroup,
-    update,
-    dispose
-  };
-}
-
-function createGalaxyOrbit(config) {
-  const segmentCount = 168;
-  const positions = [];
-  const colors = [];
-  const color = new THREE.Color(config.color);
-  const geometry = new THREE.BufferGeometry();
-
-  for (let i = 0; i < segmentCount; i += 1) {
-    const t0 = i / segmentCount;
-    const t1 = (i + 1) / segmentCount;
-    const angle0 = t0 * Math.PI * 2;
-    const angle1 = t1 * Math.PI * 2;
-    const breakPattern = Math.sin(angle0 * 4.0 + config.phase) + Math.sin(angle0 * 10.0 + config.radius) * 0.34;
-
-    if (breakPattern < -0.34 || i % 17 === 0) {
-      continue;
-    }
-
-    const r0 = config.radius + Math.sin(angle0 * 2.0 + config.phase) * 0.04;
-    const r1 = config.radius + Math.sin(angle1 * 2.0 + config.phase) * 0.04;
-    const y0 = Math.sin(angle0 * 2.0 + config.phase) * 0.045;
-    const y1 = Math.sin(angle1 * 2.0 + config.phase) * 0.045;
-
-    positions.push(
-      Math.cos(angle0) * r0,
-      y0,
-      Math.sin(angle0) * r0 * config.zScale,
-      Math.cos(angle1) * r1,
-      y1,
-      Math.sin(angle1) * r1 * config.zScale
-    );
-
-    for (let j = 0; j < 2; j += 1) {
-      colors.push(color.r * 0.42, color.g * 0.62, color.b);
-    }
-  }
-
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-  geometry.computeBoundingSphere();
-
-  const material = new THREE.LineBasicMaterial({
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.07,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    fog: false
-  });
-  const lines = new THREE.LineSegments(geometry, material);
-
-  function update(delta, time, pulse) {
-    lines.rotation.y += delta * config.speed * 0.18;
-    material.opacity = 0.044 + pulse * 0.032;
-  }
-
-  function dispose() {
-    geometry.dispose();
-    material.dispose();
-  }
-
-  return {
-    lines,
-    update,
-    dispose
-  };
-}
-
-function createOrbitDust(config, seed) {
-  const random = seededRandom(seed);
-  const count = 42;
-  const geometry = new THREE.BufferGeometry();
-  const positions = new Float32Array(count * 3);
-  const colors = new Float32Array(count * 3);
-  const angles = new Float32Array(count);
-  const radii = new Float32Array(count);
-  const phases = new Float32Array(count);
-  const color = new THREE.Color(config.color);
-  const accent = new THREE.Color(config.accent);
-  const particleColor = new THREE.Color();
-
-  for (let i = 0; i < count; i += 1) {
-    const i3 = i * 3;
-    const angle = random() * Math.PI * 2;
-    const radius = config.radius + (random() - 0.5) * 0.09;
-
-    angles[i] = angle;
-    radii[i] = radius;
-    phases[i] = random() * Math.PI * 2;
-    positions[i3] = Math.cos(angle) * radius;
-    positions[i3 + 1] = (random() - 0.5) * 0.08;
-    positions[i3 + 2] = Math.sin(angle) * radius * config.zScale;
-    particleColor.copy(color).lerp(accent, 0.24 + random() * 0.28);
-    colors[i3] = particleColor.r;
-    colors[i3 + 1] = particleColor.g;
-    colors[i3 + 2] = particleColor.b;
-  }
-
-  const positionAttribute = new THREE.BufferAttribute(positions, 3);
-
-  positionAttribute.setUsage(THREE.DynamicDrawUsage);
-  geometry.setAttribute('position', positionAttribute);
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  geometry.computeBoundingSphere();
-
-  const material = new THREE.PointsMaterial({
-    size: 0.008,
-    sizeAttenuation: true,
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.2,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    fog: false
-  });
-  const points = new THREE.Points(geometry, material);
-
-  function update(delta, time, pulse) {
-    const array = positionAttribute.array;
-    const flow = time * config.speed * 1.4;
-
-    for (let i = 0; i < count; i += 1) {
-      const i3 = i * 3;
-      const angle = angles[i] + flow + Math.sin(time * 0.12 + phases[i]) * 0.025;
-      const radius = radii[i] + Math.sin(time * 0.22 + phases[i]) * 0.035;
-
-      array[i3] = Math.cos(angle) * radius;
-      array[i3 + 1] = Math.sin(angle * 2.0 + phases[i]) * 0.045;
-      array[i3 + 2] = Math.sin(angle) * radius * config.zScale;
-    }
-
-    positionAttribute.needsUpdate = true;
-    material.opacity = 0.12 + pulse * 0.12;
-  }
-
-  function dispose() {
-    geometry.dispose();
-    material.dispose();
-  }
-
-  return {
-    points,
-    update,
-    dispose
-  };
-}
-
-function createCoreConnection(config) {
-  const geometry = new THREE.BufferGeometry();
-  const positions = new Float32Array(6);
-  const colors = new Float32Array(6);
-  const color = new THREE.Color(config.accent);
-
-  colors[0] = color.r * 0.55;
-  colors[1] = color.g * 0.55;
-  colors[2] = color.b * 0.55;
-  colors[3] = color.r;
-  colors[4] = color.g;
-  colors[5] = color.b;
-
-  const positionAttribute = new THREE.BufferAttribute(positions, 3);
-
-  positionAttribute.setUsage(THREE.DynamicDrawUsage);
-  geometry.setAttribute('position', positionAttribute);
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-  const material = new THREE.LineBasicMaterial({
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.045,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    fog: false
-  });
-  const lines = new THREE.LineSegments(geometry, material);
-
-  function update(time, pulse, planetPosition) {
-    const array = positionAttribute.array;
-    const breath = 0.88 + Math.sin(time * 0.34 + config.phase) * 0.06;
-
-    array[0] = 0;
-    array[1] = 0;
-    array[2] = 0;
-    array[3] = planetPosition.x * breath;
-    array[4] = planetPosition.y * breath;
-    array[5] = planetPosition.z * breath;
-    positionAttribute.needsUpdate = true;
-    material.opacity = 0.022 + pulse * 0.034;
-  }
-
-  function dispose() {
-    geometry.dispose();
-    material.dispose();
-  }
-
-  return {
-    lines,
-    update,
-    dispose
-  };
-}
-
-function createPlanetDust(config, seed) {
-  const random = seededRandom(seed);
-  const count = 18;
-  const geometry = new THREE.BufferGeometry();
-  const positions = new Float32Array(count * 3);
-  const colors = new Float32Array(count * 3);
-  const phases = new Float32Array(count);
-  const radii = new Float32Array(count);
-  const color = new THREE.Color(config.color);
-  const accent = new THREE.Color(config.accent);
-  const particleColor = new THREE.Color();
-
-  for (let i = 0; i < count; i += 1) {
-    const i3 = i * 3;
-    const angle = random() * Math.PI * 2;
-    const radius = config.size * (1.55 + random() * 1.05);
-
-    radii[i] = radius;
-    phases[i] = angle;
-    positions[i3] = Math.cos(angle) * radius;
-    positions[i3 + 1] = (random() - 0.5) * config.size * 0.9;
-    positions[i3 + 2] = Math.sin(angle) * radius * 0.42;
-    particleColor.copy(color).lerp(accent, random() * 0.32);
-    colors[i3] = particleColor.r;
-    colors[i3 + 1] = particleColor.g;
-    colors[i3 + 2] = particleColor.b;
-  }
-
-  const positionAttribute = new THREE.BufferAttribute(positions, 3);
-
-  positionAttribute.setUsage(THREE.DynamicDrawUsage);
-  geometry.setAttribute('position', positionAttribute);
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  geometry.computeBoundingSphere();
-
-  const material = new THREE.PointsMaterial({
-    size: 0.01,
-    sizeAttenuation: true,
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.24,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    fog: false
-  });
-  const points = new THREE.Points(geometry, material);
-
-  function update(delta, time, pulse) {
-    const array = positionAttribute.array;
-
-    for (let i = 0; i < count; i += 1) {
-      const i3 = i * 3;
-      const angle = phases[i] + time * 0.16;
-      const radius = radii[i] + Math.sin(time * 0.42 + phases[i]) * config.size * 0.06;
-
-      array[i3] = Math.cos(angle) * radius;
-      array[i3 + 1] = Math.sin(angle * 1.7 + phases[i]) * config.size * 0.3;
-      array[i3 + 2] = Math.sin(angle) * radius * 0.42;
-    }
-
-    positionAttribute.needsUpdate = true;
-    points.rotation.y += delta * 0.1;
-    material.opacity = 0.14 + pulse * 0.12;
-  }
-
-  function dispose() {
-    geometry.dispose();
-    material.dispose();
-  }
-
-  return {
-    points,
-    update,
-    dispose
   };
 }
 
