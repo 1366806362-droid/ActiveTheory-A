@@ -18,6 +18,10 @@ export function createPostProcessing({ renderer, scene, camera }) {
     ? false
     : readDebugFlag('showBloom', true);
 
+  bloomPass.threshold = 0.72;
+  bloomPass.strength = 0.32;
+  bloomPass.radius = 0.12;
+
   composer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   composer.setSize(window.innerWidth, window.innerHeight);
   composer.addPass(renderPass);

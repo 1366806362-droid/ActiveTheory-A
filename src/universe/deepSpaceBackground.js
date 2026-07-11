@@ -7,6 +7,7 @@ export function createDeepSpaceBackground(nebulaVolume) {
   const group = new THREE.Group();
   const colorField = createColorField();
   const farStars = createFarStars();
+  const starRiver = createDistantStarRiver();
   const nearParticles = createNearParticles();
   const targetColor = new THREE.Color(0x087f99);
 
@@ -14,6 +15,7 @@ export function createDeepSpaceBackground(nebulaVolume) {
   group.add(
     colorField.mesh,
     farStars.points,
+    starRiver.points,
     nebulaVolume.backgroundGroup,
     nearParticles.points
   );
@@ -41,6 +43,7 @@ export function createDeepSpaceBackground(nebulaVolume) {
 
     colorField.update(time, journeyProgress, targetColor, exposureMultiplier);
     farStars.update(time, parallaxX * 0.006, parallaxY * 0.006);
+    starRiver.update(time, parallaxX * 0.012, parallaxY * 0.01);
     nearParticles.update(delta, time, parallaxX * 0.068, parallaxY * 0.054, journeyProgress);
 
     // Keep the API camera-aware without coupling the background to camera ownership.
@@ -52,11 +55,68 @@ export function createDeepSpaceBackground(nebulaVolume) {
   function dispose() {
     colorField.dispose();
     farStars.dispose();
+    starRiver.dispose();
     nearParticles.dispose();
     group.clear();
   }
 
   return { group, update, dispose };
+}
+
+function createDistantStarRiver() {
+  const count = 320;
+  const random = seededRandom(714031);
+  const geometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+  const twinkle = new Float32Array(count);
+  const cool = new THREE.Color(0x5cbcff);
+  const violet = new THREE.Color(0x8f78e8);
+  const white = new THREE.Color(0xdff6ff);
+  const color = new THREE.Color();
+
+  for (let index = 0; index < count; index += 1) {
+    const stride = index * 3;
+    const t = random();
+    const centerX = -6.6 + t * 13.2;
+    const centerY = -1.25 + t * 3.8 + Math.sin(t * Math.PI * 2.2) * 0.24;
+    const spread = (random() - 0.5) * (0.38 + Math.sin(t * Math.PI) * 0.82);
+
+    positions[stride] = centerX + spread * 0.55;
+    positions[stride + 1] = centerY + spread;
+    positions[stride + 2] = -13 - random() * 7;
+    color.copy(cool).lerp(violet, random() * 0.58);
+    color.lerp(white, random() > 0.9 ? 0.42 : 0.08);
+    colors[stride] = color.r;
+    colors[stride + 1] = color.g;
+    colors[stride + 2] = color.b;
+    sizes[index] = 0.28 + random() * 0.58;
+    twinkle[index] = random() > 0.98 ? random() * 0.4 : 0;
+  }
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+  geometry.setAttribute('aTwinkle', new THREE.BufferAttribute(twinkle, 1));
+  const material = createStarMaterial(0.16);
+  const points = new THREE.Points(geometry, material);
+
+  points.name = 'DeepSpaceDistantStarRiver';
+  points.renderOrder = -19;
+
+  return {
+    points,
+    update(time, x, y) {
+      material.uniforms.uTime.value = time;
+      points.position.x = x;
+      points.position.y = y;
+    },
+    dispose() {
+      geometry.dispose();
+      material.dispose();
+    }
+  };
 }
 
 function createColorField() {

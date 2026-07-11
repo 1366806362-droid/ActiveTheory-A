@@ -8,18 +8,18 @@ const NEBULAE = [
     label: 'GEO',
     color: 0x00b8ff,
     accent: 0xb8f6ff,
-    orbitRadius: 0.79,
+    orbitRadius: 1.15,
     orbitScaleY: 0.72,
-    size: 0.34,
+    size: 0.37,
     period: 210,
     spin: 0.052,
-    phase: 1.12,
+    phase: 5.7,
     depthScale: 0.22,
     tilt: [0.384, 0.04, -0.14],
     labelOffset: [0.03, 0.03, 0.08],
     hoverX: 0.28,
     hoverY: 0.12,
-    brightness: 1.05,
+    brightness: 1.3,
     armCount: 2,
     coreCount: 4
   },
@@ -28,18 +28,18 @@ const NEBULAE = [
     label: '5A',
     color: 0x728bff,
     accent: 0xd8e2ff,
-    orbitRadius: 0.68,
+    orbitRadius: 1.05,
     orbitScaleY: 0.42,
-    size: 0.32,
+    size: 0.34,
     period: -260,
     spin: -0.042,
-    phase: 5.25,
+    phase: 4.35,
     depthScale: 0.26,
     tilt: [-0.524, -0.16, 0.28],
     labelOffset: [-0.13, -0.15, 0.08],
     hoverX: 0.24,
     hoverY: -0.45,
-    brightness: 1.12,
+    brightness: 1.18,
     armCount: 2,
     coreCount: 4
   },
@@ -48,18 +48,18 @@ const NEBULAE = [
     label: '\u54c1\u724c\u5fc3\u667a',
     color: 0xaa7cff,
     accent: 0xf2e8ff,
-    orbitRadius: 0.66,
+    orbitRadius: 1,
     orbitScaleY: 0.54,
-    size: 0.31,
+    size: 0.34,
     period: 300,
     spin: 0.036,
-    phase: 2.86,
+    phase: 2.7,
     depthScale: 0.2,
     tilt: [0.663, 0.08, 0.2],
     labelOffset: [-0.12, 0.22, 0.08],
     hoverX: -0.18,
     hoverY: 0.24,
-    brightness: 0.82,
+    brightness: 1.08,
     armCount: 2,
     coreCount: 4
   }
@@ -282,7 +282,7 @@ function createNebulaCluster(config, texture, seed) {
     alphaTest: 0.012,
     vertexColors: true,
     transparent: true,
-    opacity: 0.5,
+    opacity: 0.62,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
     fog: false
@@ -294,8 +294,8 @@ function createNebulaCluster(config, texture, seed) {
   function update(delta, time, pulse, visibility, entryProgress, hoverBoost) {
     points.rotation.z += delta * config.spin * 0.38;
     points.rotation.y = Math.sin(time * 0.08 + config.phase) * 0.08;
-    material.opacity = (0.42 + pulse * 0.1 + entryProgress * 0.08) * visibility * hoverBoost * config.brightness;
-    material.size = (0.017 + pulse * 0.002 + entryProgress * 0.005) * (0.98 + (hoverBoost - 1) * 0.25);
+    material.opacity = (0.56 + pulse * 0.1 + entryProgress * 0.08) * visibility * hoverBoost * config.brightness;
+    material.size = (0.022 + pulse * 0.002 + entryProgress * 0.005) * (0.98 + (hoverBoost - 1) * 0.25);
   }
 
   function dispose() {
@@ -348,7 +348,7 @@ function createNebulaDust(config, texture, seed) {
 
   function update(delta, time, pulse, visibility, hoverBoost) {
     points.rotation.z -= delta * config.spin * 0.12;
-    material.opacity = (0.18 + pulse * 0.12) * visibility * (0.96 + (hoverBoost - 1) * 0.5) * config.brightness;
+    material.opacity = (0.24 + pulse * 0.12) * visibility * (0.96 + (hoverBoost - 1) * 0.5) * config.brightness;
   }
 
   function dispose() {
@@ -401,7 +401,7 @@ function createNebulaNodes(config, texture, seed) {
   function update(delta, time, pulse, visibility, entryProgress, hoverBoost) {
     points.rotation.z += delta * config.spin * 0.54;
     material.opacity = (0.52 + pulse * 0.3 + entryProgress * 0.12) * visibility * hoverBoost * config.brightness;
-    material.size = (0.033 + pulse * 0.01 + entryProgress * 0.012) * (0.98 + (hoverBoost - 1) * 0.4);
+    material.size = (0.04 + pulse * 0.01 + entryProgress * 0.012) * (0.98 + (hoverBoost - 1) * 0.4);
   }
 
   function dispose() {

@@ -6,13 +6,13 @@ export function createNebulaVolume() {
   const sharedTime = { value: 0 };
   const backgroundLayers = [
     createNebulaSlice({
-      width: 22,
-      height: 8.5,
-      position: [4.5, 2.6, -17],
-      rotation: [-0.08, 0.12, -0.2],
+      width: 24,
+      height: 3.5,
+      position: [0.4, 1.05, -17],
+      rotation: [-0.08, 0.12, -0.58],
       colorA: 0x075979,
       colorB: 0x151044,
-      opacity: 0.12,
+      opacity: 0.2,
       seed: 1.7,
       sharedTime,
       blending: THREE.NormalBlending

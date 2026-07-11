@@ -27,11 +27,13 @@ export function createHeroScene() {
     universeRoot.energyCore.group.position.x = 0.46 - brandCoreDeparture * 0.3;
     universeRoot.energyCore.group.position.z = -brandCoreDeparture * 0.68;
     universeRoot.energyCore.group.visible = brandCoreDeparture < 0.98;
-    renderState.cameraOffset.x += (0.12 + Math.sin(time * 0.032) * 0.14) * heroPresence;
-    renderState.cameraOffset.y += (0.03 + Math.sin(time * 0.024 + 0.7) * 0.055) * heroPresence;
-    renderState.cameraOffset.z += (0.34 - Math.sin(time * 0.02) * 0.08) * heroPresence;
-    renderState.cameraOffset.targetX += 0.18 * heroPresence;
-    renderState.cameraOffset.targetY += (0.02 + Math.sin(time * 0.028) * 0.045) * heroPresence;
+    if (!debugMainGalaxyOnly) {
+      renderState.cameraOffset.x += (0.12 + Math.sin(time * 0.032) * 0.14) * heroPresence;
+      renderState.cameraOffset.y += (0.03 + Math.sin(time * 0.024 + 0.7) * 0.055) * heroPresence;
+      renderState.cameraOffset.z += (0.34 - Math.sin(time * 0.02) * 0.08) * heroPresence;
+      renderState.cameraOffset.targetX += 0.18 * heroPresence;
+      renderState.cameraOffset.targetY += (0.02 + Math.sin(time * 0.028) * 0.045) * heroPresence;
+    }
     group.position.set(0, 0, -sceneDeparture * 0.9);
     group.rotation.set(0, 0, 0);
     group.scale.setScalar(1 - sceneDeparture * 0.82);
