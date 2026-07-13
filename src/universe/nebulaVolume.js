@@ -6,14 +6,41 @@ export function createNebulaVolume() {
   const sharedTime = { value: 0 };
   const backgroundLayers = [
     createNebulaSlice({
-      width: 24,
-      height: 3.5,
-      position: [0.4, 1.05, -17],
-      rotation: [-0.08, 0.12, -0.58],
-      colorA: 0x075979,
-      colorB: 0x151044,
-      opacity: 0.2,
+      width: 16,
+      height: 2.45,
+      position: [2.2, 2.35, -18],
+      rotation: [-0.05, 0.08, -0.27],
+      colorA: 0x17365f,
+      colorB: 0x21183d,
+      opacity: 0.075,
       seed: 1.7,
+      parallax: 0.007,
+      sharedTime,
+      blending: THREE.NormalBlending
+    }),
+    createNebulaSlice({
+      width: 5.6,
+      height: 2.15,
+      position: [-0.65, -1.72, -16.5],
+      rotation: [0.04, -0.1, -0.18],
+      colorA: 0x17305a,
+      colorB: 0x1d1538,
+      opacity: 0.055,
+      seed: 4.6,
+      parallax: 0.015,
+      sharedTime,
+      blending: THREE.NormalBlending
+    }),
+    createNebulaSlice({
+      width: 5.0,
+      height: 1.8,
+      position: [4.75, -1.62, -16.8],
+      rotation: [-0.04, 0.08, 0.22],
+      colorA: 0x123b53,
+      colorB: 0x1b1638,
+      opacity: 0.048,
+      seed: 9.2,
+      parallax: 0.021,
       sharedTime,
       blending: THREE.NormalBlending
     })
@@ -53,7 +80,7 @@ export function createNebulaVolume() {
     const parallaxY = interaction?.parallaxY ?? 0;
 
     backgroundLayers.forEach((layer, index) => {
-      const depthFactor = 0.012 + index * 0.006;
+      const depthFactor = layer.parallax;
       const geoTint = journeyProgress * 0.08;
 
       layer.mesh.position.x = layer.baseX + parallaxX * depthFactor;
@@ -96,6 +123,7 @@ function createNebulaSlice(config) {
     baseY: config.position[1],
     baseRotation: config.rotation[2],
     baseOpacity: config.opacity,
+    parallax: config.parallax,
     dispose() {
       geometry.dispose();
       material.dispose();
@@ -190,8 +218,10 @@ function createNebulaMaterial(config) {
         float low = fbm(uv * 2.1 + warp * 0.62 + uSeed);
         float detail = fbm(uv * 5.2 - warp * 0.38 - uSeed);
         float broken = smoothstep(0.4, 0.78, low * 0.74 + detail * 0.26);
-        float softEdge = smoothstep(0.72, 0.14, length(uv * vec2(0.74, 1.2)));
-        float density = broken * softEdge;
+        vec2 warpedEdgeUv = uv + warp * 0.12;
+        float softEdge = smoothstep(0.76, 0.18, length(warpedEdgeUv * vec2(0.7, 1.25)));
+        float edgeNoise = smoothstep(0.18, 0.72, fbm(uv * 3.4 + warp * 0.5 + uSeed * 2.1));
+        float density = broken * softEdge * mix(0.52, 1.0, edgeNoise);
         vec3 baseColor = mix(uColorB, uColorA, density);
         vec3 color = mix(baseColor, uGeoColor, uJourney * density * 0.34);
         gl_FragColor = vec4(color, density * uOpacity);

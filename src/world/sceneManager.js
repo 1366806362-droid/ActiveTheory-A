@@ -103,7 +103,7 @@ export function createSceneManager({ heroScene }) {
     state.targetProgress = clamp(
       state.targetProgress + normalizedDelta * WHEEL_SENSITIVITY,
       0,
-      HERO_TRANSITION_END
+      MAX_SCROLL_PROGRESS
     );
   }
 
@@ -264,8 +264,13 @@ function applyHeroToGeoTransition(renderState, transitionProgress, heroScene, jo
 
   const pathProgress = smootherstep(0, 1, transitionProgress);
 
-  journey.cameraPath.getPointAt(pathProgress, reusableDesiredCamera);
-  journey.targetPath.getPointAt(pathProgress, reusableDesiredTarget);
+  if (pathProgress >= 1) {
+    reusableDesiredCamera.copy(journey.cameraPath.points.at(-1));
+    reusableDesiredTarget.copy(journey.targetPath.points.at(-1));
+  } else {
+    journey.cameraPath.getPointAt(pathProgress, reusableDesiredCamera);
+    journey.targetPath.getPointAt(pathProgress, reusableDesiredTarget);
+  }
   applyCameraPose(renderState, reusableDesiredCamera, reusableDesiredTarget);
   renderState.exposure -= smoothstep(0.58, 0.9, transitionProgress) * 0.035;
 }

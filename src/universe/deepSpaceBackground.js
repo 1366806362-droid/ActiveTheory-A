@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
-const FAR_STAR_COUNT = 920;
-const NEAR_PARTICLE_COUNT = 16;
+const FAR_STAR_COUNT = 1180;
+const NEAR_PARTICLE_COUNT = 10;
 
 export function createDeepSpaceBackground(nebulaVolume) {
   const group = new THREE.Group();
@@ -37,14 +37,19 @@ export function createDeepSpaceBackground(nebulaVolume) {
     const parallaxX = mouseParallax?.x ?? 0;
     const parallaxY = mouseParallax?.y ?? 0;
 
+    // Cancel the universe root's shared drift so each background depth can use
+    // its own smaller, damped parallax amplitude.
+    group.position.x = -parallaxX * 0.04;
+    group.position.y = -parallaxY * 0.025;
+
     if (targetGalaxyColor) {
       targetColor.set(targetGalaxyColor);
     }
 
     colorField.update(time, journeyProgress, targetColor, exposureMultiplier);
-    farStars.update(time, parallaxX * 0.006, parallaxY * 0.006);
-    starRiver.update(time, parallaxX * 0.012, parallaxY * 0.01);
-    nearParticles.update(delta, time, parallaxX * 0.068, parallaxY * 0.054, journeyProgress);
+    farStars.update(time, parallaxX * 0.0015, parallaxY * 0.0012);
+    starRiver.update(time, parallaxX * 0.006, parallaxY * 0.005);
+    nearParticles.update(delta, time, parallaxX * 0.038, parallaxY * 0.031, journeyProgress);
 
     // Keep the API camera-aware without coupling the background to camera ownership.
     if (cameraPosition && cameraQuaternion) {
@@ -64,7 +69,7 @@ export function createDeepSpaceBackground(nebulaVolume) {
 }
 
 function createDistantStarRiver() {
-  const count = 320;
+  const count = 460;
   const random = seededRandom(714031);
   const geometry = new THREE.BufferGeometry();
   const positions = new Float32Array(count * 3);
@@ -79,9 +84,9 @@ function createDistantStarRiver() {
   for (let index = 0; index < count; index += 1) {
     const stride = index * 3;
     const t = random();
-    const centerX = -6.6 + t * 13.2;
-    const centerY = -1.25 + t * 3.8 + Math.sin(t * Math.PI * 2.2) * 0.24;
-    const spread = (random() - 0.5) * (0.38 + Math.sin(t * Math.PI) * 0.82);
+    const centerX = -0.9 + t * 8.7;
+    const centerY = 2.15 + t * 1.25 + Math.sin(t * Math.PI * 1.7) * 0.18;
+    const spread = (random() - 0.5) * (0.28 + Math.sin(t * Math.PI) * 0.7);
 
     positions[stride] = centerX + spread * 0.55;
     positions[stride + 1] = centerY + spread;
@@ -91,7 +96,7 @@ function createDistantStarRiver() {
     colors[stride] = color.r;
     colors[stride + 1] = color.g;
     colors[stride + 2] = color.b;
-    sizes[index] = 0.28 + random() * 0.58;
+    sizes[index] = 0.18 + random() * 0.42;
     twinkle[index] = random() > 0.98 ? random() * 0.4 : 0;
   }
 
@@ -99,7 +104,7 @@ function createDistantStarRiver() {
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
   geometry.setAttribute('aTwinkle', new THREE.BufferAttribute(twinkle, 1));
-  const material = createStarMaterial(0.16);
+  const material = createStarMaterial(0.15);
   const points = new THREE.Points(geometry, material);
 
   points.name = 'DeepSpaceDistantStarRiver';
@@ -183,12 +188,15 @@ function createColorField() {
         float detail = fbm(direction * 5.1 - warp * 0.26);
         float cyanRegion = smoothstep(0.54, 0.86, field * 0.78 + detail * 0.22);
         float violetRegion = smoothstep(0.48, 0.82, fbm(direction * 2.7 + vec3(3.5, 1.7, -2.8)));
-        vec3 deep = mix(vec3(0.008, 0.027, 0.086), vec3(0.012, 0.067, 0.173), field);
-        vec3 violet = vec3(0.082, 0.055, 0.235);
-        vec3 cyan = mix(vec3(0.024, 0.216, 0.373), uTargetColor, uJourney * 0.55);
-        vec3 color = mix(deep, violet, violetRegion * 0.3);
-        color = mix(color, cyan, cyanRegion * (0.19 + uJourney * 0.08));
-        color *= 0.62 + uExposure * 0.08;
+        float leftSafety = smoothstep(-0.38, 0.35, direction.x);
+        float rightViolet = smoothstep(-0.05, 0.72, direction.x)
+          * smoothstep(-0.5, 0.58, direction.y);
+        vec3 deep = mix(vec3(0.003, 0.009, 0.022), vec3(0.008, 0.022, 0.052), field);
+        vec3 violet = vec3(0.036, 0.027, 0.09);
+        vec3 cyan = mix(vec3(0.01, 0.062, 0.105), uTargetColor, uJourney * 0.42);
+        vec3 color = mix(deep, violet, violetRegion * rightViolet * 0.22);
+        color = mix(color, cyan, cyanRegion * leftSafety * (0.1 + uJourney * 0.055));
+        color *= mix(0.78, 1.0, leftSafety) * (0.72 + uExposure * 0.055);
         gl_FragColor = vec4(color, 1.0);
       }
     `,
@@ -235,14 +243,24 @@ function createFarStars() {
     const palettePick = random();
     const colorIndex = palettePick < 0.55 ? 0 : palettePick < 0.8 ? 1 : palettePick < 0.92 ? 2 : palettePick < 0.98 ? 3 : 4;
 
-    positions[stride] = (random() - 0.5) * width + (cluster ? Math.sin(index * 0.31) * 2.4 : 0);
-    positions[stride + 1] = (random() - 0.5) * height + (cluster ? Math.cos(index * 0.23) * 1.2 : 0);
+    const x = (random() - 0.5) * width + (cluster ? Math.sin(index * 0.31) * 2.4 : 0);
+    const y = (random() - 0.5) * height + (cluster ? Math.cos(index * 0.23) * 1.2 : 0);
+    const titleSafety = x < -1.35 && y > -0.9 && y < 3.6;
+    const voidField = Math.sin(x * 0.62 + y * 0.31) + Math.cos(y * 0.94 - x * 0.18);
+    const sparsePocket = voidField < -0.72 || random() < 0.11;
+    const visibility = titleSafety
+      ? random() < 0.72 ? 0.035 : 0.28
+      : sparsePocket ? 0.12 : 0.72 + random() * 0.28;
+
+    positions[stride] = x;
+    positions[stride + 1] = y;
     positions[stride + 2] = -8 - random() * 20;
     color.set(palette[colorIndex]);
+    color.multiplyScalar(visibility);
     colors[stride] = color.r;
     colors[stride + 1] = color.g;
     colors[stride + 2] = color.b;
-    sizes[index] = 0.42 + Math.pow(random(), 2.4) * 1.18;
+    sizes[index] = 0.22 + Math.pow(random(), 2.5) * 0.64;
     twinkle[index] = random() > 0.965 ? random() : 0;
   }
 
@@ -250,7 +268,7 @@ function createFarStars() {
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
   geometry.setAttribute('aTwinkle', new THREE.BufferAttribute(twinkle, 1));
-  const material = createStarMaterial(0.42);
+  const material = createStarMaterial(0.32);
   const points = new THREE.Points(geometry, material);
 
   points.name = 'DeepSpaceFarStars';
@@ -280,8 +298,10 @@ function createNearParticles() {
     const stride = index * 3;
     const side = index % 2 === 0 ? -1 : 1;
 
-    positions[stride] = side * (3.1 + random() * 3.4);
-    positions[stride + 1] = (random() - 0.5) * 5.4;
+    positions[stride] = side * (4.1 + random() * 2.7);
+    positions[stride + 1] = side < 0
+      ? -2.4 + random() * 1.1
+      : -2.8 + random() * 5.6;
     positions[stride + 2] = 0.2 - random() * 2.8;
   }
 
@@ -289,10 +309,10 @@ function createNearParticles() {
   const material = new THREE.PointsMaterial({
     map: texture,
     color: 0x79cfff,
-    size: 0.085,
+    size: 0.074,
     sizeAttenuation: true,
     transparent: true,
-    opacity: 0.095,
+    opacity: 0.072,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
     fog: false
@@ -308,7 +328,7 @@ function createNearParticles() {
       points.position.y = y;
       points.rotation.z += delta * 0.0028;
       points.position.z = Math.sin(time * 0.018) * 0.08;
-      material.opacity = 0.07 + journey * 0.045;
+      material.opacity = 0.055 + journey * 0.025;
     },
     dispose() {
       geometry.dispose();

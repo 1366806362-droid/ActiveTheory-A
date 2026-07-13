@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { getCamera } from '../engine/camera.js';
 import { createCinematicGalaxy } from './cinematicGalaxy.js';
 import { createEnergyCore } from './core.js';
 import { createDeepSpaceBackground } from './deepSpaceBackground.js';
@@ -13,6 +14,19 @@ const DEBUG_MAIN_GALAXY_ONLY = readDebugFlag('debugMainGalaxyOnly', false);
 const DEBUG_MAIN_GALAXY_RENDER = readDebugFlag('debugMainGalaxyRender', false);
 const DEBUG_MAIN_GALAXY_ACTIVE = DEBUG_MAIN_GALAXY_ONLY
   || DEBUG_MAIN_GALAXY_RENDER;
+const DEBUG_HERO_COMPOSITION = import.meta.env.DEV
+  && readDebugFlag('debugHeroComposition', false);
+const EARTH_LAYER_DEBUG = readEarthLayerDebugState();
+const HERO_MAIN_GALAXY_POSITION = new THREE.Vector3(0.95, 0.03, 0);
+const HERO_MAIN_GALAXY_SCALE = 0.82;
+const HERO_MAIN_GALAXY_QUATERNION = new THREE.Quaternion().setFromEuler(
+  new THREE.Euler(
+    THREE.MathUtils.degToRad(20),
+    0,
+    THREE.MathUtils.degToRad(44),
+    'XYZ'
+  )
+);
 export const useCinematicGalaxy = true;
 const HERO_DEBUG = Object.freeze({
   showBackground: DEBUG_MAIN_GALAXY_ACTIVE ? false : readDebugFlag('showBackground', true),
@@ -27,7 +41,9 @@ const HERO_DEBUG = Object.freeze({
   showDust: DEBUG_MAIN_GALAXY_ACTIVE ? false : readDebugFlag('showDust', true),
   showGlow: DEBUG_MAIN_GALAXY_ONLY ? false : readDebugFlag('showGlow', true),
   showLabels: DEBUG_MAIN_GALAXY_ACTIVE ? false : readDebugFlag('showLabels', true),
-  freezeHeroMotion: DEBUG_MAIN_GALAXY_ACTIVE || readDebugFlag('freezeHeroMotion', false)
+  freezeHeroMotion: DEBUG_MAIN_GALAXY_ACTIVE
+    || DEBUG_HERO_COMPOSITION
+    || readDebugFlag('freezeHeroMotion', false)
 });
 const frozenInteraction = {
   parallaxX: 0,
@@ -41,6 +57,7 @@ const frozenInteraction = {
 const universeState = {
   root: null,
   galaxyGroup: null,
+  mainGalaxyFrame: null,
   deepSpaceBackground: null,
   nebulaVolume: null,
   energyCore: null,
@@ -50,7 +67,8 @@ const universeState = {
   earthHorizon: null,
   debugBackdrop: null,
   cinematicDebugSignature: null,
-  scrollHintDebugState: null
+  scrollHintDebugState: null,
+  heroCompositionDebug: null
 };
 const mouseParallaxState = { x: 0, y: 0 };
 const backgroundUpdateState = {
@@ -67,6 +85,7 @@ const backgroundUpdateState = {
 export function createUniverseRoot() {
   const cinematicDebug = readCinematicGalaxyDebugState();
   const debugActive = DEBUG_MAIN_GALAXY_ACTIVE || cinematicDebug.enabled;
+  const sceneDebugActive = debugActive || EARTH_LAYER_DEBUG.enabled;
   const root = new THREE.Group();
   const nebulaVolume = createNebulaVolume();
   const deepSpaceBackground = createDeepSpaceBackground(nebulaVolume);
@@ -78,6 +97,7 @@ export function createUniverseRoot() {
     : createEnergyCore();
   const galaxyPlanets = createGalaxyPlanets();
   const galaxyGroup = new THREE.Group();
+  const mainGalaxyFrame = new THREE.Group();
   const nodeSystem = createNodeSystem();
   const particleField = createParticleField();
   const earthHorizon = createEarthHorizon();
@@ -85,15 +105,19 @@ export function createUniverseRoot() {
 
   root.name = 'ActiveTheoryUniverseRoot';
   galaxyGroup.name = 'HeroBrandGalaxyComposition';
+  mainGalaxyFrame.name = 'HeroMainGalaxyCompositionFrame';
   applyGalaxyComposition(galaxyGroup, cinematicDebug.enabled);
+  applyMainGalaxyComposition(mainGalaxyFrame);
   if (!useCinematicGalaxy) {
     energyCore.group.add(nebulaVolume.galaxyDustGroup);
   }
-  galaxyGroup.add(galaxyPlanets.group, energyCore.group);
+  mainGalaxyFrame.add(energyCore.group);
+  mainGalaxyFrame.visible = !EARTH_LAYER_DEBUG.enabled;
+  galaxyGroup.add(galaxyPlanets.group, mainGalaxyFrame);
   nodeSystem.group.visible = false;
-  deepSpaceBackground.group.visible = debugActive ? false : HERO_DEBUG.showBackground;
-  nebulaVolume.backgroundGroup.visible = debugActive ? false : HERO_DEBUG.showNebula;
-  nebulaVolume.galaxyDustGroup.visible = debugActive
+  deepSpaceBackground.group.visible = sceneDebugActive ? false : HERO_DEBUG.showBackground;
+  nebulaVolume.backgroundGroup.visible = sceneDebugActive ? false : HERO_DEBUG.showNebula;
+  nebulaVolume.galaxyDustGroup.visible = sceneDebugActive
     ? false
     : !useCinematicGalaxy && HERO_DEBUG.showDust;
   if (cinematicDebug.enabled) {
@@ -106,21 +130,35 @@ export function createUniverseRoot() {
     const coreNebula = energyCore.layers.core.getObjectByName('GalaxyCoreSoftNebula');
 
     if (coreNebula) {
-      coreNebula.visible = HERO_DEBUG.showGlow;
+      // This full-core haze reads as a large translucent disc at the hero scale.
+      // Keep the core stars and spiral-arm nebulae, but remove the global shell.
+      coreNebula.visible = false;
     }
   }
-  energyCore.group.visible = HERO_DEBUG.showMainGalaxy;
-  galaxyPlanets.group.visible = debugActive ? false : HERO_DEBUG.showSubGalaxies;
-  galaxyPlanets.setLabelsVisible(debugActive ? false : HERO_DEBUG.showLabels);
+  energyCore.group.visible = EARTH_LAYER_DEBUG.enabled ? false : HERO_DEBUG.showMainGalaxy;
+  galaxyPlanets.group.visible = sceneDebugActive ? false : HERO_DEBUG.showSubGalaxies;
+  galaxyPlanets.setLabelsVisible(sceneDebugActive ? false : HERO_DEBUG.showLabels);
   particleField.points.visible = false;
-  earthHorizon.group.visible = !debugActive;
-  debugBackdrop.visible = debugActive;
+  earthHorizon.group.visible = EARTH_LAYER_DEBUG.enabled || !debugActive;
+  earthHorizon.setLayerMode(EARTH_LAYER_DEBUG.mode);
+  debugBackdrop.visible = sceneDebugActive;
+  if (EARTH_LAYER_DEBUG.enabled) {
+    debugBackdrop.material.color.set(0x020a20);
+  }
   root.add(debugBackdrop);
 
   root.add(deepSpaceBackground.group, particleField.points, earthHorizon.group, galaxyGroup);
+  const heroCompositionDebug = DEBUG_HERO_COMPOSITION
+    ? createHeroCompositionDebug({
+      earth: earthHorizon.group,
+      mainGalaxyFrame,
+      mainGalaxy: energyCore.group
+    })
+    : null;
 
   universeState.root = root;
   universeState.galaxyGroup = galaxyGroup;
+  universeState.mainGalaxyFrame = mainGalaxyFrame;
   universeState.deepSpaceBackground = deepSpaceBackground;
   universeState.nebulaVolume = nebulaVolume;
   universeState.energyCore = energyCore;
@@ -130,11 +168,13 @@ export function createUniverseRoot() {
   universeState.earthHorizon = earthHorizon;
   universeState.debugBackdrop = debugBackdrop;
   universeState.cinematicDebugSignature = cinematicDebug.signature;
-  setScrollHintDebugVisibility(debugActive);
+  universeState.heroCompositionDebug = heroCompositionDebug;
+  setScrollHintDebugVisibility(sceneDebugActive);
 
   return {
     root,
     galaxyGroup,
+    mainGalaxyFrame,
     atmosphereLayer: deepSpaceBackground,
     deepSpaceBackground,
     nebulaVolume,
@@ -163,8 +203,29 @@ export function updateUniverseRoot(renderState, delta, time, journeyProgress = 0
 
   syncCinematicGalaxyDebugState(cinematicDebug);
   const debugActive = DEBUG_MAIN_GALAXY_ACTIVE || cinematicDebug.enabled;
+  const sceneDebugActive = debugActive || EARTH_LAYER_DEBUG.enabled;
 
-  setScrollHintDebugVisibility(debugActive);
+  setScrollHintDebugVisibility(sceneDebugActive);
+
+  if (EARTH_LAYER_DEBUG.enabled) {
+    renderState.backgroundColor = '#020a20';
+    renderState.fogColor = '#020a20';
+    universeState.debugBackdrop.visible = true;
+    universeState.deepSpaceBackground.group.visible = false;
+    universeState.nebulaVolume.backgroundGroup.visible = false;
+    universeState.nebulaVolume.galaxyDustGroup.visible = false;
+    universeState.galaxyPlanets.group.visible = false;
+    universeState.galaxyPlanets.setLabelsVisible(false);
+    universeState.particleField.points.visible = false;
+    universeState.energyCore.group.visible = false;
+    universeState.mainGalaxyFrame.visible = false;
+    universeState.earthHorizon.group.visible = true;
+    universeState.earthHorizon.setLayerMode(EARTH_LAYER_DEBUG.mode);
+    universeState.earthHorizon.update(0, 0);
+    universeState.root.rotation.set(0, 0, 0);
+    universeState.root.position.set(0, 0, 0);
+    return;
+  }
 
   if (debugActive) {
     renderState.backgroundColor = '#010612';
@@ -188,8 +249,10 @@ export function updateUniverseRoot(renderState, delta, time, journeyProgress = 0
     }
     universeState.energyCore.update(0, 0, frozenInteraction, 0);
     applyGalaxyComposition(universeState.galaxyGroup, cinematicDebug.enabled);
+    applyMainGalaxyComposition(universeState.mainGalaxyFrame);
     universeState.root.rotation.set(0, 0, 0);
     universeState.root.position.set(0, 0, 0);
+    universeState.heroCompositionDebug?.update();
     return;
   }
 
@@ -207,13 +270,21 @@ export function updateUniverseRoot(renderState, delta, time, journeyProgress = 0
   backgroundUpdateState.exposureMultiplier = renderState.exposure;
   universeState.deepSpaceBackground.update(backgroundUpdateState);
   universeState.nebulaVolume.update(motionDelta, motionTime, interaction, journeyProgress);
-  universeState.earthHorizon.update(motionDelta, motionTime);
+  const earthRotationActive = universeState.earthHorizon.group.visible
+    && journeyProgress < 0.92;
+  universeState.earthHorizon.update(
+    earthRotationActive ? motionDelta : 0,
+    motionTime,
+    earthRotationActive
+  );
   universeState.galaxyPlanets.update(motionDelta, motionTime, interaction);
   universeState.energyCore.update(motionDelta, motionTime, interaction, journeyProgress);
   applyGalaxyComposition(universeState.galaxyGroup, false);
+  applyMainGalaxyComposition(universeState.mainGalaxyFrame);
   universeState.root.rotation.y = Math.sin(motionTime * 0.008) * 0.008;
   universeState.root.position.x = interaction.parallaxX * 0.04;
   universeState.root.position.y = interaction.parallaxY * 0.025;
+  universeState.heroCompositionDebug?.update();
 }
 
 function applyGalaxyComposition(galaxyGroup, cinematicDebugEnabled) {
@@ -233,7 +304,19 @@ function applyGalaxyComposition(galaxyGroup, cinematicDebugEnabled) {
   galaxyGroup.scale.setScalar(compactViewport ? 1.02 : 1.42);
 }
 
+function applyMainGalaxyComposition(mainGalaxyFrame) {
+  if (!mainGalaxyFrame) {
+    return;
+  }
+
+  mainGalaxyFrame.position.copy(HERO_MAIN_GALAXY_POSITION);
+  mainGalaxyFrame.scale.setScalar(HERO_MAIN_GALAXY_SCALE);
+  mainGalaxyFrame.quaternion.copy(HERO_MAIN_GALAXY_QUATERNION);
+}
+
 export function disposeUniverseRoot() {
+  universeState.heroCompositionDebug?.dispose();
+
   if (universeState.deepSpaceBackground) {
     universeState.deepSpaceBackground.dispose();
   }
@@ -273,6 +356,7 @@ export function disposeUniverseRoot() {
 
   universeState.root = null;
   universeState.galaxyGroup = null;
+  universeState.mainGalaxyFrame = null;
   universeState.deepSpaceBackground = null;
   universeState.nebulaVolume = null;
   universeState.energyCore = null;
@@ -283,6 +367,7 @@ export function disposeUniverseRoot() {
   universeState.debugBackdrop = null;
   universeState.cinematicDebugSignature = null;
   universeState.scrollHintDebugState = null;
+  universeState.heroCompositionDebug = null;
 }
 
 export const universeRootManager = {
@@ -332,6 +417,25 @@ function readCinematicGalaxyDebugState() {
   ].join(':');
 
   return { enabled, layers, shellDebugMode, signature };
+}
+
+function readEarthLayerDebugState() {
+  const params = new URLSearchParams(window.location.search);
+  const debugValue = params.get('debugEarthLayers');
+  const enabled = debugValue !== null && debugValue !== '0' && debugValue !== 'false';
+  const supportedModes = new Set([
+    'surfaceOnly',
+    'landOnly',
+    'cityOnly',
+    'cloudOnly',
+    'atmosphereOnly',
+    'combined'
+  ]);
+  const requestedMode = params.get('earthLayer')
+    || (supportedModes.has(debugValue) ? debugValue : 'combined');
+  const mode = supportedModes.has(requestedMode) ? requestedMode : 'combined';
+
+  return { enabled, mode };
 }
 
 function syncCinematicGalaxyDebugState(debugState) {
@@ -397,4 +501,321 @@ function createDebugBackdrop() {
   backdrop.position.set(0, 0, -5);
   backdrop.renderOrder = -1000;
   return backdrop;
+}
+
+function createHeroCompositionDebug({ earth, mainGalaxyFrame, mainGalaxy }) {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  const targetResolutions = [
+    [1920, 1080],
+    [1440, 900],
+    [1366, 768]
+  ];
+
+  canvas.className = 'hero-composition-debug';
+  Object.assign(canvas.style, {
+    position: 'fixed',
+    inset: '0',
+    width: '100vw',
+    height: '100vh',
+    pointerEvents: 'none',
+    zIndex: '9999'
+  });
+  document.body.append(canvas);
+
+  function update() {
+    const camera = getCamera();
+
+    if (!camera || !context || !earth.visible || !mainGalaxy.visible) {
+      return;
+    }
+
+    earth.updateWorldMatrix(true, true);
+    mainGalaxyFrame.updateWorldMatrix(true, true);
+    camera.updateMatrixWorld(true);
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const metrics = measureHeroComposition({
+      camera,
+      width,
+      height,
+      earth,
+      mainGalaxy
+    });
+    const resolutions = Object.fromEntries(targetResolutions.map(([targetWidth, targetHeight]) => {
+      const targetCamera = camera.clone();
+
+      targetCamera.aspect = targetWidth / targetHeight;
+      targetCamera.updateProjectionMatrix();
+      targetCamera.updateMatrixWorld(true);
+      return [
+        `${targetWidth}x${targetHeight}`,
+        measureHeroComposition({
+          camera: targetCamera,
+          width: targetWidth,
+          height: targetHeight,
+          earth,
+          mainGalaxy
+        })
+      ];
+    }));
+
+    const debugPayload = {
+      current: metrics,
+      resolutions,
+      transforms: {
+        earth: {
+          position: earth.position.toArray(),
+          scale: earth.scale.x,
+          quaternion: earth.quaternion.toArray()
+        },
+        mainGalaxy: {
+          position: mainGalaxyFrame.position.toArray(),
+          scale: mainGalaxyFrame.scale.x,
+          quaternion: mainGalaxyFrame.quaternion.toArray()
+        }
+      }
+    };
+    window.__ACTIVE_THEORY_HERO_COMPOSITION__ = debugPayload;
+    canvas.dataset.metrics = JSON.stringify(debugPayload);
+    drawCompositionGuide(context, canvas, metrics, width, height);
+  }
+
+  function dispose() {
+    canvas.remove();
+    delete window.__ACTIVE_THEORY_HERO_COMPOSITION__;
+  }
+
+  return { update, dispose };
+}
+
+function measureHeroComposition({ camera, width, height, earth, mainGalaxy }) {
+  const earthCenterWorld = earth.getWorldPosition(new THREE.Vector3());
+  const mainVisual = mainGalaxy.getObjectByName('CinematicGalaxyVisual') || mainGalaxy;
+  const mainCenterWorld = mainVisual.getWorldPosition(new THREE.Vector3());
+  const earthCenter = projectToScreen(earthCenterWorld, camera, width, height);
+  const mainCenter = projectToScreen(mainCenterWorld, camera, width, height);
+  const earthBounds = projectEarthSilhouetteBounds(
+    earth,
+    earthCenterWorld,
+    camera,
+    width,
+    height
+  );
+  const mainBounds = projectGalaxyPlaneBounds(mainVisual, camera, width, height);
+  const { axisStart, axisEnd, axisAngle } = mainBounds.principalAxis;
+
+  return {
+    viewport: { width, height },
+    earth: formatProjectionMetrics(earthCenter, earthBounds, width, height, true),
+    mainGalaxy: {
+      ...formatProjectionMetrics(mainCenter, mainBounds, width, height, false),
+      axisAngle,
+      axisStart,
+      axisEnd
+    }
+  };
+}
+
+function projectEarthSilhouetteBounds(earth, center, camera, width, height) {
+  const worldScale = earth.getWorldScale(new THREE.Vector3());
+  const radius = 1.861 * worldScale.x;
+  const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+  const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+  const points = [];
+
+  for (let index = 0; index < 96; index += 1) {
+    const angle = index / 96 * Math.PI * 2;
+    const worldPoint = center.clone()
+      .addScaledVector(cameraRight, Math.cos(angle) * radius)
+      .addScaledVector(cameraUp, Math.sin(angle) * radius);
+
+    points.push(projectToScreen(worldPoint, camera, width, height));
+  }
+
+  return boundsFromProjectedPoints(points);
+}
+
+function projectGalaxyPlaneBounds(mainVisual, camera, width, height) {
+  const points = [];
+
+  for (const depth of [-0.09, 0.09]) {
+    for (let index = 0; index < 128; index += 1) {
+      const angle = index / 128 * Math.PI * 2;
+      const localPoint = new THREE.Vector3(
+        Math.cos(angle) * 0.86,
+        Math.sin(angle) * 0.86,
+        depth
+      );
+
+      points.push(projectToScreen(
+        mainVisual.localToWorld(localPoint),
+        camera,
+        width,
+        height
+      ));
+    }
+  }
+
+  return {
+    ...boundsFromProjectedPoints(points),
+    principalAxis: calculatePrincipalAxis(points)
+  };
+}
+
+function calculatePrincipalAxis(points) {
+  const meanX = points.reduce((sum, point) => sum + point.x, 0) / points.length;
+  const meanY = points.reduce((sum, point) => sum + point.y, 0) / points.length;
+  let covarianceXX = 0;
+  let covarianceXY = 0;
+  let covarianceYY = 0;
+
+  points.forEach((point) => {
+    const dx = point.x - meanX;
+    const dy = point.y - meanY;
+
+    covarianceXX += dx * dx;
+    covarianceXY += dx * dy;
+    covarianceYY += dy * dy;
+  });
+  let axisAngle = 0.5 * Math.atan2(
+    2 * covarianceXY,
+    covarianceXX - covarianceYY
+  );
+  const axisX = Math.cos(axisAngle);
+  const axisY = Math.sin(axisAngle);
+  const projections = points.map((point) => (
+    (point.x - meanX) * axisX + (point.y - meanY) * axisY
+  ));
+  const minProjection = Math.min(...projections);
+  const maxProjection = Math.max(...projections);
+
+  axisAngle = THREE.MathUtils.radToDeg(axisAngle);
+  if (axisAngle > 90) axisAngle -= 180;
+  if (axisAngle <= -90) axisAngle += 180;
+  return {
+    axisAngle,
+    axisStart: {
+      x: meanX + axisX * minProjection,
+      y: meanY + axisY * minProjection
+    },
+    axisEnd: {
+      x: meanX + axisX * maxProjection,
+      y: meanY + axisY * maxProjection
+    }
+  };
+}
+
+function boundsFromProjectedPoints(points) {
+  return {
+    minX: Math.min(...points.map((point) => point.x)),
+    maxX: Math.max(...points.map((point) => point.x)),
+    minY: Math.min(...points.map((point) => point.y)),
+    maxY: Math.max(...points.map((point) => point.y))
+  };
+}
+
+function projectToScreen(worldPoint, camera, width, height) {
+  const projected = worldPoint.clone().project(camera);
+
+  return {
+    x: (projected.x * 0.5 + 0.5) * width,
+    y: (-projected.y * 0.5 + 0.5) * height
+  };
+}
+
+function formatProjectionMetrics(center, bounds, width, height, clampVisible) {
+  const visibleMinX = clampVisible ? Math.max(0, bounds.minX) : bounds.minX;
+  const visibleMaxX = clampVisible ? Math.min(width, bounds.maxX) : bounds.maxX;
+  const visibleMinY = clampVisible ? Math.max(0, bounds.minY) : bounds.minY;
+  const visibleMaxY = clampVisible ? Math.min(height, bounds.maxY) : bounds.maxY;
+
+  return {
+    centerPercent: {
+      x: center.x / width * 100,
+      y: center.y / height * 100
+    },
+    widthPercent: Math.max(0, visibleMaxX - visibleMinX) / width * 100,
+    heightPercent: Math.max(0, visibleMaxY - visibleMinY) / height * 100,
+    bounds,
+    center
+  };
+}
+
+function drawCompositionGuide(context, canvas, metrics, width, height) {
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+
+  context.clearRect(0, 0, width, height);
+  context.save();
+  context.font = '12px monospace';
+  context.lineWidth = 1;
+  context.setLineDash([7, 5]);
+  context.strokeStyle = 'rgba(87, 220, 255, 0.72)';
+  context.beginPath();
+  context.moveTo(width * 0.38, 0);
+  context.lineTo(width * 0.38, height);
+  context.stroke();
+  context.fillStyle = '#57dcff';
+  context.fillText('38% TEXT SAFE', width * 0.38 + 8, 18);
+
+  drawDebugBounds(context, metrics.earth, '#ffbd57', 'EARTH');
+  drawDebugBounds(context, metrics.mainGalaxy, '#9b8cff', 'MAIN GALAXY');
+  context.setLineDash([]);
+  context.strokeStyle = '#ff6fd8';
+  context.lineWidth = 2;
+  context.beginPath();
+  context.moveTo(metrics.mainGalaxy.axisStart.x, metrics.mainGalaxy.axisStart.y);
+  context.lineTo(metrics.mainGalaxy.axisEnd.x, metrics.mainGalaxy.axisEnd.y);
+  context.stroke();
+
+  const panelX = Math.max(12, width - 430);
+  const panelY = Math.max(12, height - 112);
+
+  context.fillStyle = 'rgba(1, 6, 18, 0.82)';
+  context.fillRect(panelX - 10, panelY - 20, 420, 105);
+  context.fillStyle = '#e7f7ff';
+  context.fillText(
+    `EARTH center ${metrics.earth.centerPercent.x.toFixed(1)}%, ${metrics.earth.centerPercent.y.toFixed(1)}%  visible ${metrics.earth.widthPercent.toFixed(1)}% x ${metrics.earth.heightPercent.toFixed(1)}%`,
+    panelX,
+    panelY
+  );
+  context.fillText(
+    `GALAXY center ${metrics.mainGalaxy.centerPercent.x.toFixed(1)}%, ${metrics.mainGalaxy.centerPercent.y.toFixed(1)}%  bounds ${metrics.mainGalaxy.widthPercent.toFixed(1)}% x ${metrics.mainGalaxy.heightPercent.toFixed(1)}%`,
+    panelX,
+    panelY + 22
+  );
+  context.fillText(
+    `GALAXY axis ${metrics.mainGalaxy.axisAngle.toFixed(1)} deg`,
+    panelX,
+    panelY + 44
+  );
+  context.restore();
+}
+
+function drawDebugBounds(context, metrics, color, label) {
+  const { bounds, center } = metrics;
+  const centerX = Math.min(Math.max(center.x, 6), window.innerWidth - 6);
+  const centerY = Math.min(Math.max(center.y, 6), window.innerHeight - 6);
+
+  context.setLineDash([6, 4]);
+  context.strokeStyle = color;
+  context.strokeRect(
+    bounds.minX,
+    bounds.minY,
+    bounds.maxX - bounds.minX,
+    bounds.maxY - bounds.minY
+  );
+  context.setLineDash([]);
+  context.fillStyle = color;
+  context.beginPath();
+  context.arc(centerX, centerY, 4, 0, Math.PI * 2);
+  context.fill();
+  context.fillText(
+    `${label} ${metrics.centerPercent.x.toFixed(1)}%, ${metrics.centerPercent.y.toFixed(1)}%`,
+    centerX + 8,
+    centerY - 8
+  );
 }
