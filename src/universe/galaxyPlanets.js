@@ -11,7 +11,11 @@ const NEBULAE = [
     orbitRadius: 1.12,
     orbitScaleY: 0.62,
     size: 0.38,
-    period: 210,
+    driftPeriod: 240,
+    driftDirection: 1,
+    driftPhase: Math.PI,
+    driftAmplitude: [0.025, 0.02, 0.014],
+    driftDepthPhase: 0.65,
     spin: 0.052,
     phase: 5.3,
     depthScale: 0.22,
@@ -38,7 +42,11 @@ const NEBULAE = [
     orbitRadius: 0.96,
     orbitScaleY: 0.3,
     size: 0.345,
-    period: -260,
+    driftPeriod: 285,
+    driftDirection: -1,
+    driftPhase: -Math.PI * 0.5,
+    driftAmplitude: [0.0175, 0.0125, 0.01],
+    driftDepthPhase: 1.4,
     spin: -0.042,
     phase: 4.3,
     depthScale: 0.26,
@@ -65,7 +73,11 @@ const NEBULAE = [
     orbitRadius: 0.98,
     orbitScaleY: 0.48,
     size: 0.345,
-    period: 300,
+    driftPeriod: 330,
+    driftDirection: 1,
+    driftPhase: Math.PI * 0.5,
+    driftAmplitude: [0.025, 0.0175, 0.012],
+    driftDepthPhase: 2.2,
     spin: 0.036,
     phase: 3.55,
     depthScale: 0.2,
@@ -180,7 +192,12 @@ function createBusinessNebula(config, particleTexture, seed) {
     seed: seed + 107
   });
   const label = createNebulaLabel(config);
-  let orbitAngle = config.phase;
+  const anchorPosition = new THREE.Vector3(
+    Math.cos(config.phase) * config.orbitRadius,
+    Math.sin(config.phase) * config.orbitRadius * config.orbitScaleY,
+    Math.sin(config.phase) * config.orbitRadius * Math.sin(config.tilt[0])
+  );
+  let driftAngle = config.driftPhase;
 
   orbitalGroup.name = `${config.name.replace(/\s+/g, '')}Orbit`;
   orbitalGroup.rotation.set(0, 0, 0);
@@ -198,7 +215,7 @@ function createBusinessNebula(config, particleTexture, seed) {
   function update(delta, time, index, entryProgress, focusProgress, isEntryTarget, interaction) {
     const freeze = smoothstep(0.05, 0.24, entryProgress);
     const entryFocus = smoothstep(0.16, 0.66, entryProgress);
-    const angleSpeed = (TAU / Math.abs(config.period)) * Math.sign(config.period) * (1 - freeze);
+    const driftSpeed = TAU / config.driftPeriod * config.driftDirection * (1 - freeze);
     const pulse = 0.5 + Math.sin(time * (0.46 + index * 0.05) + config.phase) * 0.5;
     const dissolve = isEntryTarget
       ? smoothstep(0.9, 1, entryProgress)
@@ -216,11 +233,21 @@ function createBusinessNebula(config, particleTexture, seed) {
     const entryBoost = isEntryTarget ? 1 + entryFocus * 0.72 : 1;
     const visualBoost = hoverBoost * entryBoost;
 
-    orbitAngle += delta * angleSpeed * 0.18;
+    driftAngle += delta * driftSpeed;
+    const driftX = (
+      Math.cos(driftAngle) - Math.cos(config.driftPhase)
+    ) * config.driftAmplitude[0];
+    const driftY = (
+      Math.sin(driftAngle) - Math.sin(config.driftPhase)
+    ) * config.driftAmplitude[1];
+    const driftZ = (
+      Math.sin(driftAngle + config.driftDepthPhase)
+      - Math.sin(config.driftPhase + config.driftDepthPhase)
+    ) * config.driftAmplitude[2];
     nebulaGroup.position.set(
-      Math.cos(orbitAngle) * config.orbitRadius,
-      Math.sin(orbitAngle) * config.orbitRadius * config.orbitScaleY,
-      Math.sin(orbitAngle) * config.orbitRadius * Math.sin(config.tilt[0])
+      anchorPosition.x + driftX,
+      anchorPosition.y + driftY,
+      anchorPosition.z + driftZ
     );
     nebulaGroup.scale.setScalar(isEntryTarget ? targetScale : backgroundScale);
     nebulaGroup.rotation.z += delta * config.spin * 0.28 * (1 + hover * 0.12);

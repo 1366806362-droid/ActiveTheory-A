@@ -17,6 +17,8 @@ export function createCinematicGalaxyShell(parameters = DEFAULT_PARAMETERS) {
   const group = new THREE.Group();
   const cloudGroup = new THREE.Group();
   const dustGroup = new THREE.Group();
+  let layerWeight = 1;
+  let journeyFloor = 0;
   const diffuseVeil = createArmRibbonLayer(config, {
     name: 'CinematicGalaxyDiffuseCloudVeil',
     segmentsPerArm: 94,
@@ -200,17 +202,24 @@ export function createCinematicGalaxyShell(parameters = DEFAULT_PARAMETERS) {
   group.add(cloudGroup, dustGroup);
 
   function update(delta, time, journeyProgress = 0) {
-    const visibility = 1 - smootherstep(0.35, 0.7, journeyProgress);
+    const transition = smootherstep(0.35, 0.7, journeyProgress);
+    const visibility = 1 - transition * (1 - journeyFloor);
     const pulse = 0.985 + Math.sin(time * 0.11) * 0.015;
 
     group.rotation.z += delta * 0.0032;
     layers.forEach((layer) => {
       layer.material.uniforms.uOpacity.value = layer.baseOpacity
         * visibility
+        * layerWeight
         * pulse
         * (layer.debugMultiplier ?? 1);
       layer.material.uniforms.uTime.value = time;
     });
+  }
+
+  function setHybridWeight(weight = 1, minimumJourneyVisibility = 0) {
+    layerWeight = Math.min(Math.max(weight, 0), 1);
+    journeyFloor = Math.min(Math.max(minimumJourneyVisibility, 0), 1);
   }
 
   function setLayerMode(mode = 'combined') {
@@ -241,6 +250,7 @@ export function createCinematicGalaxyShell(parameters = DEFAULT_PARAMETERS) {
     dustGroup,
     update,
     setLayerMode,
+    setHybridWeight,
     dispose
   };
 }
@@ -296,7 +306,14 @@ function createArmRibbonLayer(config, options) {
         ) * 0.5;
       const clusterEnvelope = smootherstep(0.24, 0.78, cluster);
       const widthVariation = 0.54 + clusterEnvelope * 0.46;
-      const width = shellWidthAt(t) * options.widthScale * widthVariation;
+      const armBalance = smootherstep(0.12, 0.28, t);
+      const widthBalance = armIndex === 1
+        ? 1 - armBalance * 0.18
+        : 1 + armBalance * 0.02;
+      const width = shellWidthAt(t)
+        * options.widthScale
+        * widthVariation
+        * widthBalance;
       const radialLength = Math.max(Math.hypot(center.x, center.y), 0.0001);
       const radialX = center.x / radialLength;
       const radialY = center.y / radialLength;
@@ -357,18 +374,41 @@ function createArmRibbonLayer(config, options) {
           || random() < 0.1;
         localOpacity *= gap ? 0 : (0.42 + localBand * 0.58) * clusterEnvelope;
       } else {
-        const hardGap = cluster < 0.17 || random() < 0.045;
-        const softenedGap = cluster < 0.34 || secondaryCluster < 0.14;
+        const hardGap = cluster < (armIndex === 0 ? 0.12 : 0.17)
+          || random() < (armIndex === 0 ? 0.025 : 0.045);
+        const softenedGap = cluster < (armIndex === 0 ? 0.28 : 0.34)
+          || secondaryCluster < (armIndex === 0 ? 0.1 : 0.14);
         const gapFloor = options.gapFloor ?? 0;
         localOpacity *= hardGap
           ? gapFloor
           : softenedGap
             ? Math.max(0.075, gapFloor * 0.6)
             : 1;
+
+        if (armIndex === 1) {
+          const upperGapSignal = 0.5
+            + Math.sin(t * TAU * 3.15 + 0.9) * 0.5;
+          const upperGapStrength = smootherstep(0.64, 0.9, upperGapSignal)
+            * smootherstep(0.16, 0.28, t)
+            * (1 - smootherstep(0.72, 0.8, t));
+          const upperGapA = smootherstep(0.31, 0.355, t)
+            * (1 - smootherstep(0.405, 0.455, t));
+          const upperGapB = smootherstep(0.535, 0.58, t)
+            * (1 - smootherstep(0.63, 0.685, t));
+          const upperWindowGap = Math.max(upperGapA, upperGapB);
+          localOpacity *= (1 - upperGapStrength * 0.68)
+            * (1 - upperWindowGap * 0.7);
+        }
       }
       localOpacity *= options.kind === 'dust'
         ? 0.86 + random() * 0.24
         : 0.48 + random() * 0.72;
+      if (options.kind !== 'dust') {
+        const opacityBalance = armIndex === 1
+          ? 1 - armBalance * 0.16
+          : 1 + armBalance * 0.1;
+        localOpacity *= opacityBalance;
+      }
 
       color.copy(primary).lerp(secondary, smootherstep(0.18, 0.82, t) * 0.72 + random() * 0.14);
       color.multiplyScalar(options.kind === 'dust'

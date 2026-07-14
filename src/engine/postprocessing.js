@@ -9,18 +9,18 @@ export function createPostProcessing({ renderer, scene, camera }) {
   const renderPass = new RenderPass(scene, camera);
   const bloomPass = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.34,
-    0.18,
-    0.56
+    0.3,
+    0.11,
+    0.78
   );
   const outputPass = new OutputPass();
   const showBloom = readDebugFlag('debugMainGalaxyOnly', false)
     ? false
     : readDebugFlag('showBloom', true);
 
-  bloomPass.threshold = 0.72;
-  bloomPass.strength = 0.32;
-  bloomPass.radius = 0.12;
+  bloomPass.threshold = 0.78;
+  bloomPass.strength = 0.3;
+  bloomPass.radius = 0.11;
 
   composer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   composer.setSize(window.innerWidth, window.innerHeight);

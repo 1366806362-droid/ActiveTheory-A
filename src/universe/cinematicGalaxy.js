@@ -1,13 +1,17 @@
 import * as THREE from 'three';
+import { getCamera } from '../engine/camera.js';
 import { createGalaxyCoreCluster } from './galaxyCoreCluster.js';
 import { createCinematicGalaxyShell } from './cinematicGalaxyShell.js';
 import { createGalaxyBaseLayer } from './galaxyBaseLayer.js';
+import { createGalaxyTextureLayer } from './galaxyTextureLayer.js';
+import { createHeroTextureLoader } from './heroTextureLoader.js';
 
 const TAU = Math.PI * 2;
 const INNER_RADIUS = 0.07;
 const OUTER_RADIUS = 0.78;
 const TURNS = 0.88;
 const RADIUS_EXPONENT = 1.12;
+const GALAXY_ALIGNMENT_DEBUG = prepareGalaxyAlignmentDebug();
 const DEFAULT_LAYER_VISIBILITY = Object.freeze({
   core: true,
   mainArms: true,
@@ -22,9 +26,12 @@ export function createCinematicGalaxy({
   useGalaxyShell = true
 } = {}) {
   const galaxyLayerDebugMode = readGalaxyLayerDebugMode();
+  const galaxyHybridDebug = readGalaxyHybridDebugState();
+  const galaxyAlignmentDebug = GALAXY_ALIGNMENT_DEBUG;
   const group = new THREE.Group();
   const visual = new THREE.Group();
   const baseLayerGroup = new THREE.Group();
+  const textureLayerGroup = new THREE.Group();
   const shellLayer = new THREE.Group();
   const armsLayer = new THREE.Group();
   const nebulaLayer = new THREE.Group();
@@ -46,6 +53,21 @@ export function createCinematicGalaxy({
     radiusExponent: RADIUS_EXPONENT,
     globalArmPhase: 0
   });
+  const galaxyTextureLayer = createGalaxyTextureLayer({
+    outerRadius: OUTER_RADIUS,
+    extentScale: 2.7
+  });
+  const alignmentDebugGroup = createGalaxyAlignmentDebug(galaxyTextureLayer);
+  const heroTextureLoader = createHeroTextureLoader({ anisotropy: 6 });
+  const hybridDebugOverlay = galaxyHybridDebug.enabled || galaxyAlignmentDebug.enabled
+    ? createGalaxyHybridDebugOverlay(
+      galaxyAlignmentDebug.enabled ? 'alignmentDebug' : galaxyHybridDebug.mode
+    )
+    : null;
+  let textureLoadStatus = 'idle';
+  let textureLayerWeight = 0;
+  let disposed = false;
+  let unsubscribeTextureLoader = null;
   const arms = createSpiralArms(texture);
   const armNebula = createArmNebula(texture);
   const dustLanes = createDustLanes(texture);
@@ -126,11 +148,12 @@ export function createCinematicGalaxy({
   ));
   const spinQuaternion = new THREE.Quaternion();
   const localNormal = new THREE.Vector3(0, 0, 1);
-  let spinAngle = -0.2;
+  let spinAngle = galaxyAlignmentDebug.enabled ? 0 : -0.2;
 
   group.name = 'ActiveTheoryCinematicGalaxy';
   visual.name = 'CinematicGalaxyVisual';
   baseLayerGroup.name = 'CinematicGalaxyBaseLayerGroup';
+  textureLayerGroup.name = 'CinematicGalaxyTextureLayerGroup';
   shellLayer.name = 'CinematicGalaxyShellLayer';
   armsLayer.name = 'CinematicGalaxyArmsLayer';
   nebulaLayer.name = 'CinematicGalaxyNebulaLayer';
@@ -141,6 +164,7 @@ export function createCinematicGalaxy({
   visual.position.set(0, 0.34, 0);
   visual.scale.set(0.9, 0.84, 0.9);
   baseLayerGroup.add(baseLayer.mesh);
+  textureLayerGroup.add(galaxyTextureLayer.mesh);
   shellLayer.add(shell.group);
   armsLayer.add(arms.points);
   nebulaLayer.add(armNebula.points);
@@ -150,38 +174,64 @@ export function createCinematicGalaxy({
   coreLayer.scale.set(1.12, 0.78, 0.28);
   visual.add(
     baseLayerGroup,
+    textureLayerGroup,
     shellLayer,
     dustLayer,
     nebulaLayer,
     armsLayer,
     nodesLayer,
-    coreLayer
+    coreLayer,
+    alignmentDebugGroup
   );
   group.add(visual);
   applyDebugVisibility();
   applyShellDebugMode(shellDebugMode);
+  applyGalaxyHybridMode();
   applyOrientation();
+  unsubscribeTextureLoader = heroTextureLoader.subscribe(({ status, textures }) => {
+    if (disposed) return;
+    textureLoadStatus = status;
+    galaxyTextureLayer.setTextures(status === 'ready' ? textures : null);
+    applyGalaxyHybridMode();
+    updateHybridDebugOverlay();
+  });
+  void heroTextureLoader.loadGalaxyTextures();
 
   function update(delta, time, interaction, journeyProgress = 0) {
-    const proximity = interaction?.proximity ?? 0;
-    const pulse = 0.5 + Math.sin(time * 0.34) * 0.5;
-    const breathing = Math.sin(time * 0.16 + 0.6);
+    const alignmentTime = galaxyAlignmentDebug.enabled ? 0 : time;
+    const proximity = galaxyAlignmentDebug.enabled
+      ? 0
+      : (interaction?.proximity ?? 0);
+    const pulse = 0.5 + Math.sin(alignmentTime * 0.34) * 0.5;
+    const breathing = galaxyAlignmentDebug.enabled
+      ? 0
+      : Math.sin(alignmentTime * 0.16 + 0.6);
 
     group.position.set(0.46, -0.04, 0);
     group.scale.setScalar(1.5 + breathing * 0.006);
     group.rotation.set(0, 0, 0);
-    spinAngle -= delta * 0.012;
+    if (galaxyAlignmentDebug.enabled) {
+      spinAngle = 0;
+    } else {
+      spinAngle -= delta * 0.012;
+    }
     applyOrientation();
     shell.update(delta, time, journeyProgress);
     baseLayer.update(time, pulse, journeyProgress);
-    arms.update(time, pulse, proximity);
-    armNebula.update(time, pulse);
-    dustLanes.update(time, pulse);
-    outskirts.update(time, pulse);
-    armHighlights.update(time, pulse);
-    innerStarDisk.update(time, pulse);
+    const textureFade = smootherstep(0.22, 0.72, journeyProgress);
+    const textureJourneyOpacity = 1 - textureFade * 0.84;
+
+    galaxyTextureLayer.setOpacity(textureLayerWeight * textureJourneyOpacity);
+    galaxyTextureLayer.update(alignmentTime);
+    arms.update(alignmentTime, pulse, proximity);
+    armNebula.update(alignmentTime, pulse);
+    dustLanes.update(alignmentTime, pulse);
+    outskirts.update(alignmentTime, pulse);
+    armHighlights.update(alignmentTime, pulse);
+    innerStarDisk.update(alignmentTime, pulse);
     coreGlow.update(pulse);
-    core.update(delta, time, pulse, 1, proximity, 1);
+    core.update(galaxyAlignmentDebug.enabled ? 0 : delta, alignmentTime, pulse, 1, proximity, 1);
+    updateAlignmentDebugOverlay();
   }
 
   function applyOrientation() {
@@ -199,6 +249,10 @@ export function createCinematicGalaxy({
   }
 
   function applyShellDebugMode(mode = null) {
+    if (galaxyHybridDebug.enabled || galaxyAlignmentDebug.enabled) {
+      applyGalaxyHybridMode();
+      return;
+    }
     if (galaxyLayerDebugMode) {
       applyGalaxyLayerMode(galaxyLayerDebugMode);
       return;
@@ -218,6 +272,94 @@ export function createCinematicGalaxy({
     dustLayer.visible = particlesEnabled && debugVisibility.dust;
     nodesLayer.visible = particlesEnabled && debugVisibility.highlights;
     coreLayer.visible = particlesEnabled && debugVisibility.core;
+  }
+
+  function applyGalaxyHybridMode() {
+    const textureReady = galaxyTextureLayer.isReady();
+    const legacyDebugActive = Boolean(galaxyLayerDebugMode || shellDebugMode);
+    const mode = galaxyAlignmentDebug.enabled
+      ? 'alignmentDebug'
+      : galaxyHybridDebug.enabled
+        ? galaxyHybridDebug.mode
+        : 'combined';
+
+    if (legacyDebugActive && !galaxyHybridDebug.enabled) {
+      textureLayerWeight = 0;
+      textureLayerGroup.visible = false;
+      shell.setHybridWeight(1, 0);
+      baseLayer.setHybridWeight(1);
+      return;
+    }
+
+    const proceduralOnly = mode === 'proceduralOnly';
+    const textureOnly = mode === 'textureOnly';
+    const particlesOnly = mode === 'particlesOnly';
+    const combined = mode === 'combined' || mode === 'alignmentDebug';
+    const hybridReady = textureReady && (textureOnly || combined);
+    const proceduralFallback = !textureReady && combined;
+    const showProcedural = proceduralOnly || proceduralFallback || combined;
+    const showParticles = proceduralOnly || particlesOnly || combined;
+
+    textureLayerWeight = hybridReady ? (combined ? 0.74 : 1) : 0;
+    textureLayerGroup.visible = hybridReady;
+    baseLayerGroup.visible = showProcedural && useGalaxyShell;
+    shellLayer.visible = showProcedural && useGalaxyShell;
+    shell.setLayerMode('combined');
+    shell.setHybridWeight(
+      hybridReady && combined ? 0.25 : showProcedural ? 1 : 0,
+      hybridReady && combined ? 0.76 : 0
+    );
+    baseLayer.setHybridWeight(hybridReady && combined ? 0.06 : showProcedural ? 1 : 0);
+    armsLayer.visible = showParticles && debugVisibility.mainArms;
+    nebulaLayer.visible = showParticles && debugVisibility.nebula;
+    dustLayer.visible = showParticles && debugVisibility.dust;
+    nodesLayer.visible = showParticles && debugVisibility.highlights;
+    coreLayer.visible = showParticles && debugVisibility.core;
+    alignmentDebugGroup.visible = mode === 'alignmentDebug';
+
+    if (mode === 'alignmentDebug') {
+      baseLayerGroup.visible = false;
+      shellLayer.visible = false;
+      nebulaLayer.visible = false;
+      dustLayer.visible = false;
+      nodesLayer.visible = false;
+      armsLayer.visible = debugVisibility.mainArms;
+      coreLayer.visible = debugVisibility.core;
+    }
+
+    if (textureOnly) {
+      baseLayerGroup.visible = false;
+      shellLayer.visible = false;
+      armsLayer.visible = false;
+      nebulaLayer.visible = false;
+      dustLayer.visible = false;
+      nodesLayer.visible = false;
+      coreLayer.visible = false;
+    }
+    if (particlesOnly) {
+      baseLayerGroup.visible = false;
+      shellLayer.visible = false;
+      textureLayerGroup.visible = false;
+      textureLayerWeight = 0;
+    }
+  }
+
+  function updateHybridDebugOverlay() {
+    hybridDebugOverlay?.update({
+      mode: galaxyAlignmentDebug.enabled ? 'alignmentDebug' : galaxyHybridDebug.mode,
+      status: textureLoadStatus,
+      fallback: textureLoadStatus !== 'ready'
+    });
+  }
+
+  function updateAlignmentDebugOverlay() {
+    if (!galaxyAlignmentDebug.enabled) return;
+    const camera = getCamera();
+
+    if (!camera) return;
+    hybridDebugOverlay?.update({
+      alignment: alignmentDebugGroup.userData.measureScreen(camera)
+    });
   }
 
   function applyGalaxyLayerMode(mode = 'combined') {
@@ -246,6 +388,10 @@ export function createCinematicGalaxy({
   }
 
   function dispose() {
+    disposed = true;
+    unsubscribeTextureLoader?.();
+    hybridDebugOverlay?.dispose();
+    alignmentDebugGroup.userData.dispose?.();
     arms.dispose();
     armNebula.dispose();
     dustLanes.dispose();
@@ -254,6 +400,8 @@ export function createCinematicGalaxy({
     innerStarDisk.dispose();
     coreGlow.dispose();
     baseLayer.dispose();
+    galaxyTextureLayer.dispose();
+    heroTextureLoader.dispose();
     shell.dispose();
     core.dispose();
     texture.dispose();
@@ -264,6 +412,7 @@ export function createCinematicGalaxy({
     group,
     layers: {
       base: baseLayerGroup,
+      texture: textureLayerGroup,
       arms: armsLayer,
       shell: shellLayer,
       nebula: nebulaLayer,
@@ -275,6 +424,7 @@ export function createCinematicGalaxy({
     applyDebugVisibility,
     applyShellDebugMode,
     applyGalaxyLayerMode,
+    applyGalaxyHybridMode,
     dispose,
     parameters: {
       turns: TURNS,
@@ -283,7 +433,10 @@ export function createCinematicGalaxy({
       outerRadius: OUTER_RADIUS
     },
     useGalaxyShell,
-    galaxyLayerDebugMode
+    galaxyLayerDebugMode,
+    galaxyHybridDebug,
+    galaxyAlignmentDebug,
+    getTextureLoadStatus: () => textureLoadStatus
   };
 }
 
@@ -347,6 +500,8 @@ function createSpiralArms(texture) {
           * layer.widthScale
           * rootNarrowing
           * outerScatter;
+        const lowerScatterLayer = armIndex === 0 && layer.role !== 'spine';
+        if (lowerScatterLayer) perpendicular *= 1.08;
         const radialOffset = clampGaussian(gaussianRandom(random))
           * armWidth
           * layer.widthScale
@@ -385,6 +540,15 @@ function createSpiralArms(texture) {
         ));
         const densityWeight = 0.5 + smoothstep(0.16, 0.84, lowFrequencyDensity) * 0.58;
         const clusterStrength = 0.4 + clusterWave * 0.38 + secondaryCluster * 0.22;
+        const lowerClusterA = smoothstep(0.2, 0.255, progress)
+          * (1 - smoothstep(0.31, 0.365, progress));
+        const lowerClusterB = smoothstep(0.405, 0.46, progress)
+          * (1 - smoothstep(0.515, 0.57, progress));
+        const lowerClusterC = smoothstep(0.59, 0.645, progress)
+          * (1 - smoothstep(0.7, 0.755, progress));
+        const lowerLocalCluster = lowerScatterLayer
+          ? Math.max(lowerClusterA, lowerClusterB, lowerClusterC)
+          : 0;
         const signedRadial = radialOffset / Math.max(
           armWidth * layer.widthScale * 0.25 * rootNarrowing,
           0.0001
@@ -430,7 +594,12 @@ function createSpiralArms(texture) {
         positions[stride + 2] = (random() - 0.5)
           * (0.035 + (1 - progress) * 0.08 + layer.widthScale * 0.018);
         chooseGalaxyColor(color, palette, random());
-        color.multiplyScalar(layer.brightness * (0.7 + clusterStrength * 0.32) * dustCut);
+        color.multiplyScalar(
+          layer.brightness
+          * (0.7 + clusterStrength * 0.32)
+          * dustCut
+          * (1 + lowerLocalCluster * 0.055)
+        );
         colors[stride] = color.r;
         colors[stride + 1] = color.g;
         colors[stride + 2] = color.b;
@@ -443,7 +612,9 @@ function createSpiralArms(texture) {
           * dustCut
           * armBreak
           * midDensityBoost
-          * featherOpacity;
+          * featherOpacity
+          * (lowerScatterLayer ? 1.12 : 1)
+          * (1 + lowerLocalCluster * 0.08);
         particleIndex += 1;
       }
     }
@@ -504,7 +675,11 @@ function createArmNebula(texture) {
       const armWidth = 0.018
         + Math.sin(progress * Math.PI) * 0.055
         + progress * 0.035;
-      const spread = armWidth * (1.38 + random() * 0.58);
+      const armBalance = smoothstep(0.12, 0.28, progress);
+      const widthBalance = armIndex === 1
+        ? 1 - armBalance * 0.17
+        : 1 + armBalance * 0.025;
+      const spread = armWidth * (1.38 + random() * 0.58) * widthBalance;
       const perpendicular = clampGaussian(gaussianRandom(random)) * spread * 0.34;
       const radialOffset = gaussianRandom(random) * spread * 0.11;
       const noisyRadius = Math.max(INNER_RADIUS, radius + radialOffset);
@@ -520,6 +695,24 @@ function createArmNebula(texture) {
         - smoothstep(0.46, 0.51, progress)
         * (1 - smoothstep(0.57, 0.62, progress))
         * 0.8;
+      const upperGapA = 1
+        - smoothstep(0.25, 0.285, progress)
+        * (1 - smoothstep(0.34, 0.385, progress))
+        * 0.52;
+      const upperGapB = 1
+        - smoothstep(0.59, 0.625, progress)
+        * (1 - smoothstep(0.68, 0.73, progress))
+        * 0.62;
+      const upperGap = armIndex === 1 ? upperGapA * upperGapB : 1;
+      const lowerBreakRecovery = armIndex === 0 ? 0.12 : 0;
+      const armBreak = Math.min(
+        1,
+        innerArmBreak * midArmBreak
+          + (1 - innerArmBreak * midArmBreak) * lowerBreakRecovery
+      );
+      const opacityBalance = armIndex === 1
+        ? 1 - armBalance * 0.15
+        : 1 + armBalance * 0.1;
 
       positions[stride] = Math.cos(angle) * noisyRadius - Math.sin(angle) * perpendicular;
       positions[stride + 1] = Math.sin(angle) * noisyRadius + Math.cos(angle) * perpendicular;
@@ -534,8 +727,9 @@ function createArmNebula(texture) {
       opacities[particleIndex] = (0.24 + random() * 0.16)
         * clusterOpacity
         * outerFade
-        * innerArmBreak
-        * midArmBreak;
+        * armBreak
+        * upperGap
+        * opacityBalance;
       rotations[particleIndex] = angle + Math.PI * 0.5;
       stretches[particleIndex] = 1.55 + random() * 0.65;
     }
@@ -1045,6 +1239,164 @@ function smoothstep(edge0, edge1, value) {
   return t * t * (3 - 2 * t);
 }
 
+function smootherstep(edge0, edge1, value) {
+  const t = Math.min(Math.max((value - edge0) / (edge1 - edge0), 0), 1);
+  return t * t * t * (t * (t * 6 - 15) + 10);
+}
+
+function createGalaxyAlignmentDebug(textureLayer) {
+  const group = new THREE.Group();
+  const particleCore = new THREE.Vector3(0, 0, 0);
+  const textureCore = textureLayer.sourceUvToLocalPoint(textureLayer.alignment.coreUv);
+  const textureUAxis = textureLayer.sourceUvToLocalPoint({
+    x: textureLayer.alignment.coreUv.x + 0.25,
+    y: textureLayer.alignment.coreUv.y
+  });
+  const textureVAxis = textureLayer.sourceUvToLocalPoint({
+    x: textureLayer.alignment.coreUv.x,
+    y: textureLayer.alignment.coreUv.y + 0.25
+  });
+  const textureArmPoints = textureLayer.alignment.armUvs.map((uv) => (
+    textureLayer.sourceUvToLocalPoint(uv)
+  ));
+  const particleArmPoints = [0, 1].map((armIndex) => {
+    const progress = 0.19;
+    const radius = INNER_RADIUS
+      + (OUTER_RADIUS - INNER_RADIUS) * Math.pow(progress, RADIUS_EXPONENT);
+    const angle = armIndex * Math.PI + progress * TAU * TURNS;
+    return new THREE.Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius, 0);
+  });
+  const textureMaterial = new THREE.LineBasicMaterial({
+    color: 0xff4fd8,
+    transparent: true,
+    opacity: 0.92,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false
+  });
+  const particleMaterial = new THREE.LineBasicMaterial({
+    color: 0x4fffea,
+    transparent: true,
+    opacity: 0.92,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false
+  });
+  const textureGeometry = new THREE.BufferGeometry().setFromPoints([
+    textureCore, textureArmPoints[0], textureCore, textureArmPoints[1]
+  ]);
+  const particleGeometry = new THREE.BufferGeometry().setFromPoints([
+    particleCore, particleArmPoints[0], particleCore, particleArmPoints[1]
+  ]);
+  const textureLines = new THREE.LineSegments(textureGeometry, textureMaterial);
+  const particleLines = new THREE.LineSegments(particleGeometry, particleMaterial);
+  const uAxisMaterial = new THREE.LineBasicMaterial({
+    color: 0xffd84a,
+    transparent: true,
+    opacity: 0.98,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false
+  });
+  const vAxisMaterial = new THREE.LineBasicMaterial({
+    color: 0x66ff88,
+    transparent: true,
+    opacity: 0.98,
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false
+  });
+  const uAxisGeometry = new THREE.BufferGeometry().setFromPoints([
+    textureCore, textureUAxis
+  ]);
+  const vAxisGeometry = new THREE.BufferGeometry().setFromPoints([
+    textureCore, textureVAxis
+  ]);
+  const uAxisLine = new THREE.Line(uAxisGeometry, uAxisMaterial);
+  const vAxisLine = new THREE.Line(vAxisGeometry, vAxisMaterial);
+  const textureMarker = createAlignmentMarker(textureCore, 0xff4fd8);
+  const particleMarker = createAlignmentMarker(particleCore, 0x4fffea);
+
+  group.name = 'CinematicGalaxyAlignmentDebug';
+  group.visible = false;
+  textureLines.renderOrder = 100;
+  particleLines.renderOrder = 100;
+  uAxisLine.renderOrder = 100;
+  vAxisLine.renderOrder = 100;
+  group.add(
+    textureLines,
+    particleLines,
+    uAxisLine,
+    vAxisLine,
+    textureMarker.mesh,
+    particleMarker.mesh
+  );
+  group.userData.dispose = () => {
+    textureGeometry.dispose();
+    particleGeometry.dispose();
+    uAxisGeometry.dispose();
+    vAxisGeometry.dispose();
+    textureMaterial.dispose();
+    particleMaterial.dispose();
+    uAxisMaterial.dispose();
+    vAxisMaterial.dispose();
+    textureMarker.dispose();
+    particleMarker.dispose();
+  };
+  const textureWorldPosition = new THREE.Vector3();
+  const particleWorldPosition = new THREE.Vector3();
+  group.userData.measureScreen = (camera) => {
+    group.updateWorldMatrix(true, true);
+    camera.updateMatrixWorld(true);
+    textureMarker.mesh.getWorldPosition(textureWorldPosition).project(camera);
+    particleMarker.mesh.getWorldPosition(particleWorldPosition).project(camera);
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const textureScreen = {
+      x: (textureWorldPosition.x * 0.5 + 0.5) * width,
+      y: (-textureWorldPosition.y * 0.5 + 0.5) * height
+    };
+    const particleScreen = {
+      x: (particleWorldPosition.x * 0.5 + 0.5) * width,
+      y: (-particleWorldPosition.y * 0.5 + 0.5) * height
+    };
+
+    return {
+      texture: textureScreen,
+      particle: particleScreen,
+      error: Math.hypot(
+        textureScreen.x - particleScreen.x,
+        textureScreen.y - particleScreen.y
+      )
+    };
+  };
+  return group;
+}
+
+function createAlignmentMarker(position, color) {
+  const geometry = new THREE.RingGeometry(0.012, 0.019, 24);
+  const material = new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity: 0.98,
+    depthTest: false,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    toneMapped: false
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+
+  mesh.position.copy(position);
+  mesh.renderOrder = 101;
+  return {
+    mesh,
+    dispose() {
+      geometry.dispose();
+      material.dispose();
+    }
+  };
+}
+
 function gaussianRandom(random) {
   const u = Math.max(random(), Number.EPSILON);
   const v = Math.max(random(), Number.EPSILON);
@@ -1083,6 +1435,105 @@ function readGalaxyLayerDebugMode() {
     || directValue;
 
   return supportedModes.has(selectedMode) ? selectedMode : 'combined';
+}
+
+function prepareGalaxyAlignmentDebug() {
+  const params = new URLSearchParams(window.location.search);
+  const directValue = params.get('debugGalaxyAlignment');
+  const enabled = directValue !== null
+    && directValue !== '0'
+    && directValue !== 'false';
+
+  if (enabled && params.get('debugCinematicGalaxy') !== '1') {
+    const debugUrl = new URL(window.location.href);
+
+    debugUrl.searchParams.set('debugCinematicGalaxy', '1');
+    window.history.replaceState(window.history.state, '', debugUrl);
+  }
+
+  return Object.freeze({
+    enabled,
+    frozenSpinPhase: enabled ? 0 : null,
+    parallaxFrozen: enabled
+  });
+}
+
+function readGalaxyHybridDebugState() {
+  const params = new URLSearchParams(window.location.search);
+  const directValue = params.get('debugGalaxyHybrid');
+  const enabled = directValue !== null
+    && directValue !== '0'
+    && directValue !== 'false';
+  const supportedModes = new Set([
+    'proceduralOnly',
+    'textureOnly',
+    'particlesOnly',
+    'combined',
+    'alignmentDebug'
+  ]);
+  const requestedMode = params.get('galaxyHybridMode')
+    || params.get('debugGalaxyHybridMode')
+    || directValue;
+
+  return {
+    enabled,
+    mode: supportedModes.has(requestedMode) ? requestedMode : 'combined'
+  };
+}
+
+function createGalaxyHybridDebugOverlay(initialMode) {
+  const panel = document.createElement('div');
+  const state = {
+    mode: initialMode,
+    status: 'idle',
+    fallback: true,
+    alignment: null
+  };
+
+  panel.dataset.activeTheoryDebug = 'galaxy-hybrid';
+  Object.assign(panel.style, {
+    position: 'fixed',
+    top: '18px',
+    right: '18px',
+    zIndex: '9999',
+    padding: '10px 12px',
+    color: '#bceeff',
+    background: 'rgba(1, 6, 18, 0.82)',
+    border: '1px solid rgba(100, 210, 255, 0.28)',
+    font: '12px/1.5 monospace',
+    letterSpacing: '0.04em',
+    pointerEvents: 'none',
+    whiteSpace: 'pre-line'
+  });
+  panel.textContent = `Galaxy hybrid: ${initialMode}\ntexture fallback`;
+  document.body.append(panel);
+
+  function update(nextState) {
+    Object.assign(state, nextState);
+    const statusLabel = state.status === 'loading'
+      ? 'texture loading'
+      : state.status === 'ready'
+        ? 'texture ready'
+        : state.status === 'error'
+          ? 'texture fallback\ntexture error'
+          : state.fallback
+            ? 'texture fallback'
+            : 'texture fallback';
+    const alignmentLabel = state.alignment
+      ? `\ntexture core: ${state.alignment.texture.x.toFixed(2)}, ${state.alignment.texture.y.toFixed(2)}`
+        + `\nparticle core: ${state.alignment.particle.x.toFixed(2)}, ${state.alignment.particle.y.toFixed(2)}`
+        + `\nprojection error: ${state.alignment.error.toFixed(2)} px`
+        + '\nspin phase: 0.000 (frozen)'
+      : '';
+
+    panel.textContent = `Galaxy hybrid: ${state.mode}\n${statusLabel}${alignmentLabel}`;
+  }
+
+  function dispose() {
+    panel.remove();
+  }
+
+  return { update, dispose };
 }
 
 export const cinematicGalaxyFactory = {

@@ -11,6 +11,7 @@ const DEFAULT_PARAMETERS = Object.freeze({
 export function createGalaxyBaseLayer(parameters = DEFAULT_PARAMETERS) {
   const config = { ...DEFAULT_PARAMETERS, ...parameters };
   const extent = config.outerRadius * 2.7;
+  let layerWeight = 1;
   const geometry = new THREE.PlaneGeometry(extent, extent, 1, 1);
   const material = new THREE.ShaderMaterial({
     uniforms: {
@@ -94,13 +95,20 @@ export function createGalaxyBaseLayer(parameters = DEFAULT_PARAMETERS) {
         float armAngle = uGlobalArmPhase + t * TAU * uTurns;
         float deltaA = angleDelta(angle, armAngle);
         float deltaB = angleDelta(angle, armAngle + PI);
+        float upperArm = abs(deltaB) < abs(deltaA) ? 1.0 : 0.0;
         float signedArmDelta = abs(deltaA) < abs(deltaB) ? deltaA : deltaB;
         float signedArmDistance = signedArmDelta * max(radius, 0.055);
         float middleWidth = 0.022
           + sin(PI * min(t, 0.82) / 0.82) * 0.062;
         float rootTaper = 0.44 + smootherstep(0.035, 0.2, t) * 0.56;
         float outerThin = 1.0 - smootherstep(0.64, 0.88, t) * 0.84;
-        float armWidth = middleWidth * rootTaper * outerThin;
+        float armBalance = smootherstep(0.12, 0.28, t);
+        float widthBalance = mix(
+          1.0 + armBalance * 0.04,
+          1.0 - armBalance * 0.18,
+          upperArm
+        );
+        float armWidth = middleWidth * rootTaper * outerThin * widthBalance;
         float armStart = smootherstep(uInnerRadius * 0.62, uInnerRadius * 1.7, radius);
         float outerFade = 1.0 - smootherstep(0.68, 0.88, t);
 
@@ -122,20 +130,40 @@ export function createGalaxyBaseLayer(parameters = DEFAULT_PARAMETERS) {
         );
         float cloudNoise = fbm(domain + warp * 1.55 + uTime * 0.0035);
         float breakup = smootherstep(0.32, 0.78, cloudNoise + broadNoise * 0.18);
+        float upperGapNoise = fbm(domain * 0.82 + vec2(19.4, -7.2));
+        float upperNoiseGap = 1.0 - upperArm
+          * armBalance
+          * smootherstep(0.56, 0.8, upperGapNoise)
+          * 0.64;
+        float upperGapA = smootherstep(0.31, 0.355, t)
+          * (1.0 - smootherstep(0.405, 0.455, t));
+        float upperGapB = smootherstep(0.535, 0.58, t)
+          * (1.0 - smootherstep(0.63, 0.685, t));
+        float upperWindowGap = max(upperGapA, upperGapB);
+        float upperGap = upperNoiseGap
+          * (1.0 - upperArm * upperWindowGap * 0.62);
         float brokenBody = armMask
           * armStart
           * outerFade
-          * mix(0.2, 1.0, breakup);
+          * mix(0.2, 1.0, breakup)
+          * upperGap;
         float connectorBody = armMask
           * armStart
           * outerFade
-          * mix(0.28, 0.58, broadNoise);
+          * mix(0.28, 0.58, broadNoise)
+          * mix(1.12, 0.72, upperArm);
 
         float midBody = smootherstep(0.12, 0.34, t)
           * (1.0 - smootherstep(0.62, 0.82, t));
         float armOpacity = mix(0.065, 0.105, midBody);
         armOpacity = mix(armOpacity, 0.03, smootherstep(0.68, 0.86, t));
-        float armAlpha = brokenBody * armOpacity + connectorBody * 0.024;
+        armOpacity *= mix(
+          1.0 + armBalance * 0.1,
+          1.0 - armBalance * 0.16,
+          upperArm
+        );
+        float connectorOpacity = mix(0.028, 0.019, upperArm);
+        float armAlpha = brokenBody * armOpacity + connectorBody * connectorOpacity;
 
         vec2 diskPoint = vec2(p.x, p.y / 0.62);
         float diskRadius = length(diskPoint);
@@ -168,7 +196,7 @@ export function createGalaxyBaseLayer(parameters = DEFAULT_PARAMETERS) {
         float dustWindow = smootherstep(0.1, 0.26, t)
           * (1.0 - smootherstep(0.66, 0.82, t));
         float dust = dustLane * dustNoise * armMask * dustWindow;
-        armAlpha *= 1.0 - dust * 0.68;
+        armAlpha *= 1.0 - dust * mix(0.64, 0.74, upperArm);
         diskAlpha *= 1.0 - dust * 0.32;
 
         vec3 warmCore = vec3(1.0, 0.79, 0.58);
@@ -211,7 +239,13 @@ export function createGalaxyBaseLayer(parameters = DEFAULT_PARAMETERS) {
     const visibility = 1 - smootherstep(0.32, 0.7, journeyProgress);
 
     material.uniforms.uTime.value = time;
-    material.uniforms.uOpacity.value = visibility * (0.96 + pulse * 0.025);
+    material.uniforms.uOpacity.value = visibility
+      * layerWeight
+      * (0.96 + pulse * 0.025);
+  }
+
+  function setHybridWeight(weight = 1) {
+    layerWeight = Math.min(Math.max(weight, 0), 1);
   }
 
   function dispose() {
@@ -219,7 +253,7 @@ export function createGalaxyBaseLayer(parameters = DEFAULT_PARAMETERS) {
     material.dispose();
   }
 
-  return { mesh, update, dispose };
+  return { mesh, update, setHybridWeight, dispose };
 }
 
 function smootherstep(edge0, edge1, value) {
