@@ -8,6 +8,14 @@ const DEFAULT_PARAMETERS = Object.freeze({
   uvOffsetX: -0.0217,
   uvOffsetY: 0.2612,
   uvRotation: -0.13,
+  coreUvX: 0.425,
+  coreUvY: 0.665,
+  localPositionZ: -0.105,
+  colorAlphaAsset: false,
+  colorAssetSaturation: 1,
+  colorAssetContrast: 1,
+  alphaFeatherPixels: 0,
+  textureSize: 2048,
   localRotationX: THREE.MathUtils.degToRad(2),
   localRotationY: THREE.MathUtils.degToRad(-1.2),
   localRotationZ: THREE.MathUtils.degToRad(1.5)
@@ -31,7 +39,19 @@ export function createGalaxyTextureLayer(parameters = DEFAULT_PARAMETERS) {
       uTime: { value: 0 },
       uUvScale: { value: new THREE.Vector2(config.uvScale, config.uvScale) },
       uUvOffset: { value: new THREE.Vector2(config.uvOffsetX, config.uvOffsetY) },
-      uUvRotation: { value: config.uvRotation }
+      uUvRotation: { value: config.uvRotation },
+      uCoreUv: { value: new THREE.Vector2(config.coreUvX, config.coreUvY) },
+      uColorAlphaAsset: { value: config.colorAlphaAsset ? 1 : 0 },
+      uColorAssetSaturation: { value: config.colorAssetSaturation },
+      uColorAssetContrast: { value: config.colorAssetContrast },
+      uAlphaFeatherPixels: { value: config.alphaFeatherPixels },
+      uColorTexelSize: {
+        value: new THREE.Vector2(
+          1 / config.textureSize,
+          1 / config.textureSize
+        )
+      },
+      uUseMask: { value: 0 }
     },
     vertexShader: `
       varying vec2 vUv;
@@ -41,6 +61,8 @@ export function createGalaxyTextureLayer(parameters = DEFAULT_PARAMETERS) {
       uniform vec2 uUvScale;
       uniform vec2 uUvOffset;
       uniform float uUvRotation;
+      uniform vec2 uCoreUv;
+      uniform float uUseMask;
 
       float lowFrequencyShape(vec2 point) {
         float firstWave = sin(point.x * 13.7 + point.y * 7.9);
@@ -57,8 +79,8 @@ export function createGalaxyTextureLayer(parameters = DEFAULT_PARAMETERS) {
 
         vec3 layeredPosition = position;
         if (vSampleUv.x > 0.0 && vSampleUv.x < 1.0 && vSampleUv.y > 0.0 && vSampleUv.y < 1.0) {
-          float armDensity = texture2D(uMaskMap, vSampleUv).b;
-          float coreDistance = length((vSampleUv - vec2(0.425, 0.665)) * vec2(0.94, 1.08));
+          float armDensity = uUseMask > 0.5 ? texture2D(uMaskMap, vSampleUv).b : 0.0;
+          float coreDistance = length((vSampleUv - uCoreUv) * vec2(0.94, 1.08));
           float coreLift = (1.0 - smoothstep(0.06, 0.3, coreDistance)) * 0.007;
           float armLift = (armDensity - 0.42) * 0.011;
           float noiseLift = lowFrequencyShape(vSampleUv) * 0.0035
@@ -77,6 +99,13 @@ export function createGalaxyTextureLayer(parameters = DEFAULT_PARAMETERS) {
       uniform vec2 uUvScale;
       uniform vec2 uUvOffset;
       uniform float uUvRotation;
+      uniform vec2 uCoreUv;
+      uniform float uColorAlphaAsset;
+      uniform float uColorAssetSaturation;
+      uniform float uColorAssetContrast;
+      uniform float uAlphaFeatherPixels;
+      uniform vec2 uColorTexelSize;
+      uniform float uUseMask;
       varying vec2 vUv;
       varying vec2 vSampleUv;
 
@@ -104,12 +133,49 @@ export function createGalaxyTextureLayer(parameters = DEFAULT_PARAMETERS) {
         }
 
         vec4 colorSample = texture2D(uColorMap, sampleUv);
-        vec3 masks = texture2D(uMaskMap, sampleUv).rgb;
+        vec3 masks = uUseMask > 0.5 ? texture2D(uMaskMap, sampleUv).rgb : vec3(0.0);
+        vec2 edgeDistance = min(sampleUv, 1.0 - sampleUv);
+        float edgeFeather = smoothstep(0.0, 0.045, min(edgeDistance.x, edgeDistance.y));
+        if (uColorAlphaAsset > 0.5) {
+          vec3 assetColor = colorSample.rgb;
+          float assetLuminance = dot(
+            assetColor,
+            vec3(0.2126, 0.7152, 0.0722)
+          );
+          assetColor = mix(
+            vec3(assetLuminance),
+            assetColor,
+            uColorAssetSaturation
+          );
+          assetColor = clamp(
+            (assetColor - 0.18) * uColorAssetContrast + 0.18,
+            0.0,
+            1.0
+          );
+
+          vec2 alphaOffset = uColorTexelSize * uAlphaFeatherPixels;
+          float neighboringAlpha = (
+            texture2D(uColorMap, sampleUv + vec2(alphaOffset.x, 0.0)).a
+            + texture2D(uColorMap, sampleUv - vec2(alphaOffset.x, 0.0)).a
+            + texture2D(uColorMap, sampleUv + vec2(0.0, alphaOffset.y)).a
+            + texture2D(uColorMap, sampleUv - vec2(0.0, alphaOffset.y)).a
+          ) * 0.25;
+          float fringeWeight = (1.0 - smoothstep(0.12, 0.58, colorSample.a))
+            * min(uAlphaFeatherPixels, 1.5)
+            * 0.28;
+          float featheredAlpha = mix(
+            colorSample.a,
+            min(colorSample.a, neighboringAlpha),
+            fringeWeight
+          );
+          float assetAlpha = featheredAlpha * edgeFeather * uOpacity;
+          if (assetAlpha < 0.001) discard;
+          gl_FragColor = vec4(assetColor, assetAlpha);
+          return;
+        }
         float dust = clamp(masks.r, 0.0, 1.0);
         float emissive = clamp(masks.g, 0.0, 1.0);
         float armDensity = clamp(masks.b, 0.0, 1.0);
-        vec2 edgeDistance = min(sampleUv, 1.0 - sampleUv);
-        float edgeFeather = smoothstep(0.0, 0.045, min(edgeDistance.x, edgeDistance.y));
         float densitySignal = smoothstep(0.12, 0.72, armDensity);
         float densityWeight = mix(0.025, 1.0, densitySignal);
         float dustSignal = smoothstep(0.08, 0.82, dust);
@@ -129,7 +195,7 @@ export function createGalaxyTextureLayer(parameters = DEFAULT_PARAMETERS) {
           max(chromaticStructure, luminousStructure),
           emissive * 0.88
         );
-        vec2 radialVector = (sampleUv - vec2(0.425, 0.665)) * vec2(0.92, 1.08);
+        vec2 radialVector = (sampleUv - uCoreUv) * vec2(0.92, 1.08);
         float radialDistance = length(radialVector);
         float outerZone = smoothstep(0.29, 0.65, radialDistance);
         float broadEdgeNoise = valueNoise(sampleUv * 5.2 + vec2(2.7, 5.1));
@@ -176,7 +242,7 @@ export function createGalaxyTextureLayer(parameters = DEFAULT_PARAMETERS) {
   let layerOpacity = 0;
 
   mesh.name = 'CinematicGalaxyTextureLayer';
-  mesh.position.z = -0.105;
+  mesh.position.z = config.localPositionZ;
   mesh.scale.setScalar(config.localScale);
   mesh.rotation.set(
     config.localRotationX,
@@ -190,7 +256,8 @@ export function createGalaxyTextureLayer(parameters = DEFAULT_PARAMETERS) {
   function setTextures(textures) {
     material.uniforms.uColorMap.value = textures?.color ?? null;
     material.uniforms.uMaskMap.value = textures?.masks ?? null;
-    texturesReady = Boolean(textures?.color && textures?.masks);
+    material.uniforms.uUseMask.value = textures?.masks ? 1 : 0;
+    texturesReady = Boolean(textures?.color && (config.colorAlphaAsset || textures?.masks));
     mesh.visible = texturesReady && layerOpacity >= 0.01;
   }
 
@@ -234,7 +301,7 @@ export function createGalaxyTextureLayer(parameters = DEFAULT_PARAMETERS) {
     update,
     sourceUvToLocalPoint,
     alignment: Object.freeze({
-      coreUv: GALAXY_TEXTURE_CORE_UV,
+      coreUv: Object.freeze({ x: config.coreUvX, y: config.coreUvY }),
       armUvs: GALAXY_TEXTURE_ARM_UVS
     }),
     isReady: () => texturesReady,

@@ -5,6 +5,11 @@ import { createEnergyCore } from './core.js';
 import { createDeepSpaceBackground } from './deepSpaceBackground.js';
 import { createEarthHorizon } from './earthHorizon.js';
 import { createGalaxyPlanets } from './galaxyPlanets.js';
+import {
+  getHeroGalaxyMainFrameQuaternion,
+  getHeroGalaxyVersionConfig,
+  readHeroGalaxyVersionState
+} from './galaxyPreviewConfig.js';
 import { getInteractionState } from './interaction.js';
 import { createNebulaVolume } from './nebulaVolume.js';
 import { createNodeSystem } from './nodeSystem.js';
@@ -27,6 +32,11 @@ const HERO_MAIN_GALAXY_QUATERNION = new THREE.Quaternion().setFromEuler(
     'XYZ'
   )
 );
+const HERO_GALAXY_VERSION_STATE = readHeroGalaxyVersionState();
+const HERO_GALAXY_VERSION_CONFIG = getHeroGalaxyVersionConfig(
+  HERO_GALAXY_VERSION_STATE.version
+);
+const CINEMATIC_GALAXY_DEBUG = readCinematicGalaxyDebugState();
 export const useCinematicGalaxy = true;
 const HERO_DEBUG = Object.freeze({
   showBackground: DEBUG_MAIN_GALAXY_ACTIVE ? false : readDebugFlag('showBackground', true),
@@ -83,7 +93,7 @@ const backgroundUpdateState = {
 };
 
 export function createUniverseRoot() {
-  const cinematicDebug = readCinematicGalaxyDebugState();
+  const cinematicDebug = CINEMATIC_GALAXY_DEBUG;
   const debugActive = DEBUG_MAIN_GALAXY_ACTIVE || cinematicDebug.enabled;
   const sceneDebugActive = debugActive || EARTH_LAYER_DEBUG.enabled;
   const root = new THREE.Group();
@@ -92,7 +102,10 @@ export function createUniverseRoot() {
   const energyCore = useCinematicGalaxy
     ? createCinematicGalaxy({
       debugVisibility: cinematicDebug.layers,
-      shellDebugMode: cinematicDebug.shellDebugMode
+      shellDebugMode: cinematicDebug.shellDebugMode,
+      galaxyVersion: HERO_GALAXY_VERSION_STATE.version,
+      galaxyVersionConfig: HERO_GALAXY_VERSION_CONFIG,
+      diagnosticsEnabled: HERO_GALAXY_VERSION_STATE.diagnostics
     })
     : createEnergyCore();
   const galaxyPlanets = createGalaxyPlanets();
@@ -199,7 +212,7 @@ export function updateUniverseRoot(renderState, delta, time, journeyProgress = 0
     return;
   }
 
-  const cinematicDebug = readCinematicGalaxyDebugState();
+  const cinematicDebug = CINEMATIC_GALAXY_DEBUG;
 
   syncCinematicGalaxyDebugState(cinematicDebug);
   const debugActive = DEBUG_MAIN_GALAXY_ACTIVE || cinematicDebug.enabled;
@@ -284,11 +297,24 @@ export function updateUniverseRoot(renderState, delta, time, journeyProgress = 0
   universeState.root.rotation.y = Math.sin(motionTime * 0.008) * 0.008;
   universeState.root.position.x = interaction.parallaxX * 0.04;
   universeState.root.position.y = interaction.parallaxY * 0.025;
+  if (HERO_GALAXY_VERSION_STATE.diagnostics) {
+    updateGalaxyVersionDiagnostics();
+  }
   universeState.heroCompositionDebug?.update();
 }
 
 function applyGalaxyComposition(galaxyGroup, cinematicDebugEnabled) {
   const compactViewport = window.innerWidth < 700;
+
+  if (HERO_GALAXY_VERSION_STATE.isV2) {
+    galaxyGroup.position.fromArray(
+      HERO_GALAXY_VERSION_CONFIG.composition.galaxyGroupPosition
+    );
+    galaxyGroup.scale.setScalar(
+      HERO_GALAXY_VERSION_CONFIG.composition.galaxyGroupScale
+    );
+    return;
+  }
 
   if (cinematicDebugEnabled) {
     galaxyGroup.position.set(-0.02, 0.16, 0);
@@ -309,12 +335,35 @@ function applyMainGalaxyComposition(mainGalaxyFrame) {
     return;
   }
 
-  mainGalaxyFrame.position.copy(HERO_MAIN_GALAXY_POSITION);
-  mainGalaxyFrame.scale.setScalar(HERO_MAIN_GALAXY_SCALE);
-  mainGalaxyFrame.quaternion.copy(HERO_MAIN_GALAXY_QUATERNION);
+  if (HERO_GALAXY_VERSION_STATE.isV2) {
+    mainGalaxyFrame.position.fromArray(
+      HERO_GALAXY_VERSION_CONFIG.composition.mainFramePosition
+    );
+    mainGalaxyFrame.scale.setScalar(
+      HERO_GALAXY_VERSION_CONFIG.composition.mainFrameScale
+    );
+    mainGalaxyFrame.quaternion.copy(
+      getHeroGalaxyMainFrameQuaternion(HERO_GALAXY_VERSION_STATE.version)
+    );
+  } else {
+    mainGalaxyFrame.position.copy(HERO_MAIN_GALAXY_POSITION);
+    mainGalaxyFrame.scale.setScalar(HERO_MAIN_GALAXY_SCALE);
+    mainGalaxyFrame.quaternion.copy(HERO_MAIN_GALAXY_QUATERNION);
+  }
+}
+
+function updateGalaxyVersionDiagnostics() {
+  if (!universeState.energyCore) return;
+
+  universeState.root.updateWorldMatrix(true, true);
+  window.__ACTIVE_THEORY_GALAXY_VERSION__ =
+    universeState.energyCore.measureVersionAlignment?.(getCamera()) ?? null;
 }
 
 export function disposeUniverseRoot() {
+  if (HERO_GALAXY_VERSION_STATE.diagnostics) {
+    delete window.__ACTIVE_THEORY_GALAXY_VERSION__;
+  }
   universeState.heroCompositionDebug?.dispose();
 
   if (universeState.deepSpaceBackground) {

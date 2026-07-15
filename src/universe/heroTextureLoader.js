@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export const HERO_GALAXY_TEXTURE_URLS = Object.freeze({
+export const HERO_GALAXY_V1_TEXTURE_URLS = Object.freeze({
   color: '/textures/hero/galaxy/main-galaxy-color.webp',
   masks: '/textures/hero/galaxy/main-galaxy-masks.webp'
 });
@@ -8,7 +8,7 @@ export const HERO_GALAXY_TEXTURE_URLS = Object.freeze({
 let didReportGalaxyTextureFailure = false;
 
 export function createHeroTextureLoader({
-  urls = HERO_GALAXY_TEXTURE_URLS,
+  urls = HERO_GALAXY_V1_TEXTURE_URLS,
   anisotropy = 6
 } = {}) {
   const loader = new THREE.TextureLoader();
@@ -63,10 +63,15 @@ export function createHeroTextureLoader({
     const generation = ++loadGeneration;
 
     setStatus('loading');
-    activeLoad = Promise.allSettled([
-      loadTexture(urls.color),
-      loadTexture(urls.masks)
-    ]).then((results) => {
+    const requests = [
+      Object.freeze({ key: 'color', promise: loadTexture(urls.color) })
+    ];
+
+    if (urls.masks) {
+      requests.push(Object.freeze({ key: 'masks', promise: loadTexture(urls.masks) }));
+    }
+
+    activeLoad = Promise.allSettled(requests.map((request) => request.promise)).then((results) => {
       const fulfilledTextures = results
         .filter((result) => result.status === 'fulfilled')
         .map((result) => result.value);
@@ -81,10 +86,17 @@ export function createHeroTextureLoader({
         throw failedResult.reason;
       }
 
-      const [color, masks] = fulfilledTextures;
+      const loaded = Object.fromEntries(results.map((result, index) => [
+        requests[index].key,
+        result.status === 'fulfilled' ? result.value : null
+      ]));
+      const color = loaded.color;
+      const masks = loaded.masks ?? null;
 
       configureTexture(color, THREE.SRGBColorSpace);
-      configureTexture(masks, THREE.NoColorSpace);
+      if (masks) {
+        configureTexture(masks, THREE.NoColorSpace);
+      }
       textures = { color, masks };
       setStatus('ready');
       return textures;
@@ -123,7 +135,7 @@ export function createHeroTextureLoader({
     loadGeneration += 1;
     listeners.clear();
     textures?.color.dispose();
-    textures?.masks.dispose();
+    textures?.masks?.dispose();
     textures = null;
     activeLoad = null;
     status = 'idle';

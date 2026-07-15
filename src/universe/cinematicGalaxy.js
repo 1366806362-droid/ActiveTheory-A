@@ -23,11 +23,22 @@ const DEFAULT_LAYER_VISIBILITY = Object.freeze({
 export function createCinematicGalaxy({
   debugVisibility = DEFAULT_LAYER_VISIBILITY,
   shellDebugMode = null,
-  useGalaxyShell = true
+  useGalaxyShell = true,
+  galaxyVersion = 'v1',
+  galaxyVersionConfig = null,
+  diagnosticsEnabled = false
 } = {}) {
   const galaxyLayerDebugMode = readGalaxyLayerDebugMode();
   const galaxyHybridDebug = readGalaxyHybridDebugState();
   const galaxyAlignmentDebug = GALAXY_ALIGNMENT_DEBUG;
+  const galaxyV2Config = galaxyVersion === 'v2' ? galaxyVersionConfig : null;
+
+  if (galaxyV2Config && diagnosticsEnabled) {
+    publishVersionDiagnostics({
+      version: galaxyVersion,
+      textureLoadStatus: 'initializing'
+    });
+  }
   const group = new THREE.Group();
   const visual = new THREE.Group();
   const baseLayerGroup = new THREE.Group();
@@ -53,12 +64,17 @@ export function createCinematicGalaxy({
     radiusExponent: RADIUS_EXPONENT,
     globalArmPhase: 0
   });
-  const galaxyTextureLayer = createGalaxyTextureLayer({
-    outerRadius: OUTER_RADIUS,
-    extentScale: 2.7
-  });
+  const galaxyTextureLayer = createGalaxyTextureLayer(galaxyV2Config
+    ? galaxyV2Config.textureLayer
+    : {
+      outerRadius: OUTER_RADIUS,
+      extentScale: 2.7
+    });
   const alignmentDebugGroup = createGalaxyAlignmentDebug(galaxyTextureLayer);
-  const heroTextureLoader = createHeroTextureLoader({ anisotropy: 6 });
+  const heroTextureLoader = createHeroTextureLoader({
+    anisotropy: 6,
+    urls: galaxyV2Config?.urls
+  });
   const hybridDebugOverlay = galaxyHybridDebug.enabled || galaxyAlignmentDebug.enabled
     ? createGalaxyHybridDebugOverlay(
       galaxyAlignmentDebug.enabled ? 'alignmentDebug' : galaxyHybridDebug.mode
@@ -140,15 +156,17 @@ export function createCinematicGalaxy({
     if (sizes) sizes.needsUpdate = true;
     coreHighlightStars.geometry.computeBoundingSphere();
   }
-  const baseQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(
-    THREE.MathUtils.degToRad(24),
-    THREE.MathUtils.degToRad(-6),
-    THREE.MathUtils.degToRad(-10),
-    'XYZ'
-  ));
+  const baseQuaternion = galaxyV2Config
+    ? new THREE.Quaternion()
+    : new THREE.Quaternion().setFromEuler(new THREE.Euler(
+      THREE.MathUtils.degToRad(24),
+      THREE.MathUtils.degToRad(-6),
+      THREE.MathUtils.degToRad(-10),
+      'XYZ'
+    ));
   const spinQuaternion = new THREE.Quaternion();
   const localNormal = new THREE.Vector3(0, 0, 1);
-  let spinAngle = galaxyAlignmentDebug.enabled ? 0 : -0.2;
+  let spinAngle = galaxyV2Config || galaxyAlignmentDebug.enabled ? 0 : -0.2;
 
   group.name = 'ActiveTheoryCinematicGalaxy';
   visual.name = 'CinematicGalaxyVisual';
@@ -160,9 +178,15 @@ export function createCinematicGalaxy({
   dustLayer.name = 'CinematicGalaxyDustLayer';
   nodesLayer.name = 'CinematicGalaxyNodesLayer';
   coreLayer.name = 'CinematicGalaxyCoreLayer';
-  group.position.set(0.46, -0.04, 0);
-  visual.position.set(0, 0.34, 0);
-  visual.scale.set(0.9, 0.84, 0.9);
+  if (galaxyV2Config) {
+    group.position.fromArray(galaxyV2Config.composition.galaxyRootPosition);
+    visual.position.fromArray(galaxyV2Config.composition.visualPosition);
+    visual.scale.setScalar(galaxyV2Config.composition.visualScale);
+  } else {
+    group.position.set(0.46, -0.04, 0);
+    visual.position.set(0, 0.34, 0);
+    visual.scale.set(0.9, 0.84, 0.9);
+  }
   baseLayerGroup.add(baseLayer.mesh);
   textureLayerGroup.add(galaxyTextureLayer.mesh);
   shellLayer.add(shell.group);
@@ -207,10 +231,17 @@ export function createCinematicGalaxy({
       ? 0
       : Math.sin(alignmentTime * 0.16 + 0.6);
 
-    group.position.set(0.46, -0.04, 0);
-    group.scale.setScalar(1.5 + breathing * 0.006);
+    if (galaxyV2Config) {
+      group.position.fromArray(galaxyV2Config.composition.galaxyRootPosition);
+      group.scale.setScalar(
+        galaxyV2Config.composition.galaxyRootScale + breathing * 0.006
+      );
+    } else {
+      group.position.set(0.46, -0.04, 0);
+      group.scale.setScalar(1.5 + breathing * 0.006);
+    }
     group.rotation.set(0, 0, 0);
-    if (galaxyAlignmentDebug.enabled) {
+    if (galaxyV2Config || galaxyAlignmentDebug.enabled) {
       spinAngle = 0;
     } else {
       spinAngle -= delta * 0.012;
@@ -231,6 +262,10 @@ export function createCinematicGalaxy({
     innerStarDisk.update(alignmentTime, pulse);
     coreGlow.update(pulse);
     core.update(galaxyAlignmentDebug.enabled ? 0 : delta, alignmentTime, pulse, 1, proximity, 1);
+    applyGalaxyV2LayerWeights();
+    if (galaxyV2Config && diagnosticsEnabled) {
+      publishVersionDiagnostics(measureVersionAlignment(getCamera()));
+    }
     updateAlignmentDebugOverlay();
   }
 
@@ -277,6 +312,25 @@ export function createCinematicGalaxy({
   function applyGalaxyHybridMode() {
     const textureReady = galaxyTextureLayer.isReady();
     const legacyDebugActive = Boolean(galaxyLayerDebugMode || shellDebugMode);
+
+    if (galaxyV2Config) {
+      const weights = galaxyV2Config.layerWeights;
+
+      textureLayerWeight = textureReady ? weights.texture : 0;
+      textureLayerGroup.visible = textureReady;
+      baseLayerGroup.visible = false;
+      shellLayer.visible = useGalaxyShell;
+      shell.setLayerMode('combined');
+      shell.setHybridWeight(weights.shell, 0);
+      armsLayer.visible = debugVisibility.mainArms;
+      nebulaLayer.visible = debugVisibility.nebula;
+      dustLayer.visible = debugVisibility.dust;
+      nodesLayer.visible = debugVisibility.highlights;
+      coreLayer.visible = debugVisibility.core;
+      alignmentDebugGroup.visible = false;
+      return;
+    }
+
     const mode = galaxyAlignmentDebug.enabled
       ? 'alignmentDebug'
       : galaxyHybridDebug.enabled
@@ -387,6 +441,59 @@ export function createCinematicGalaxy({
     }
   }
 
+  function applyGalaxyV2LayerWeights() {
+    if (!galaxyV2Config) return;
+
+    const weights = galaxyV2Config.layerWeights;
+
+    scaleObjectOpacity(arms.points, weights.arms);
+    scaleObjectOpacity(armNebula.points, weights.nebula);
+    scaleObjectOpacity(dustLanes.points, weights.dust);
+    scaleObjectOpacity(outskirts.points, weights.dust);
+    scaleObjectOpacity(armHighlights.points, weights.highlights);
+    scaleObjectOpacity(innerStarDisk.points, weights.innerStarDisk);
+    scaleObjectOpacity(core.group, weights.coreParticles);
+    scaleObjectOpacity(coreGlow.sprite, weights.warmCoreGlow);
+  }
+
+  function measureVersionAlignment(camera) {
+    if (!galaxyV2Config || !camera) return null;
+
+    group.updateWorldMatrix(true, true);
+    camera.updateWorldMatrix(true, false);
+    const textureCore = galaxyTextureLayer.sourceUvToLocalPoint(
+      galaxyTextureLayer.alignment.coreUv
+    );
+    const particleCore = new THREE.Vector3();
+
+    textureLayerGroup.localToWorld(textureCore);
+    coreLayer.localToWorld(particleCore);
+    const textureScreen = projectToScreen(textureCore, camera);
+    const particleScreen = projectToScreen(particleCore, camera);
+
+    return {
+      version: galaxyVersion,
+      textureLoadStatus,
+      textureCore: textureScreen,
+      particleCore: particleScreen,
+      coreAlignmentErrorPixels: Math.hypot(
+        textureScreen.x - particleScreen.x,
+        textureScreen.y - particleScreen.y
+      ),
+      configuration: {
+        mainFramePosition: [...galaxyV2Config.composition.mainFramePosition],
+        mainFrameScale: galaxyV2Config.composition.mainFrameScale,
+        mainFrameRotationDegrees: [
+          ...galaxyV2Config.composition.mainFrameRotationDegrees
+        ],
+        visualPosition: [...galaxyV2Config.composition.visualPosition],
+        visualScale: galaxyV2Config.composition.visualScale,
+        textureLocalScale: galaxyV2Config.textureLayer.localScale,
+        textureOpacity: galaxyV2Config.layerWeights.texture
+      }
+    };
+  }
+
   function dispose() {
     disposed = true;
     unsubscribeTextureLoader?.();
@@ -405,6 +512,10 @@ export function createCinematicGalaxy({
     shell.dispose();
     core.dispose();
     texture.dispose();
+    if (diagnosticsEnabled) {
+      delete window.__ACTIVE_THEORY_GALAXY_VERSION__;
+      delete document.documentElement.dataset.galaxyVersionDiagnostics;
+    }
     group.clear();
   }
 
@@ -425,6 +536,7 @@ export function createCinematicGalaxy({
     applyShellDebugMode,
     applyGalaxyLayerMode,
     applyGalaxyHybridMode,
+    measureVersionAlignment,
     dispose,
     parameters: {
       turns: TURNS,
@@ -436,7 +548,44 @@ export function createCinematicGalaxy({
     galaxyLayerDebugMode,
     galaxyHybridDebug,
     galaxyAlignmentDebug,
+    galaxyVersion,
     getTextureLoadStatus: () => textureLoadStatus
+  };
+}
+
+function scaleObjectOpacity(root, weight) {
+  root.traverse((object) => {
+    const materials = Array.isArray(object.material)
+      ? object.material
+      : object.material
+        ? [object.material]
+        : [];
+
+    materials.forEach((material) => {
+      if (material.uniforms?.uOpacity) {
+        material.uniforms.uOpacity.value *= weight;
+      } else if (typeof material.opacity === 'number') {
+        material.opacity *= weight;
+      }
+    });
+  });
+}
+
+function publishVersionDiagnostics(diagnostics) {
+  window.__ACTIVE_THEORY_GALAXY_VERSION__ = diagnostics;
+  if (diagnostics) {
+    document.documentElement.dataset.galaxyVersionDiagnostics = JSON.stringify(
+      diagnostics
+    );
+  }
+}
+
+function projectToScreen(worldPosition, camera) {
+  const projected = worldPosition.clone().project(camera);
+
+  return {
+    x: (projected.x * 0.5 + 0.5) * window.innerWidth,
+    y: (-projected.y * 0.5 + 0.5) * window.innerHeight
   };
 }
 
