@@ -3,6 +3,10 @@ import { getCamera } from '../engine/camera.js';
 import { createGalaxyCoreCluster } from './galaxyCoreCluster.js';
 import { createCinematicGalaxyShell } from './cinematicGalaxyShell.js';
 import { createGalaxyBaseLayer } from './galaxyBaseLayer.js';
+import {
+  createGalaxyAtmosphere,
+  readGalaxyAtmosphereDebugState
+} from './galaxyAtmosphere.js';
 import { createGalaxyTextureLayer } from './galaxyTextureLayer.js';
 import { createHeroTextureLoader } from './heroTextureLoader.js';
 
@@ -12,6 +16,7 @@ const OUTER_RADIUS = 0.78;
 const TURNS = 0.88;
 const RADIUS_EXPONENT = 1.12;
 const GALAXY_ALIGNMENT_DEBUG = prepareGalaxyAlignmentDebug();
+const GALAXY_ATMOSPHERE_DEBUG = readGalaxyAtmosphereDebugState();
 const DEFAULT_LAYER_VISIBILITY = Object.freeze({
   core: true,
   mainArms: true,
@@ -70,6 +75,9 @@ export function createCinematicGalaxy({
       outerRadius: OUTER_RADIUS,
       extentScale: 2.7
     });
+  const galaxyAtmosphere = galaxyV2Config
+    ? createGalaxyAtmosphere({ debugState: GALAXY_ATMOSPHERE_DEBUG })
+    : null;
   const alignmentDebugGroup = createGalaxyAlignmentDebug(galaxyTextureLayer);
   const heroTextureLoader = createHeroTextureLoader({
     anisotropy: 6,
@@ -198,6 +206,7 @@ export function createCinematicGalaxy({
   coreLayer.scale.set(1.12, 0.78, 0.28);
   visual.add(
     baseLayerGroup,
+    ...(galaxyAtmosphere ? [galaxyAtmosphere.group] : []),
     textureLayerGroup,
     shellLayer,
     dustLayer,
@@ -254,6 +263,7 @@ export function createCinematicGalaxy({
 
     galaxyTextureLayer.setOpacity(textureLayerWeight * textureJourneyOpacity);
     galaxyTextureLayer.update(alignmentTime);
+    galaxyAtmosphere?.update(delta, alignmentTime, interaction, journeyProgress);
     arms.update(alignmentTime, pulse, proximity);
     armNebula.update(alignmentTime, pulse);
     dustLanes.update(alignmentTime, pulse);
@@ -328,6 +338,17 @@ export function createCinematicGalaxy({
       nodesLayer.visible = debugVisibility.highlights;
       coreLayer.visible = debugVisibility.core;
       alignmentDebugGroup.visible = false;
+      if (GALAXY_ATMOSPHERE_DEBUG.enabled
+        && GALAXY_ATMOSPHERE_DEBUG.mode.endsWith('Only')) {
+        textureLayerGroup.visible = false;
+        baseLayerGroup.visible = false;
+        shellLayer.visible = false;
+        armsLayer.visible = false;
+        nebulaLayer.visible = false;
+        dustLayer.visible = false;
+        nodesLayer.visible = false;
+        coreLayer.visible = false;
+      }
       return;
     }
 
@@ -508,6 +529,7 @@ export function createCinematicGalaxy({
     coreGlow.dispose();
     baseLayer.dispose();
     galaxyTextureLayer.dispose();
+    galaxyAtmosphere?.dispose();
     heroTextureLoader.dispose();
     shell.dispose();
     core.dispose();
@@ -524,6 +546,7 @@ export function createCinematicGalaxy({
     layers: {
       base: baseLayerGroup,
       texture: textureLayerGroup,
+      atmosphere: galaxyAtmosphere?.group ?? null,
       arms: armsLayer,
       shell: shellLayer,
       nebula: nebulaLayer,
@@ -548,6 +571,8 @@ export function createCinematicGalaxy({
     galaxyLayerDebugMode,
     galaxyHybridDebug,
     galaxyAlignmentDebug,
+    galaxyAtmosphereDebug: GALAXY_ATMOSPHERE_DEBUG,
+    galaxyAtmosphere,
     galaxyVersion,
     getTextureLoadStatus: () => textureLoadStatus
   };
