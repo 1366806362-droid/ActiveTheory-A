@@ -38,20 +38,24 @@ export function createEarthHorizon() {
   const surfaceGeometry = new THREE.SphereGeometry(1.85, 64, 40);
   const cityLightsGeometry = new THREE.SphereGeometry(1.859, 64, 40);
   const cloudGeometry = new THREE.SphereGeometry(1.86, 64, 40);
-  const atmosphereGeometry = new THREE.SphereGeometry(1.864, 64, 40);
+  const atmosphereGeometry = new THREE.SphereGeometry(1.865, 96, 64);
   const sharedTime = { value: 0 };
   const seamDebug = createEarthSeamDebug();
   const hybridDebug = createEarthHybridDebug();
+  const atmosphereDebug = createEarthAtmosphereDebug();
   const layerModeOverride = readEarthLayerModeOverride();
   const cityOnlyDebug = readCityOnlyDebugState();
   const surfaceMaterial = createSurfaceMaterial(sharedTime, seamDebug.enabled);
   const cityLightsMaterial = createCityLightsMaterial(sharedTime);
   const cloudMaterial = createCloudMaterial(sharedTime, seamDebug.enabled);
-  const atmosphereMaterial = createAtmosphereMaterial();
+  const atmosphereMaterial = createAtmosphereMaterial(atmosphereDebug.enabled);
   const surface = new THREE.Mesh(surfaceGeometry, surfaceMaterial);
   const cityLights = new THREE.Mesh(cityLightsGeometry, cityLightsMaterial);
   const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
   const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+  const atmosphereDebugSilhouette = atmosphereDebug.enabled
+    ? createAtmosphereDebugSilhouette(surfaceGeometry)
+    : null;
   const textureLoader = createEarthTextureLoader({ anisotropy: 6 });
   const textureLayers = createEarthTextureLayers({
     surfaceGeometry,
@@ -82,6 +86,10 @@ export function createEarthHorizon() {
   cityLights.name = 'EarthCityLights';
   clouds.name = 'EarthLowCloudLayer';
   atmosphere.name = 'EarthAtmosphereRim';
+  if (atmosphereDebugSilhouette) {
+    atmosphereDebugSilhouette.name = 'EarthAtmosphereDebugSilhouette';
+    atmosphereDebugSilhouette.renderOrder = 4;
+  }
   surface.renderOrder = 2;
   cityLights.renderOrder = 3;
   clouds.renderOrder = 4;
@@ -89,6 +97,7 @@ export function createEarthHorizon() {
   cityLightsGroup.add(cityLights, textureLayers.city);
   surfaceGroup.add(surface, textureLayers.surface, cityLightsGroup);
   cloudGroup.add(clouds, textureLayers.clouds);
+  if (atmosphereDebugSilhouette) atmosphereGroup.add(atmosphereDebugSilhouette);
   atmosphereGroup.add(atmosphere);
   if (rotationDebug.guide) surfaceGroup.add(rotationDebug.guide);
   group.add(surfaceGroup, cloudGroup, atmosphereGroup, sunriseGlow);
@@ -112,7 +121,9 @@ export function createEarthHorizon() {
     const requestedDelta = cityOnlyDebug && delta <= 0
       ? (now - debugWallTime) / 1000
       : delta;
-    const safeDelta = active ? Math.min(Math.max(requestedDelta, 0), 0.1) : 0;
+    const safeDelta = active && !atmosphereDebug.enabled
+      ? Math.min(Math.max(requestedDelta, 0), 0.1)
+      : 0;
     const debugRotationActive = seamDebug.enabled || cityOnlyDebug || hybridDebug.enabled;
     const surfaceAngularSpeed = debugRotationActive
       ? Math.PI * 2 / 12
@@ -155,6 +166,15 @@ export function createEarthHorizon() {
       surfaceAngle,
       cloudAngle
     });
+    atmosphereDebug.update({
+      group,
+      surfaceGroup,
+      cloudGroup,
+      atmosphereGroup,
+      sunriseGlow,
+      surfaceAngle,
+      cloudAngle
+    });
     if (seamDebug.enabled) setLayerMode(seamDebug.mode);
   }
 
@@ -167,12 +187,14 @@ export function createEarthHorizon() {
     cityLightsMaterial.dispose();
     cloudMaterial.dispose();
     atmosphereMaterial.dispose();
+    atmosphereDebugSilhouette?.material.dispose();
     unsubscribeTextureLoader?.();
     textureLayers.dispose();
     textureLoader.dispose();
     rotationDebug.dispose();
     seamDebug.dispose();
     hybridDebug.dispose();
+    atmosphereDebug.dispose();
     delete window.__ACTIVE_THEORY_EARTH_SEAM_TEST__;
     group.clear();
   }
@@ -205,6 +227,15 @@ export function createEarthHorizon() {
   }
 
   function applyHybridMode() {
+    if (atmosphereDebug.enabled) {
+      surface.visible = false;
+      cityLights.visible = false;
+      clouds.visible = false;
+      atmosphere.visible = true;
+      textureLayers.setVisibility({ surface: false, city: false, clouds: false });
+      return;
+    }
+
     const mode = hybridDebug.enabled ? hybridDebug.mode : 'combined';
     const textureReady = textureLayers.isReady();
     const approved = EARTH_TEXTURE_V2_QUALITY.combinedApproved;
@@ -221,7 +252,7 @@ export function createEarthHorizon() {
     cityLights.visible = false;
     clouds.visible = false;
     atmosphere.visible = mode === 'combined';
-    textureLayers.setWeights({ surface: 0.96, city: 0.84, clouds: 0.24 });
+    textureLayers.setWeights({ surface: 0.96, city: 0.72, clouds: 0.22 });
     textureLayers.setSurfaceMode(
       mode === 'cityTextureOnly' || mode === 'cloudTextureOnly'
         ? 'reference'
@@ -1009,10 +1040,11 @@ function createCloudMaterial(sharedTime, debugSeam = false) {
   });
 }
 
-function createAtmosphereMaterial() {
+function createAtmosphereMaterial(debugAtmosphere = false) {
   return new THREE.ShaderMaterial({
     uniforms: {
-      uLayerMode: { value: EARTH_LAYER_MODES.combined }
+      uLayerMode: { value: EARTH_LAYER_MODES.combined },
+      uDebugAtmosphere: { value: debugAtmosphere ? 1 : 0 }
     },
     vertexShader: `
       varying vec3 vNormalView;
@@ -1027,6 +1059,7 @@ function createAtmosphereMaterial() {
     `,
     fragmentShader: `
       uniform float uLayerMode;
+      uniform float uDebugAtmosphere;
       varying vec3 vNormalView;
       varying vec3 vViewDirection;
 
@@ -1037,30 +1070,198 @@ function createAtmosphereMaterial() {
           1.0
         );
         float limb = 1.0 - facing;
-        float rim = pow(limb, 96.0);
-        float softRim = pow(limb, 52.0);
+        float rimFresnel = pow(limb, 92.0);
+        float horizonCoverage = 1.0 - smoothstep(0.012, 0.085, facing);
+        float rim = max(rimFresnel, horizonCoverage * 0.48);
+        float softRim = pow(limb, 58.0);
         vec3 sunriseDirection = normalize(vec3(0.76, 0.58, 0.12));
-        float sunrise = pow(max(dot(vNormalView, sunriseDirection), 0.0), 56.0)
-          * pow(limb, 5.0);
-        vec3 color = mix(vec3(0.06, 0.22, 0.46), vec3(0.48, 0.78, 1.0), rim);
-        color += vec3(0.76, 0.91, 1.0) * sunrise * 0.58;
-        float alpha = rim * 0.0365 + softRim * 0.0051 + sunrise * 0.105;
+        float lightFacing = dot(normalize(vNormalView), sunriseDirection);
+        float litEdge = smoothstep(-0.04, 0.72, lightFacing);
+        float edgeVisibility = mix(0.015, 1.0, litEdge);
+        float sunrise = pow(max(lightFacing, 0.0), 28.0)
+          * pow(limb, 6.0);
+        vec3 color = mix(vec3(0.18, 0.28, 0.4), vec3(0.68, 0.79, 0.91), rim);
+        vec3 sunriseColor = mix(vec3(0.78, 0.9, 1.0), vec3(1.0, 0.91, 0.78), 0.18);
+        color += sunriseColor * sunrise * 0.5;
+        float alpha = (rim * 0.19 + softRim * 0.004) * edgeVisibility
+          + sunrise * 0.08;
         if (uLayerMode > 3.5 && uLayerMode < 4.5) {
-          color = mix(vec3(0.12, 0.38, 0.72), vec3(0.58, 0.84, 1.0), rim);
-          color += vec3(0.78, 0.92, 1.0) * sunrise * 0.72;
-          alpha = rim * 0.34 + softRim * 0.035 + sunrise * 0.28;
+          color = mix(vec3(0.18, 0.34, 0.52), vec3(0.68, 0.82, 0.94), rim);
+          color += sunriseColor * sunrise * 0.58;
+          alpha = (rim * 0.22 + softRim * 0.018) * edgeVisibility
+            + sunrise * 0.18;
+        }
+        if (uDebugAtmosphere > 0.5) {
+          float normalizedAlpha = clamp(alpha / 0.26, 0.0, 1.0);
+          float directionMarker = smoothstep(0.982, 0.991, lightFacing)
+            * smoothstep(0.94, 0.995, limb);
+          if (normalizedAlpha < 0.002 && directionMarker < 0.002) discard;
+          vec3 heatColor = mix(
+            vec3(0.015, 0.06, 0.18),
+            vec3(0.02, 0.66, 1.0),
+            smoothstep(0.0, 0.56, normalizedAlpha)
+          );
+          heatColor = mix(
+            heatColor,
+            vec3(1.0, 0.78, 0.22),
+            smoothstep(0.56, 1.0, normalizedAlpha)
+          );
+          heatColor = mix(heatColor, vec3(1.0, 0.2, 0.78), directionMarker);
+          gl_FragColor = vec4(
+            heatColor,
+            max(normalizedAlpha * 0.88, directionMarker * 0.92)
+          );
+          return;
         }
         gl_FragColor = vec4(color, alpha);
       }
     `,
     transparent: true,
-    depthTest: true,
+    depthTest: false,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
     side: THREE.FrontSide,
     fog: false,
     toneMapped: false
   });
+}
+
+function createAtmosphereDebugSilhouette(geometry) {
+  return new THREE.Mesh(
+    geometry,
+    new THREE.MeshBasicMaterial({
+      color: 0x020914,
+      depthTest: true,
+      depthWrite: true,
+      side: THREE.FrontSide,
+      fog: false,
+      toneMapped: false
+    })
+  );
+}
+
+function createEarthAtmosphereDebug() {
+  const params = new URLSearchParams(window.location.search);
+  const value = params.get('debugEarthAtmosphere');
+  const enabled = import.meta.env.DEV
+    && value !== null
+    && value !== '0'
+    && value !== 'false';
+
+  if (!enabled) {
+    return { enabled: false, update() {}, dispose() {} };
+  }
+
+  const panel = document.createElement('pre');
+  const hiddenSiblings = [];
+  const hiddenOverlays = [];
+  let isolated = false;
+  let scene = null;
+  let previousBackground = null;
+  let frozenParent = null;
+  let previousMatrixAutoUpdate = true;
+
+  panel.className = 'earth-atmosphere-debug';
+  Object.assign(panel.style, {
+    position: 'fixed',
+    right: '18px',
+    top: '18px',
+    zIndex: '9999',
+    margin: '0',
+    padding: '10px 12px',
+    color: '#b7efff',
+    background: 'rgba(2, 9, 24, 0.9)',
+    border: '1px solid rgba(120, 220, 255, 0.4)',
+    font: '12px/1.55 monospace',
+    pointerEvents: 'none'
+  });
+  document.body.append(panel);
+
+  function stopPointerParallax(event) {
+    event.stopImmediatePropagation();
+  }
+
+  window.addEventListener('pointermove', stopPointerParallax, true);
+  window.addEventListener('pointerleave', stopPointerParallax, true);
+
+  function isolateScene(group) {
+    if (isolated || !group.parent) return;
+
+    isolated = true;
+    frozenParent = group.parent;
+    previousMatrixAutoUpdate = frozenParent.matrixAutoUpdate;
+    frozenParent.updateMatrix();
+    frozenParent.matrixAutoUpdate = false;
+    frozenParent.children.forEach((object) => {
+      if (object === group) return;
+      hiddenSiblings.push({ object, visible: object.visible });
+      object.visible = false;
+    });
+    document.querySelectorAll('.hero-copy, .hero-scroll-hint').forEach((element) => {
+      hiddenOverlays.push({ element, display: element.style.display });
+      element.style.display = 'none';
+    });
+    scene = group;
+    while (scene.parent) scene = scene.parent;
+    if (scene.isScene) {
+      previousBackground = scene.background;
+      scene.background = new THREE.Color(0x010713);
+    }
+  }
+
+  function update({
+    group,
+    surfaceGroup,
+    cloudGroup,
+    atmosphereGroup,
+    sunriseGlow,
+    surfaceAngle,
+    cloudAngle
+  }) {
+    isolateScene(group);
+    surfaceGroup.visible = false;
+    cloudGroup.visible = false;
+    atmosphereGroup.visible = true;
+    sunriseGlow.visible = true;
+    panel.textContent = [
+      'EARTH ATMOSPHERE V2.3',
+      'Mode       final Alpha heatmap',
+      'Expected   upper-right sunrise ↗',
+      'Blue       low Alpha',
+      'Cyan       medium Alpha',
+      'Gold       peak Alpha',
+      'Magenta    expected direction',
+      `Surface    ${THREE.MathUtils.radToDeg(surfaceAngle).toFixed(1)} deg (frozen)`,
+      `Cloud      ${THREE.MathUtils.radToDeg(cloudAngle).toFixed(1)} deg (frozen)`
+    ].join('\n');
+    window.__ACTIVE_THEORY_EARTH_ATMOSPHERE__ = {
+      mode: 'finalAlphaHeatmap',
+      expectedDirection: 'upper-right',
+      surfaceAngle,
+      cloudAngle,
+      frozen: true
+    };
+  }
+
+  function dispose() {
+    hiddenSiblings.forEach(({ object, visible }) => {
+      object.visible = visible;
+    });
+    hiddenOverlays.forEach(({ element, display }) => {
+      element.style.display = display;
+    });
+    if (scene?.isScene) scene.background = previousBackground;
+    if (frozenParent) {
+      frozenParent.matrixAutoUpdate = previousMatrixAutoUpdate;
+      frozenParent.updateMatrix();
+    }
+    window.removeEventListener('pointermove', stopPointerParallax, true);
+    window.removeEventListener('pointerleave', stopPointerParallax, true);
+    panel.remove();
+    delete window.__ACTIVE_THEORY_EARTH_ATMOSPHERE__;
+  }
+
+  return { enabled, update, dispose };
 }
 
 function readEarthLayerModeOverride() {

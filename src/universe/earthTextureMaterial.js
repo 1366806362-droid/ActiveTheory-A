@@ -117,9 +117,15 @@ function createTextureSurfaceMaterial(sunDirection) {
         }
 
         vec3 color = texture2D(uSurfaceMap, vUv).rgb;
+        float surfaceLuma = dot(color, vec3(0.2126, 0.7152, 0.0722));
+        float landColor = color.r * 0.68 + color.g * 0.32 - color.b * 0.72;
+        float landMask = smoothstep(-0.006, 0.032, landColor)
+          * smoothstep(0.008, 0.16, surfaceLuma);
         float sunFacing = dot(normalize(vNormalObject), normalize(uSunDirectionObject));
         float nightGrade = 0.78 + (1.0 - smoothstep(0.18, 0.72, sunFacing)) * 0.22;
-        color = max(color * nightGrade, vec3(0.0));
+        color *= nightGrade * (1.0 + landMask * 0.075);
+        color += landMask * vec3(0.0015, 0.002, 0.0024);
+        color = max(color, vec3(0.0024, 0.0055, 0.0115));
         gl_FragColor = vec4(color, uOpacity);
       }
     `,
@@ -165,6 +171,11 @@ function createTextureCityMaterial(sunDirection) {
       void main() {
         vec4 citySample = texture2D(uCityMap, vUv);
         float intensity = max(max(citySample.r, citySample.g), citySample.b);
+        float weightedIntensity = dot(citySample.rgb, vec3(0.38, 0.54, 0.08));
+        float midLights = smoothstep(0.14, 0.72, weightedIntensity);
+        float coreLights = smoothstep(0.78, 0.985, intensity);
+        float shapedLights = pow(midLights, 1.55);
+        float lightMask = mix(shapedLights * 0.78, 1.0, coreLights);
         float sunFacing = dot(normalize(vNormalObject), normalize(uSunDirectionObject));
         float nightMask = 1.0 - smoothstep(0.18, 0.58, sunFacing);
         float frontFacing = smoothstep(
@@ -172,14 +183,22 @@ function createTextureCityMaterial(sunDirection) {
           0.24,
           dot(normalize(vNormalView), normalize(vViewDirection))
         );
-        float alpha = smoothstep(0.06, 0.88, intensity)
+        float alpha = lightMask
           * citySample.a
           * nightMask
           * frontFacing
           * uOpacity;
-        if (alpha < 0.006) discard;
-        vec3 warm = mix(vec3(1.0, 0.36, 0.08), vec3(1.0, 0.74, 0.38), citySample.g);
-        gl_FragColor = vec4(warm * citySample.rgb * 0.46, alpha);
+        if (alpha < 0.008) discard;
+        vec3 channelGrade = citySample.rgb * vec3(0.84, 0.97, 1.0);
+        float warmWhite = smoothstep(0.72, 0.98, intensity)
+          * smoothstep(0.38, 0.68, weightedIntensity);
+        vec3 warmGold = mix(vec3(1.0, 0.64, 0.28), vec3(1.0, 0.86, 0.64), warmWhite);
+        vec3 mappedLights = mix(
+          channelGrade * warmGold,
+          intensity * warmGold,
+          0.12 + warmWhite * 0.08
+        );
+        gl_FragColor = vec4(mappedLights * 0.38, alpha);
       }
     `,
     transparent: true,
@@ -196,7 +215,7 @@ function createTextureCloudMaterial() {
   return new THREE.ShaderMaterial({
     uniforms: {
       uCloudMap: { value: null },
-      uOpacity: { value: 0.16 }
+      uOpacity: { value: 0.22 }
     },
     vertexShader: `
       varying vec2 vUv;
@@ -225,9 +244,19 @@ function createTextureCloudMaterial() {
           0.3,
           dot(normalize(vNormalView), normalize(vViewDirection))
         );
-        float alpha = cloudSample.a * facing * uOpacity;
+        float cloudLuma = dot(cloudSample.rgb, vec3(0.2126, 0.7152, 0.0722));
+        float denseCloud = smoothstep(0.48, 0.92, cloudLuma);
+        float alpha = cloudSample.a
+          * facing
+          * uOpacity
+          * mix(1.0, 0.92, denseCloud);
         if (alpha < 0.006) discard;
-        vec3 color = cloudSample.rgb * vec3(0.72, 0.78, 0.86);
+        vec3 cloudGrade = mix(
+          vec3(0.69, 0.75, 0.83),
+          vec3(0.66, 0.72, 0.8),
+          denseCloud
+        );
+        vec3 color = cloudSample.rgb * cloudGrade;
         gl_FragColor = vec4(color, alpha);
       }
     `,
