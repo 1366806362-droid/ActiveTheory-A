@@ -8,6 +8,10 @@ import {
   readGalaxyAtmosphereDebugState
 } from './galaxyAtmosphere.js';
 import { createGalaxyTextureLayer } from './galaxyTextureLayer.js';
+import {
+  createGalaxyVolumeLayer,
+  readGalaxyVolumePreviewState
+} from './galaxyVolumeLayer.js';
 import { createHeroTextureLoader } from './heroTextureLoader.js';
 
 const TAU = Math.PI * 2;
@@ -17,6 +21,7 @@ const TURNS = 0.88;
 const RADIUS_EXPONENT = 1.12;
 const GALAXY_ALIGNMENT_DEBUG = prepareGalaxyAlignmentDebug();
 const GALAXY_ATMOSPHERE_DEBUG = readGalaxyAtmosphereDebugState();
+const GALAXY_VOLUME_PREVIEW = readGalaxyVolumePreviewState();
 const DEFAULT_LAYER_VISIBILITY = Object.freeze({
   core: true,
   mainArms: true,
@@ -80,6 +85,12 @@ export function createCinematicGalaxy({
   );
   const galaxyAtmosphere = galaxyV2Config
     ? createGalaxyAtmosphere({ debugState: GALAXY_ATMOSPHERE_DEBUG })
+    : null;
+  const galaxyVolumeLayer = galaxyV2Config
+    ? createGalaxyVolumeLayer({
+      textureLayer: galaxyV2Config.textureLayer,
+      previewState: GALAXY_VOLUME_PREVIEW
+    })
     : null;
   const alignmentDebugGroup = createGalaxyAlignmentDebug(galaxyTextureLayer);
   const heroTextureLoader = createHeroTextureLoader({
@@ -210,6 +221,7 @@ export function createCinematicGalaxy({
   visual.add(
     baseLayerGroup,
     ...(galaxyAtmosphere ? [galaxyAtmosphere.group] : []),
+    ...(galaxyVolumeLayer ? [galaxyVolumeLayer.group] : []),
     textureLayerGroup,
     shellLayer,
     dustLayer,
@@ -267,6 +279,7 @@ export function createCinematicGalaxy({
     galaxyTextureLayer.setOpacity(textureLayerWeight * textureJourneyOpacity);
     galaxyTextureLayer.update(alignmentTime);
     galaxyAtmosphere?.update(delta, alignmentTime, interaction, journeyProgress);
+    galaxyVolumeLayer?.update(delta, alignmentTime, interaction, journeyProgress);
     arms.update(alignmentTime, pulse, proximity);
     armNebula.update(alignmentTime, pulse);
     dustLanes.update(alignmentTime, pulse);
@@ -328,6 +341,27 @@ export function createCinematicGalaxy({
 
     if (galaxyV2Config) {
       const weights = galaxyV2Config.layerWeights;
+
+      if (galaxyVolumeLayer) {
+        const isolated = GALAXY_VOLUME_PREVIEW.mode !== 'combined';
+
+        textureLayerWeight = 0;
+        textureLayerGroup.visible = false;
+        galaxyVolumeLayer.group.visible = true;
+        galaxyVolumeLayer.applyMode(GALAXY_VOLUME_PREVIEW.mode);
+        baseLayerGroup.visible = false;
+        shellLayer.visible = !isolated && useGalaxyShell;
+        shell.setLayerMode('combined');
+        shell.setHybridWeight(isolated ? 0 : weights.shell, 0);
+        armsLayer.visible = !isolated && debugVisibility.mainArms;
+        nebulaLayer.visible = !isolated && debugVisibility.nebula;
+        dustLayer.visible = !isolated && debugVisibility.dust;
+        nodesLayer.visible = !isolated && debugVisibility.highlights;
+        coreLayer.visible = !isolated && debugVisibility.core;
+        if (galaxyAtmosphere) galaxyAtmosphere.group.visible = !isolated;
+        alignmentDebugGroup.visible = false;
+        return;
+      }
 
       textureLayerWeight = textureReady ? weights.texture : 0;
       textureLayerGroup.visible = textureReady;
@@ -535,6 +569,7 @@ export function createCinematicGalaxy({
     baseLayer.dispose();
     galaxyTextureLayer.dispose();
     galaxyAtmosphere?.dispose();
+    galaxyVolumeLayer?.dispose();
     heroTextureLoader.dispose();
     shell.dispose();
     core.dispose();
@@ -552,6 +587,7 @@ export function createCinematicGalaxy({
       base: baseLayerGroup,
       texture: textureLayerGroup,
       atmosphere: galaxyAtmosphere?.group ?? null,
+      volume: galaxyVolumeLayer?.group ?? null,
       arms: armsLayer,
       shell: shellLayer,
       nebula: nebulaLayer,
@@ -578,6 +614,8 @@ export function createCinematicGalaxy({
     galaxyAlignmentDebug,
     galaxyAtmosphereDebug: GALAXY_ATMOSPHERE_DEBUG,
     galaxyAtmosphere,
+    galaxyVolumePreview: GALAXY_VOLUME_PREVIEW,
+    galaxyVolumeLayer,
     galaxyVersion,
     getTextureLoadStatus: () => textureLoadStatus
   };

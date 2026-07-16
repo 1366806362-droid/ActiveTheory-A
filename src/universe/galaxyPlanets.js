@@ -2,6 +2,10 @@ import * as THREE from 'three';
 import { createGalaxyCoreCluster } from './galaxyCoreCluster.js';
 
 const TAU = Math.PI * 2;
+const GEO_PREVIEW_TEXTURE_URL = '/textures/hero/subgalaxy/geo/geo-mini-galaxy-v1.webp';
+const GEO_PREVIEW_TEXTURE_OPACITY = 0.56;
+const GEO_PREVIEW_TEXTURE_SCALE = 0.82;
+const GEO_PREVIEW_ARM_OPACITY_SCALE = 0.72;
 const NEBULAE = [
   {
     name: 'GEO Nebula',
@@ -28,8 +32,9 @@ const NEBULAE = [
     coreStars: 112,
     visibleCoreCount: 62,
     coreCount: 5,
-    mainArmCount: 112,
-    auxiliaryArmCount: 42,
+    mainArmCount: 270,
+    auxiliaryArmCount: 96,
+    auxiliaryBranchCount: 3,
     dustCount: 58,
     nebulaCount: 48,
     nodeCount: 5
@@ -100,9 +105,22 @@ const NEBULAE = [
 
 export function createGalaxyPlanets() {
   const group = new THREE.Group();
+  const debugState = readSubGalaxyDebugState();
+  const previewState = readSubGalaxyPreviewState();
   const particleTexture = createNebulaParticleTexture();
+  const geoPreviewTexture = previewState.enabled
+    ? loadGeoPreviewTexture()
+    : null;
   const nebulae = NEBULAE.map((config, index) => (
-    createBusinessNebula(config, particleTexture, 9107 + index * 193)
+    createBusinessNebula(
+      config,
+      particleTexture,
+      9107 + index * 193,
+      {
+        geoPreviewTexture,
+        previewMode: previewState.mode
+      }
+    )
   ));
   const targetPosition = new THREE.Vector3();
   const entryState = {
@@ -116,7 +134,21 @@ export function createGalaxyPlanets() {
 
   nebulae.forEach((nebula) => {
     group.add(nebula.group);
+    if (previewState.enabled && nebula.name === 'GEO Nebula') {
+      nebula.setPreviewMode(previewState.mode);
+    }
+    if (debugState.enabled) {
+      nebula.setDebugMode(
+        nebula.name === 'GEO Nebula' ? debugState.mode : 'hidden'
+      );
+    }
   });
+
+  const geoNebula = nebulae.find((nebula) => nebula.name === 'GEO Nebula');
+
+  if (import.meta.env.DEV && geoNebula) {
+    window.__ACTIVE_THEORY_GEO_ARMS__ = geoNebula.getDebugSnapshot;
+  }
 
   function update(delta, time, interaction) {
     group.rotation.y = Math.sin(time * 0.012) * 0.025;
@@ -142,7 +174,14 @@ export function createGalaxyPlanets() {
       nebula.dispose();
     });
     particleTexture.dispose();
+    geoPreviewTexture?.dispose();
     group.clear();
+    if (
+      import.meta.env.DEV
+      && window.__ACTIVE_THEORY_GEO_ARMS__ === geoNebula?.getDebugSnapshot
+    ) {
+      delete window.__ACTIVE_THEORY_GEO_ARMS__;
+    }
   }
 
   return {
@@ -168,10 +207,16 @@ export function createGalaxyPlanets() {
   };
 }
 
-function createBusinessNebula(config, particleTexture, seed) {
+function createBusinessNebula(config, particleTexture, seed, previewOptions) {
   const orbitalGroup = new THREE.Group();
   const nebulaGroup = new THREE.Group();
   const cluster = createNebulaCluster(config, particleTexture, seed);
+  const galaxyTexture = config.name === 'GEO Nebula' && previewOptions.geoPreviewTexture
+    ? createGeoGalaxyTexture(config, previewOptions.geoPreviewTexture)
+    : null;
+  const innerNebula = config.name === 'GEO Nebula'
+    ? createGeoInnerNebula(config, particleTexture, seed + 23)
+    : null;
   const dust = createNebulaDust(config, particleTexture, seed + 37);
   const nodes = createNebulaNodes(config, particleTexture, seed + 71);
   const nebula = createLocalNebula(config, particleTexture, seed + 89);
@@ -198,13 +243,24 @@ function createBusinessNebula(config, particleTexture, seed) {
     Math.sin(config.phase) * config.orbitRadius * Math.sin(config.tilt[0])
   );
   let driftAngle = config.driftPhase;
+  let debugMode = 'combined';
+  let previewMode = galaxyTexture ? previewOptions.previewMode : 'disabled';
+  let labelVisible = true;
 
   orbitalGroup.name = `${config.name.replace(/\s+/g, '')}Orbit`;
   orbitalGroup.rotation.set(0, 0, 0);
   nebulaGroup.name = config.name.replace(/\s+/g, '');
   nebulaGroup.add(
     nebula.points,
-    dust.points,
+    dust.points
+  );
+  if (galaxyTexture) {
+    nebulaGroup.add(galaxyTexture.mesh);
+  }
+  if (innerNebula) {
+    nebulaGroup.add(innerNebula.points);
+  }
+  nebulaGroup.add(
     cluster.points,
     nodes.points,
     visibleCore.group,
@@ -258,7 +314,21 @@ function createBusinessNebula(config, particleTexture, seed) {
       nebulaGroup.position.y + config.labelOffset[1],
       nebulaGroup.position.z + config.labelOffset[2]
     );
-    cluster.update(delta, time, pulse, visibility, entryFocus, visualBoost);
+    const armOpacityScale = galaxyTexture && previewMode === 'combined'
+      ? GEO_PREVIEW_ARM_OPACITY_SCALE
+      : 1;
+
+    cluster.update(
+      delta,
+      time,
+      pulse,
+      visibility,
+      entryFocus,
+      visualBoost,
+      armOpacityScale
+    );
+    galaxyTexture?.update(delta, visibility, visualBoost);
+    innerNebula?.update(delta, time, visibility, visualBoost);
     nebula.update(delta, time, pulse, visibility, visualBoost);
     dust.update(delta, time, pulse, visibility, visualBoost);
     nodes.update(delta, time, pulse, visibility, entryFocus, visualBoost);
@@ -269,6 +339,8 @@ function createBusinessNebula(config, particleTexture, seed) {
 
   function dispose() {
     cluster.dispose();
+    galaxyTexture?.dispose();
+    innerNebula?.dispose();
     nebula.dispose();
     dust.dispose();
     nodes.dispose();
@@ -278,19 +350,99 @@ function createBusinessNebula(config, particleTexture, seed) {
     orbitalGroup.clear();
   }
 
+  function setDebugMode(mode) {
+    debugMode = mode;
+    orbitalGroup.visible = mode !== 'hidden';
+    const armsOnly = mode === 'armsOnly';
+    const innerNebulaOnly = mode === 'innerNebulaOnly';
+    const isolatedLayer = armsOnly || innerNebulaOnly;
+
+    cluster.points.visible = !innerNebulaOnly;
+    if (innerNebula) {
+      innerNebula.points.visible = !armsOnly;
+    }
+    nebula.points.visible = !isolatedLayer;
+    dust.points.visible = !isolatedLayer;
+    nodes.points.visible = !isolatedLayer;
+    visibleCore.group.visible = !isolatedLayer;
+    coreCluster.group.visible = !isolatedLayer;
+    label.sprite.visible = labelVisible && !isolatedLayer;
+  }
+
+  function setPreviewMode(mode) {
+    if (!galaxyTexture) {
+      return;
+    }
+
+    previewMode = mode;
+    const textureOnly = mode === 'textureOnly';
+
+    galaxyTexture.mesh.visible = true;
+    cluster.points.visible = !textureOnly;
+    if (innerNebula) {
+      innerNebula.points.visible = !textureOnly;
+    }
+    nebula.points.visible = !textureOnly;
+    dust.points.visible = !textureOnly;
+    nodes.points.visible = !textureOnly;
+    visibleCore.group.visible = !textureOnly;
+    coreCluster.group.visible = !textureOnly;
+    label.sprite.visible = labelVisible && !textureOnly && debugMode === 'combined';
+  }
+
+  function getDebugSnapshot() {
+    return {
+      name: config.name,
+      mode: debugMode,
+      rootUuid: orbitalGroup.uuid,
+      nebulaUuid: nebulaGroup.uuid,
+      armUuid: cluster.points.uuid,
+      rotationZ: nebulaGroup.rotation.z,
+      armRotationZ: cluster.points.rotation.z,
+      mainArmCount: config.mainArmCount,
+      auxiliaryBranchCount: config.auxiliaryBranchCount ?? 1,
+      auxiliaryArmCount: config.auxiliaryArmCount,
+      sizeRatios: cluster.sizeRatios,
+      innerNebulaSegments: innerNebula?.segmentCount ?? 0,
+      innerNebulaAlpha: innerNebula?.alphaRange ?? null,
+      previewMode,
+      textureUuid: galaxyTexture?.mesh.uuid ?? null,
+      textureRotationZ: galaxyTexture?.mesh.rotation.z ?? null,
+      textureOpacity: galaxyTexture?.opacity ?? null,
+      textureScale: galaxyTexture?.scale ?? null,
+      armOpacityScale: galaxyTexture && previewMode === 'combined'
+        ? GEO_PREVIEW_ARM_OPACITY_SCALE
+        : 1
+    };
+  }
+
   return {
     name: config.name,
     group: orbitalGroup,
     nebulaGroup,
     setLabelVisible(visible) {
-      label.sprite.visible = visible;
+      labelVisible = visible;
+      label.sprite.visible = visible
+        && debugMode === 'combined'
+        && previewMode !== 'textureOnly';
     },
+    setDebugMode,
+    setPreviewMode,
+    getDebugSnapshot,
     update,
     dispose
   };
 }
 
 function createNebulaCluster(config, texture, seed) {
+  if (config.name === 'GEO Nebula') {
+    return createGeoNebulaCluster(config, texture, seed);
+  }
+
+  return createLegacyNebulaCluster(config, texture, seed);
+}
+
+function createLegacyNebulaCluster(config, texture, seed) {
   const mainArmCount = config.mainArmCount;
   const auxiliaryArmCount = config.auxiliaryArmCount;
   const count = mainArmCount + auxiliaryArmCount;
@@ -363,7 +515,484 @@ function createNebulaCluster(config, texture, seed) {
     material.dispose();
   }
 
-  return { points, update, dispose };
+  return { points, update, dispose, sizeRatios: null };
+}
+
+function createGeoNebulaCluster(config, texture, seed) {
+  const mainArmCounts = [144, 126];
+  const branchCounts = [38, 32, 26];
+  const count = config.mainArmCount + config.auxiliaryArmCount;
+  const microCount = Math.round(count * 0.74);
+  const mediumCount = Math.round(count * 0.22);
+  const highlightCount = count - microCount - mediumCount;
+  const random = seededRandom(seed);
+  const geometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+  const alphas = new Float32Array(count);
+  const sizeTiers = [
+    ...new Array(microCount).fill(0),
+    ...new Array(mediumCount).fill(1),
+    ...new Array(highlightCount).fill(2)
+  ];
+  const baseColor = new THREE.Color(config.color);
+  const accentColor = new THREE.Color(config.accent);
+  const coldWhite = new THREE.Color(0xeaffff);
+  const deepBlue = new THREE.Color(0x0757a8);
+  const color = new THREE.Color();
+  let cursor = 0;
+
+  for (let index = sizeTiers.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    const value = sizeTiers[index];
+
+    sizeTiers[index] = sizeTiers[swapIndex];
+    sizeTiers[swapIndex] = value;
+  }
+
+  function writeParticle({
+    x,
+    y,
+    z,
+    progress,
+    cluster,
+    alpha,
+    brightnessScale = 1,
+    iceCluster = false,
+    forceHighlight = false
+  }) {
+    const stride = cursor * 3;
+    const tier = forceHighlight ? Math.max(1, sizeTiers[cursor]) : sizeTiers[cursor];
+    const tierSize = tier === 0
+      ? 0.0125 + random() * 0.0045
+      : tier === 1
+        ? 0.021 + random() * 0.007
+        : 0.034 + random() * 0.011;
+
+    positions[stride] = x;
+    positions[stride + 1] = y;
+    positions[stride + 2] = z;
+    color.copy(accentColor).lerp(baseColor, 0.28 + progress * 0.55);
+    if (tier === 2 || forceHighlight) {
+      color.lerp(coldWhite, 0.55 + random() * 0.2);
+    } else if (iceCluster) {
+      color.lerp(coldWhite, 0.42 + random() * 0.16);
+    } else if (tier === 0 && progress > 0.7) {
+      color.lerp(deepBlue, 0.2 + random() * 0.22);
+    }
+    const brightness = (
+      0.58 + cluster * 0.28 + tier * 0.08 + (iceCluster ? 0.06 : 0)
+    ) * brightnessScale;
+
+    colors[stride] = color.r * brightness;
+    colors[stride + 1] = color.g * brightness;
+    colors[stride + 2] = color.b * brightness;
+    sizes[cursor] = tierSize;
+    alphas[cursor] = alpha;
+    cursor += 1;
+  }
+
+  const armSettings = [
+    {
+      count: mainArmCounts[0],
+      phase: -0.04,
+      sweep: 2.34,
+      maxRadius: 0.75,
+      gaps: [[0.5, 0.58], [0.79, 0.85]],
+      brightness: 1,
+      outerFadeStart: 0.8,
+      outerFadeAmount: 0.58
+    },
+    {
+      count: mainArmCounts[1],
+      phase: Math.PI + 0.24,
+      sweep: 2.06,
+      maxRadius: 0.68,
+      gaps: [[0.57, 0.65], [0.74, 0.84]],
+      brightness: 0.82,
+      outerFadeStart: 0.68,
+      outerFadeAmount: 0.82
+    }
+  ];
+
+  armSettings.forEach((arm, armIndex) => {
+    for (let localIndex = 0; localIndex < arm.count; localIndex += 1) {
+      const progress = (localIndex + random() * 0.72) / arm.count;
+      const radius = config.size * (
+        0.045 + Math.pow(progress, 0.88) * (arm.maxRadius - 0.045)
+      );
+      const cluster = Math.sin(progress * (18.5 + armIndex * 2.4) + armIndex * 1.7) * 0.5 + 0.5;
+      const width = config.size * (
+        0.048
+        + (1 - progress) * 0.072
+        + Math.sin(progress * Math.PI) * 0.052
+      );
+      const band = localIndex % 3 - 1;
+      const lateral = (
+        band * width * 0.52
+        + clampGaussian(gaussianRandom(random)) * width * 0.32
+      );
+      const angle = arm.phase
+        + Math.pow(progress, 0.84) * arm.sweep
+        + (random() - 0.5) * (0.055 + progress * 0.05);
+      const gapDistance = Math.min(...arm.gaps.map((gap) => (
+        Math.abs(progress - (gap[0] + gap[1]) * 0.5)
+      )));
+      const inGap = arm.gaps.some((gap) => progress > gap[0] && progress < gap[1]);
+      const reconnect = gapDistance < 0.13 && !inGap ? 1.1 : 1;
+      const outerFade = 1
+        - smoothstep(arm.outerFadeStart, 1, progress) * arm.outerFadeAmount;
+      const coreConnection = 1 + (1 - smoothstep(0.08, 0.24, progress)) * 0.16;
+      const alpha = (
+        (0.62 + cluster * 0.34)
+        * outerFade
+        * coreConnection
+        * (inGap ? 0.08 + random() * 0.12 : reconnect)
+      );
+      const x = Math.cos(angle) * radius - Math.sin(angle) * lateral;
+      const y = (Math.sin(angle) * radius + Math.cos(angle) * lateral) * 0.62;
+      const z = (random() - 0.5) * width * (0.65 + progress * 0.45);
+
+      writeParticle({
+        x,
+        y,
+        z,
+        progress,
+        cluster,
+        alpha,
+        brightnessScale: arm.brightness,
+        iceCluster: progress > 0.08 && progress < 0.18 && localIndex % 3 !== 2
+      });
+    }
+  });
+
+  const branchSettings = [
+    { count: branchCounts[0], arm: 0, start: 0.38, length: 0.3, divergence: -0.52, alpha: 0.72 },
+    { count: branchCounts[1], arm: 1, start: 0.5, length: 0.25, divergence: 0.46, alpha: 0.6 },
+    { count: branchCounts[2], arm: 0, start: 0.66, length: 0.18, divergence: 0.62, alpha: 0.48 }
+  ];
+
+  branchSettings.forEach((branch, branchIndex) => {
+    const sourceArm = armSettings[branch.arm];
+
+    for (let localIndex = 0; localIndex < branch.count; localIndex += 1) {
+      const branchProgress = (localIndex + random() * 0.74) / branch.count;
+      const sourceProgress = branch.start + branchProgress * branch.length;
+      const radius = config.size * (
+        0.045 + Math.pow(sourceProgress, 0.88) * (sourceArm.maxRadius - 0.045)
+      );
+      const angle = sourceArm.phase
+        + Math.pow(sourceProgress, 0.84) * sourceArm.sweep
+        + branch.divergence * Math.pow(branchProgress, 1.16)
+        + (random() - 0.5) * 0.09;
+      const width = config.size * (0.052 - branchProgress * 0.02);
+      const lateral = clampGaussian(gaussianRandom(random)) * width * 0.48;
+      const cluster = Math.sin(branchProgress * 13 + branchIndex * 2.6) * 0.5 + 0.5;
+      const breakMask = (
+        branchProgress > 0.43
+        && branchProgress < 0.53
+        && branchIndex !== 1
+      ) ? 0.2 : 1;
+      const endCluster = branchIndex === 0 && branchProgress > 0.82;
+      const alpha = branch.alpha
+        * (0.62 + cluster * 0.34)
+        * (1 - smoothstep(0.82, 1, branchProgress) * 0.5)
+        * breakMask
+        * (endCluster ? 1.2 : 1);
+      const x = Math.cos(angle) * radius - Math.sin(angle) * lateral;
+      const y = (Math.sin(angle) * radius + Math.cos(angle) * lateral) * 0.62;
+      const z = (random() - 0.5) * width * 0.65;
+
+      writeParticle({
+        x,
+        y,
+        z,
+        progress: sourceProgress,
+        cluster,
+        alpha,
+        brightnessScale: sourceArm.brightness * 0.92,
+        forceHighlight: endCluster && localIndex % 3 === 0
+      });
+    }
+  });
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+  geometry.setAttribute('aAlpha', new THREE.BufferAttribute(alphas, 1));
+  geometry.computeBoundingSphere();
+
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      uTexture: { value: texture },
+      uOpacity: { value: 0.7 },
+      uSizeScale: { value: 1 }
+    },
+    vertexShader: `
+      attribute float aSize;
+      attribute float aAlpha;
+      varying vec3 vColor;
+      varying float vAlpha;
+      uniform float uSizeScale;
+
+      void main() {
+        vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+        vColor = color;
+        vAlpha = aAlpha;
+        gl_Position = projectionMatrix * viewPosition;
+        gl_PointSize = max(1.0, aSize * uSizeScale * (720.0 / max(1.0, -viewPosition.z)));
+      }
+    `,
+    fragmentShader: `
+      uniform sampler2D uTexture;
+      uniform float uOpacity;
+      varying vec3 vColor;
+      varying float vAlpha;
+
+      void main() {
+        vec4 particle = texture2D(uTexture, gl_PointCoord);
+        if (particle.a < 0.012) discard;
+        gl_FragColor = vec4(vColor * particle.rgb, particle.a * vAlpha * uOpacity);
+      }
+    `,
+    vertexColors: true,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    fog: false
+  });
+  const points = new THREE.Points(geometry, material);
+
+  points.name = 'GEONebulaSpiralCluster';
+
+  function update(
+    delta,
+    time,
+    pulse,
+    visibility,
+    entryProgress,
+    hoverBoost,
+    opacityScale = 1
+  ) {
+    points.rotation.z += delta * config.spin * 0.38;
+    points.rotation.y = Math.sin(time * 0.08 + config.phase) * 0.08;
+    material.uniforms.uOpacity.value = (
+      0.68 + pulse * 0.08 + entryProgress * 0.07
+    ) * visibility * hoverBoost * config.brightness * opacityScale;
+    material.uniforms.uSizeScale.value = (
+      0.98 + pulse * 0.04 + entryProgress * 0.09
+    ) * (0.98 + (hoverBoost - 1) * 0.25);
+  }
+
+  function dispose() {
+    geometry.dispose();
+    material.dispose();
+  }
+
+  return {
+    points,
+    update,
+    dispose,
+    sizeRatios: {
+      micro: microCount / count,
+      medium: mediumCount / count,
+      highlight: highlightCount / count
+    }
+  };
+}
+
+function createGeoGalaxyTexture(config, texture) {
+  const planeSize = config.size * 2.55;
+  const geometry = new THREE.PlaneGeometry(planeSize, planeSize);
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    color: 0xffffff,
+    transparent: true,
+    opacity: GEO_PREVIEW_TEXTURE_OPACITY,
+    alphaTest: 0.002,
+    blending: THREE.NormalBlending,
+    depthTest: true,
+    depthWrite: false,
+    fog: false,
+    toneMapped: true
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+
+  mesh.name = 'GEOGalaxyTexture';
+  mesh.position.set(0, 0, -0.052);
+  mesh.scale.setScalar(GEO_PREVIEW_TEXTURE_SCALE);
+  mesh.renderOrder = -0.75;
+
+  function update(delta, visibility, hoverBoost) {
+    mesh.rotation.z += delta * config.spin * 0.38;
+    material.opacity = GEO_PREVIEW_TEXTURE_OPACITY
+      * visibility
+      * (1 + (hoverBoost - 1) * 0.08);
+  }
+
+  function dispose() {
+    geometry.dispose();
+    material.dispose();
+  }
+
+  return {
+    mesh,
+    update,
+    dispose,
+    opacity: GEO_PREVIEW_TEXTURE_OPACITY,
+    scale: GEO_PREVIEW_TEXTURE_SCALE
+  };
+}
+
+function createGeoInnerNebula(config, texture, seed) {
+  const segments = [
+    { count: 20, arm: 0, start: 0.07, end: 0.46, phaseOffset: -0.03, alphaScale: 1 },
+    { count: 18, arm: 1, start: 0.09, end: 0.41, phaseOffset: 0.04, alphaScale: 0.82 },
+    { count: 16, arm: 0, start: 0.24, end: 0.52, phaseOffset: -0.18, alphaScale: 0.68 }
+  ];
+  const armSettings = [
+    { phase: -0.04, sweep: 2.34, maxRadius: 0.75 },
+    { phase: Math.PI + 0.24, sweep: 2.06, maxRadius: 0.68 }
+  ];
+  const count = segments.reduce((total, segment) => total + segment.count, 0);
+  const random = seededRandom(seed);
+  const geometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+  const alphas = new Float32Array(count);
+  const deepCyan = new THREE.Color(0x005b7f);
+  const iceBlue = new THREE.Color(0x63dfff);
+  const coldWhite = new THREE.Color(0xdffbff);
+  const color = new THREE.Color();
+  let cursor = 0;
+
+  segments.forEach((segment, segmentIndex) => {
+    const arm = armSettings[segment.arm];
+
+    for (let localIndex = 0; localIndex < segment.count; localIndex += 1) {
+      const localProgress = (localIndex + random() * 0.72) / segment.count;
+      const armProgress = segment.start
+        + localProgress * (segment.end - segment.start);
+      const radius = config.size * (
+        0.045 + Math.pow(armProgress, 0.88) * (arm.maxRadius - 0.045)
+      );
+      const angle = arm.phase
+        + Math.pow(armProgress, 0.84) * arm.sweep
+        + segment.phaseOffset
+        + (random() - 0.5) * 0.11;
+      const width = config.size * (
+        0.06 + Math.sin(localProgress * Math.PI) * 0.055
+      );
+      const lateral = clampGaussian(gaussianRandom(random)) * width * 0.72;
+      const lowFrequencyNoise = (
+        Math.sin(localProgress * TAU * (1.18 + segmentIndex * 0.17) + segmentIndex * 1.4)
+        * 0.5
+        + 0.5
+      );
+      const feather = smoothstep(0, 0.18, localProgress)
+        * (1 - smoothstep(0.78, 1, localProgress));
+      const hole = lowFrequencyNoise < 0.26 || (
+        segmentIndex === 2
+        && localProgress > 0.42
+        && localProgress < 0.62
+      );
+      const alpha = Math.min(
+        0.065,
+        (0.025 + lowFrequencyNoise * 0.04)
+          * segment.alphaScale
+          * feather
+          * (hole ? 0.12 : 1)
+      );
+      const stride = cursor * 3;
+
+      positions[stride] = Math.cos(angle) * radius - Math.sin(angle) * lateral;
+      positions[stride + 1] = (
+        Math.sin(angle) * radius + Math.cos(angle) * lateral
+      ) * 0.62;
+      positions[stride + 2] = -0.018 + (random() - 0.5) * width * 0.7;
+      color.copy(deepCyan).lerp(iceBlue, 0.28 + lowFrequencyNoise * 0.38);
+      if (random() > 0.94) {
+        color.lerp(coldWhite, 0.18);
+      }
+      colors[stride] = color.r;
+      colors[stride + 1] = color.g;
+      colors[stride + 2] = color.b;
+      sizes[cursor] = 0.06 + random() * 0.045;
+      alphas[cursor] = alpha;
+      cursor += 1;
+    }
+  });
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+  geometry.setAttribute('aAlpha', new THREE.BufferAttribute(alphas, 1));
+  geometry.computeBoundingSphere();
+
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      uTexture: { value: texture },
+      uOpacity: { value: 1 }
+    },
+    vertexShader: `
+      attribute float aSize;
+      attribute float aAlpha;
+      varying vec3 vColor;
+      varying float vAlpha;
+
+      void main() {
+        vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+        vColor = color;
+        vAlpha = aAlpha;
+        gl_Position = projectionMatrix * viewPosition;
+        gl_PointSize = max(1.0, aSize * (720.0 / max(1.0, -viewPosition.z)));
+      }
+    `,
+    fragmentShader: `
+      uniform sampler2D uTexture;
+      uniform float uOpacity;
+      varying vec3 vColor;
+      varying float vAlpha;
+
+      void main() {
+        vec4 mist = texture2D(uTexture, gl_PointCoord);
+        if (mist.a < 0.006) discard;
+        gl_FragColor = vec4(vColor * mist.rgb, mist.a * vAlpha * uOpacity);
+      }
+    `,
+    vertexColors: true,
+    transparent: true,
+    blending: THREE.NormalBlending,
+    depthWrite: false,
+    fog: false
+  });
+  const points = new THREE.Points(geometry, material);
+
+  points.name = 'GEOInnerNebula';
+  points.renderOrder = -0.5;
+
+  function update(delta, time, visibility, hoverBoost) {
+    points.rotation.z += delta * config.spin * 0.38;
+    points.rotation.y = Math.sin(time * 0.08 + config.phase) * 0.08;
+    material.uniforms.uOpacity.value = visibility * (
+      0.94 + (hoverBoost - 1) * 0.25
+    );
+  }
+
+  function dispose() {
+    geometry.dispose();
+    material.dispose();
+  }
+
+  return {
+    points,
+    update,
+    dispose,
+    segmentCount: segments.length,
+    alphaRange: [0.025, 0.065]
+  };
 }
 
 function createNebulaDust(config, texture, seed) {
@@ -696,6 +1325,35 @@ function calculateHoverStrength(config, interaction) {
   return hover * interaction.active;
 }
 
+function readSubGalaxyDebugState() {
+  const params = new URLSearchParams(window.location.search);
+  const enabled = params.get('debugSubGalaxy') === 'geo';
+  const requestedMode = params.get('mode');
+
+  return {
+    enabled,
+    mode: requestedMode === 'armsOnly'
+      ? 'armsOnly'
+      : requestedMode === 'innerNebulaOnly'
+        ? 'innerNebulaOnly'
+        : 'combined'
+  };
+}
+
+function readSubGalaxyPreviewState() {
+  const params = new URLSearchParams(window.location.search);
+  const enabled = params.get('subGalaxyPreview') === 'geo-v13';
+
+  return {
+    enabled,
+    mode: enabled && params.get('mode') === 'textureOnly'
+      ? 'textureOnly'
+      : enabled
+        ? 'combined'
+        : 'disabled'
+  };
+}
+
 function smoothstep(edge0, edge1, value) {
   const x = Math.min(Math.max((value - edge0) / (edge1 - edge0), 0), 1);
 
@@ -721,6 +1379,20 @@ function createNebulaParticleTexture() {
   const texture = new THREE.CanvasTexture(canvas);
 
   texture.colorSpace = THREE.SRGBColorSpace;
+
+  return texture;
+}
+
+function loadGeoPreviewTexture() {
+  const texture = new THREE.TextureLoader().load(GEO_PREVIEW_TEXTURE_URL);
+
+  texture.name = 'GEOMiniGalaxyV1Texture';
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = true;
 
   return texture;
 }
