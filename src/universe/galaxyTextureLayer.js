@@ -15,6 +15,7 @@ const DEFAULT_PARAMETERS = Object.freeze({
   colorAssetSaturation: 1,
   colorAssetContrast: 1,
   alphaFeatherPixels: 0,
+  edgeDissolveWidth: 0.06,
   textureSize: 2048,
   localRotationX: THREE.MathUtils.degToRad(2),
   localRotationY: THREE.MathUtils.degToRad(-1.2),
@@ -45,6 +46,8 @@ export function createGalaxyTextureLayer(parameters = DEFAULT_PARAMETERS) {
       uColorAssetSaturation: { value: config.colorAssetSaturation },
       uColorAssetContrast: { value: config.colorAssetContrast },
       uAlphaFeatherPixels: { value: config.alphaFeatherPixels },
+      uEdgeDissolveEnabled: { value: 0 },
+      uEdgeDissolveWidth: { value: config.edgeDissolveWidth },
       uColorTexelSize: {
         value: new THREE.Vector2(
           1 / config.textureSize,
@@ -104,6 +107,8 @@ export function createGalaxyTextureLayer(parameters = DEFAULT_PARAMETERS) {
       uniform float uColorAssetSaturation;
       uniform float uColorAssetContrast;
       uniform float uAlphaFeatherPixels;
+      uniform float uEdgeDissolveEnabled;
+      uniform float uEdgeDissolveWidth;
       uniform vec2 uColorTexelSize;
       uniform float uUseMask;
       varying vec2 vUv;
@@ -168,7 +173,54 @@ export function createGalaxyTextureLayer(parameters = DEFAULT_PARAMETERS) {
             min(colorSample.a, neighboringAlpha),
             fringeWeight
           );
-          float assetAlpha = featheredAlpha * edgeFeather * uOpacity;
+          float dissolvedAlpha = featheredAlpha;
+          if (uEdgeDissolveEnabled > 0.5
+            && featheredAlpha < 0.035 + uEdgeDissolveWidth * 3.25) {
+            float alphaEdgeMask = 1.0 - smoothstep(
+              0.035,
+              0.035 + uEdgeDissolveWidth * 3.25,
+              featheredAlpha
+            );
+            vec2 coreRelative = sampleUv - uCoreUv;
+            float rightUpperBias = smoothstep(
+              0.02,
+              0.58,
+              coreRelative.x + coreRelative.y
+            );
+            float leftLowerBias = smoothstep(
+              0.04,
+              0.62,
+              -coreRelative.x - coreRelative.y
+            );
+            float armTerminalBias = smoothstep(0.24, 0.52, abs(coreRelative.x))
+              * smoothstep(0.02, 0.36, abs(coreRelative.y));
+            float broadDissolveNoise = valueNoise(
+              sampleUv * 4.8 + vec2(6.3, 2.7)
+            );
+            float detailDissolveNoise = valueNoise(
+              sampleUv * 9.4 + vec2(1.8, 8.1)
+            );
+            float dissolveNoise = broadDissolveNoise * 0.76
+              + detailDissolveNoise * 0.24;
+            float directionalStrength = clamp(
+              0.3
+                + rightUpperBias * 0.37
+                + leftLowerBias * 0.25
+                + armTerminalBias * 0.16,
+              0.0,
+              0.86
+            );
+            float brokenEdge = 1.0 - smoothstep(
+              0.3,
+              0.72,
+              dissolveNoise + featheredAlpha * 0.38
+            );
+            float dissolveAmount = alphaEdgeMask
+              * directionalStrength
+              * brokenEdge;
+            dissolvedAlpha = featheredAlpha * (1.0 - dissolveAmount);
+          }
+          float assetAlpha = dissolvedAlpha * edgeFeather * uOpacity;
           if (assetAlpha < 0.001) discard;
           gl_FragColor = vec4(assetColor, assetAlpha);
           return;
@@ -267,6 +319,10 @@ export function createGalaxyTextureLayer(parameters = DEFAULT_PARAMETERS) {
     mesh.visible = texturesReady && layerOpacity >= 0.01;
   }
 
+  function setEdgeDissolveEnabled(enabled) {
+    material.uniforms.uEdgeDissolveEnabled.value = enabled ? 1 : 0;
+  }
+
   function update(time) {
     if (!mesh.visible) return;
     material.uniforms.uTime.value = time;
@@ -298,6 +354,7 @@ export function createGalaxyTextureLayer(parameters = DEFAULT_PARAMETERS) {
     material,
     setTextures,
     setOpacity,
+    setEdgeDissolveEnabled,
     update,
     sourceUvToLocalPoint,
     alignment: Object.freeze({

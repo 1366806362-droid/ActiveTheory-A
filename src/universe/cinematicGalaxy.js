@@ -75,6 +75,9 @@ export function createCinematicGalaxy({
       outerRadius: OUTER_RADIUS,
       extentScale: 2.7
     });
+  galaxyTextureLayer.setEdgeDissolveEnabled(
+    Boolean(galaxyV2Config) && GALAXY_ATMOSPHERE_DEBUG.mode !== 'v21'
+  );
   const galaxyAtmosphere = galaxyV2Config
     ? createGalaxyAtmosphere({ debugState: GALAXY_ATMOSPHERE_DEBUG })
     : null;
@@ -340,7 +343,9 @@ export function createCinematicGalaxy({
       alignmentDebugGroup.visible = false;
       if (GALAXY_ATMOSPHERE_DEBUG.enabled
         && GALAXY_ATMOSPHERE_DEBUG.mode.endsWith('Only')) {
-        textureLayerGroup.visible = false;
+        const edgeDissolveOnly = GALAXY_ATMOSPHERE_DEBUG.mode
+          === 'edgeDissolveOnly';
+        textureLayerGroup.visible = edgeDissolveOnly && textureReady;
         baseLayerGroup.visible = false;
         shellLayer.visible = false;
         armsLayer.visible = false;
