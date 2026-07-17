@@ -1,0 +1,42 @@
+{
+  "version": "H1",
+  "blender": "4.5.11 LTS",
+  "engine": "BLENDER_EEVEE_NEXT",
+  "color_management": "AgX / Medium High Contrast",
+  "source_texture": "public/textures/hero/galaxy/main-galaxy-v2.webp",
+  "disk": {
+    "subdivision": "96x96",
+    "vertices": 9409,
+    "faces": 9216,
+    "extent": 8.3,
+    "z_min": -0.04,
+    "z_max": 0.055
+  },
+  "edge_dissolve": {
+    "normalized_radius_start": 0.58,
+    "normalized_radius_end": 0.96,
+    "minimum_mask": 0.22,
+    "regions": ["right-upper", "right-lower", "left-short-arm", "lower-gap"]
+  },
+  "particles": {
+    "edge_and_arm": 40000,
+    "core": 4000,
+    "total": 44000,
+    "seed": 4101
+  },
+  "nebula_regions": 4,
+  "animation": {
+    "duration_seconds": 8,
+    "fps": 24,
+    "frames": 192,
+    "rotation_amplitude_degrees": 2.4,
+    "loop": true
+  },
+  "render": {
+    "resolution": [1280, 720],
+    "film_transparent": true,
+    "exposure_ev": -0.04
+  },
+  "uses_flat_static_plane": false,
+  "threejs_integrated": false
+}

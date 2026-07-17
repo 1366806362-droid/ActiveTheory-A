@@ -1,0 +1,102 @@
+{
+  "arms": {
+    "alpha_nonzero_percent": 16.751861572265625,
+    "alpha_gt_005_percent": 15.161895751953125,
+    "outer_angular_coverage_percent": 65.13888888888889,
+    "max_continuous_arc_degrees": 51.5,
+    "centroid_px": [
+      1077.2127156959452,
+      1025.0693652167847
+    ],
+    "corners_alpha_8bit": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "outer_one_percent_alpha_max": 0.0,
+    "coverage": 0.6513888888888889,
+    "missing_regions": 4,
+    "missing_centers_degrees": [
+      -43.0,
+      39.0,
+      166.0,
+      96.0
+    ],
+    "missing_half_widths_degrees": [
+      28.513887405395508,
+      22.510963439941406,
+      31.51534652709961,
+      20.259864807128906
+    ]
+  },
+  "edge": {
+    "alpha_nonzero_percent": 4.316449165344238,
+    "alpha_gt_005_percent": 2.90985107421875,
+    "outer_angular_coverage_percent": 47.5,
+    "max_continuous_arc_degrees": 66.5,
+    "centroid_px": [
+      1083.2490971929703,
+      1025.5154242581277
+    ],
+    "corners_alpha_8bit": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "outer_one_percent_alpha_max": 0.0,
+    "designed_regions": 4,
+    "regions": [
+      {
+        "name": "right-upper",
+        "center": -43.0,
+        "half_width": 34.0,
+        "strength": 1.0
+      },
+      {
+        "name": "left-short",
+        "center": 168.0,
+        "half_width": 27.0,
+        "strength": 0.82
+      },
+      {
+        "name": "right-lower",
+        "center": 38.0,
+        "half_width": 23.0,
+        "strength": 0.72
+      },
+      {
+        "name": "upper-left-fragment",
+        "center": -126.0,
+        "half_width": 17.0,
+        "strength": 0.54
+      }
+    ],
+    "coverage": 0.475,
+    "connected_components": {
+      "count": 3,
+      "areas_at_512": [
+        2758,
+        2750,
+        2038
+      ]
+    }
+  },
+  "reconstruction": {
+    "rgb_premultiplied_mae_0_to_1": 0.03967844322323799,
+    "rgb_premultiplied_mae_percent": 3.967844322323799,
+    "alpha_mae_0_to_1": 0.16358739137649536,
+    "alpha_effective_area_percent": 25.531601905822754,
+    "source_alpha_effective_area_percent": 24.623966217041016,
+    "core_near_white_clip_percent_after_aces": 0.0
+  },
+  "outputs": {
+    "arms": "C:\\Users\\Administrator\\Documents\\Activetheory\u2014\u6e32\u67d3\u5236\u4f5c\\ActiveTheory-A\\02-\u7f51\u9875\u4ee3\u7801\\art\\galaxy-v3\\arms-edge-rework\\galaxy-arms-reworked.png",
+    "edge": "C:\\Users\\Administrator\\Documents\\Activetheory\u2014\u6e32\u67d3\u5236\u4f5c\\ActiveTheory-A\\02-\u7f51\u9875\u4ee3\u7801\\art\\galaxy-v3\\arms-edge-rework\\galaxy-edge-reworked.png",
+    "contact_sheet": "C:\\Users\\Administrator\\Documents\\Activetheory\u2014\u6e32\u67d3\u5236\u4f5c\\ActiveTheory-A\\02-\u7f51\u9875\u4ee3\u7801\\art\\galaxy-v3\\arms-edge-rework\\arms-edge-contact-sheet.png",
+    "mask_comparison": "C:\\Users\\Administrator\\Documents\\Activetheory\u2014\u6e32\u67d3\u5236\u4f5c\\ActiveTheory-A\\02-\u7f51\u9875\u4ee3\u7801\\art\\galaxy-v3\\arms-edge-rework\\original-vs-reworked-masks.png",
+    "static_reconstruction": "C:\\Users\\Administrator\\Documents\\Activetheory\u2014\u6e32\u67d3\u5236\u4f5c\\ActiveTheory-A\\02-\u7f51\u9875\u4ee3\u7801\\art\\galaxy-v3\\arms-edge-rework\\static-reconstruction-preview.png",
+    "qa_report": "C:\\Users\\Administrator\\Documents\\Activetheory\u2014\u6e32\u67d3\u5236\u4f5c\\ActiveTheory-A\\02-\u7f51\u9875\u4ee3\u7801\\art\\galaxy-v3\\arms-edge-rework\\qa-report.md"
+  }
+}

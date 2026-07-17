@@ -6,6 +6,8 @@ import { createDeepSpaceBackground } from './deepSpaceBackground.js';
 import { createEarthHorizon } from './earthHorizon.js';
 import { createGalaxyPlanets } from './galaxyPlanets.js';
 import { readGalaxyAtmosphereDebugState } from './galaxyAtmosphere.js';
+import { readGalaxyVolumePreviewState } from './galaxyVolumeLayer.js';
+import { readGalaxyParticleVolumePreviewState } from './galaxyParticleVolume.js';
 import {
   getHeroGalaxyMainFrameQuaternion,
   getHeroGalaxyVersionConfig,
@@ -41,6 +43,14 @@ const HERO_GALAXY_ATMOSPHERE_DEBUG = readGalaxyAtmosphereDebugState();
 const DEBUG_GALAXY_ATMOSPHERE_ISOLATION = HERO_GALAXY_VERSION_STATE.isV2
   && HERO_GALAXY_ATMOSPHERE_DEBUG.enabled
   && HERO_GALAXY_ATMOSPHERE_DEBUG.mode.endsWith('Only');
+const HERO_GALAXY_VOLUME_PREVIEW = readGalaxyVolumePreviewState();
+const DEBUG_GALAXY_VOLUME_ISOLATION = HERO_GALAXY_VERSION_STATE.isV2
+  && HERO_GALAXY_VOLUME_PREVIEW.enabled
+  && HERO_GALAXY_VOLUME_PREVIEW.mode !== 'combined';
+const HERO_GALAXY_PARTICLE_VOLUME_PREVIEW = readGalaxyParticleVolumePreviewState();
+const DEBUG_GALAXY_PARTICLE_VOLUME_ISOLATION = HERO_GALAXY_VERSION_STATE.isV2
+  && HERO_GALAXY_PARTICLE_VOLUME_PREVIEW.enabled
+  && HERO_GALAXY_PARTICLE_VOLUME_PREVIEW.mode !== 'front';
 const CINEMATIC_GALAXY_DEBUG = readCinematicGalaxyDebugState();
 export const useCinematicGalaxy = true;
 const HERO_DEBUG = Object.freeze({
@@ -102,7 +112,9 @@ export function createUniverseRoot() {
   const debugActive = DEBUG_MAIN_GALAXY_ACTIVE || cinematicDebug.enabled;
   const sceneDebugActive = debugActive
     || EARTH_LAYER_DEBUG.enabled
-    || DEBUG_GALAXY_ATMOSPHERE_ISOLATION;
+    || DEBUG_GALAXY_ATMOSPHERE_ISOLATION
+    || DEBUG_GALAXY_VOLUME_ISOLATION
+    || DEBUG_GALAXY_PARTICLE_VOLUME_ISOLATION;
   const root = new THREE.Group();
   const nebulaVolume = createNebulaVolume();
   const deepSpaceBackground = createDeepSpaceBackground(nebulaVolume);
@@ -160,7 +172,10 @@ export function createUniverseRoot() {
   galaxyPlanets.setLabelsVisible(sceneDebugActive ? false : HERO_DEBUG.showLabels);
   particleField.points.visible = false;
   earthHorizon.group.visible = EARTH_LAYER_DEBUG.enabled
-    || (!debugActive && !DEBUG_GALAXY_ATMOSPHERE_ISOLATION);
+    || (!debugActive
+      && !DEBUG_GALAXY_ATMOSPHERE_ISOLATION
+      && !DEBUG_GALAXY_VOLUME_ISOLATION
+      && !DEBUG_GALAXY_PARTICLE_VOLUME_ISOLATION);
   earthHorizon.setLayerMode(EARTH_LAYER_DEBUG.mode);
   debugBackdrop.visible = sceneDebugActive;
   if (EARTH_LAYER_DEBUG.enabled) {
@@ -226,7 +241,9 @@ export function updateUniverseRoot(renderState, delta, time, journeyProgress = 0
   const debugActive = DEBUG_MAIN_GALAXY_ACTIVE || cinematicDebug.enabled;
   const sceneDebugActive = debugActive
     || EARTH_LAYER_DEBUG.enabled
-    || DEBUG_GALAXY_ATMOSPHERE_ISOLATION;
+    || DEBUG_GALAXY_ATMOSPHERE_ISOLATION
+    || DEBUG_GALAXY_VOLUME_ISOLATION
+    || DEBUG_GALAXY_PARTICLE_VOLUME_ISOLATION;
 
   setScrollHintDebugVisibility(sceneDebugActive);
 
@@ -250,7 +267,9 @@ export function updateUniverseRoot(renderState, delta, time, journeyProgress = 0
     return;
   }
 
-  if (DEBUG_GALAXY_ATMOSPHERE_ISOLATION) {
+  if (DEBUG_GALAXY_ATMOSPHERE_ISOLATION
+    || DEBUG_GALAXY_VOLUME_ISOLATION
+    || DEBUG_GALAXY_PARTICLE_VOLUME_ISOLATION) {
     renderState.backgroundColor = '#010612';
     renderState.fogColor = '#010612';
     universeState.debugBackdrop.visible = true;

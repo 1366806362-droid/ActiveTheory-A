@@ -1,0 +1,36 @@
+{
+  "galaxy_rgba_start_end_mae_percent": 0.0,
+  "hero_start_end_mae_percent": 0.0,
+  "galaxy_start_middle_mae_percent": 2.05612958,
+  "alpha_corner_values": {
+    "start": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "middle": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "end": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "video_frames": 192,
+  "fps": 24,
+  "duration_seconds": 8,
+  "video_size": [
+    1280,
+    720
+  ],
+  "hero_key_size": [
+    1920,
+    1080
+  ]
+}
