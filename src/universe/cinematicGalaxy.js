@@ -8,6 +8,11 @@ import {
   readGalaxyAtmosphereDebugState
 } from './galaxyAtmosphere.js';
 import { createGalaxyTextureLayer } from './galaxyTextureLayer.js';
+import {
+  createGalaxyVideoLayer,
+  H1_COMPOSITION_D_CONFIG,
+  H1_HD_VIDEO_URL
+} from './galaxyVideoLayer.js';
 import { createHeroTextureLoader } from './heroTextureLoader.js';
 
 const TAU = Math.PI * 2;
@@ -17,6 +22,7 @@ const TURNS = 0.88;
 const RADIUS_EXPONENT = 1.12;
 const GALAXY_ALIGNMENT_DEBUG = prepareGalaxyAlignmentDebug();
 const GALAXY_ATMOSPHERE_DEBUG = readGalaxyAtmosphereDebugState();
+const VIDEO_CROSSFADE_SECONDS = 0.18;
 const DEFAULT_LAYER_VISIBILITY = Object.freeze({
   core: true,
   mainArms: true,
@@ -31,12 +37,17 @@ export function createCinematicGalaxy({
   useGalaxyShell = true,
   galaxyVersion = 'v1',
   galaxyVersionConfig = null,
+  galaxyVideoPreview = null,
+  galaxyVideoComposition = null,
   diagnosticsEnabled = false
 } = {}) {
   const galaxyLayerDebugMode = readGalaxyLayerDebugMode();
   const galaxyHybridDebug = readGalaxyHybridDebugState();
   const galaxyAlignmentDebug = GALAXY_ALIGNMENT_DEBUG;
   const galaxyV2Config = galaxyVersion === 'v2' ? galaxyVersionConfig : null;
+  const galaxyVideoPreviewEnabled = Boolean(
+    galaxyV2Config && ['h1', 'h1-hd'].includes(galaxyVideoPreview)
+  );
 
   if (galaxyV2Config && diagnosticsEnabled) {
     publishVersionDiagnostics({
@@ -93,8 +104,31 @@ export function createCinematicGalaxy({
     : null;
   let textureLoadStatus = 'idle';
   let textureLayerWeight = 0;
+  let videoReady = false;
+  let videoRevealOpacity = 0;
+  let videoReadyAtMs = null;
+  let videoSwitchCompleteAtMs = null;
   let disposed = false;
   let unsubscribeTextureLoader = null;
+  const galaxyVideoLayer = createGalaxyVideoLayer({
+    enabled: galaxyVideoPreviewEnabled,
+    ...(galaxyVideoPreview === 'h1-hd' ? { url: H1_HD_VIDEO_URL } : {}),
+    ...(galaxyVideoComposition === 'd' ? H1_COMPOSITION_D_CONFIG : {}),
+    onReady() {
+      if (disposed) return;
+      videoReady = true;
+      videoRevealOpacity = 0;
+      videoReadyAtMs = performance.now();
+      videoSwitchCompleteAtMs = null;
+      applyGalaxyHybridMode();
+    },
+    onFallback() {
+      if (disposed) return;
+      videoReady = false;
+      videoRevealOpacity = 0;
+      applyGalaxyHybridMode();
+    }
+  });
   const arms = createSpiralArms(texture);
   const armNebula = createArmNebula(texture);
   const dustLanes = createDustLanes(texture);
@@ -210,6 +244,7 @@ export function createCinematicGalaxy({
   visual.add(
     baseLayerGroup,
     ...(galaxyAtmosphere ? [galaxyAtmosphere.group] : []),
+    ...(galaxyVideoPreviewEnabled ? [galaxyVideoLayer.group] : []),
     textureLayerGroup,
     shellLayer,
     dustLayer,
@@ -264,8 +299,20 @@ export function createCinematicGalaxy({
     const textureFade = smootherstep(0.22, 0.72, journeyProgress);
     const textureJourneyOpacity = 1 - textureFade * 0.84;
 
+    if (videoReady && videoRevealOpacity < 1) {
+      videoRevealOpacity = Math.min(
+        1,
+        videoRevealOpacity + delta / VIDEO_CROSSFADE_SECONDS
+      );
+      if (videoRevealOpacity >= 1 && videoSwitchCompleteAtMs === null) {
+        videoSwitchCompleteAtMs = performance.now();
+      }
+      applyGalaxyHybridMode();
+    }
+
     galaxyTextureLayer.setOpacity(textureLayerWeight * textureJourneyOpacity);
     galaxyTextureLayer.update(alignmentTime);
+    galaxyVideoLayer.update(journeyProgress, videoRevealOpacity);
     galaxyAtmosphere?.update(delta, alignmentTime, interaction, journeyProgress);
     arms.update(alignmentTime, pulse, proximity);
     armNebula.update(alignmentTime, pulse);
@@ -325,6 +372,30 @@ export function createCinematicGalaxy({
   function applyGalaxyHybridMode() {
     const textureReady = galaxyTextureLayer.isReady();
     const legacyDebugActive = Boolean(galaxyLayerDebugMode || shellDebugMode);
+
+    if (galaxyVideoPreviewEnabled && videoReady) {
+      const fallbackWeight = 1 - videoRevealOpacity;
+      const fallbackVisible = fallbackWeight > 0.001;
+      const weights = galaxyV2Config.layerWeights;
+
+      textureLayerWeight = textureReady ? weights.texture * fallbackWeight : 0;
+      galaxyVideoLayer.group.visible = true;
+      textureLayerGroup.visible = fallbackVisible && textureReady;
+      baseLayerGroup.visible = false;
+      shellLayer.visible = fallbackVisible && useGalaxyShell;
+      shell.setHybridWeight(weights.shell * fallbackWeight, 0);
+      armsLayer.visible = fallbackVisible && debugVisibility.mainArms;
+      nebulaLayer.visible = fallbackVisible && debugVisibility.nebula;
+      dustLayer.visible = fallbackVisible && debugVisibility.dust;
+      nodesLayer.visible = fallbackVisible && debugVisibility.highlights;
+      coreLayer.visible = fallbackVisible && debugVisibility.core;
+      alignmentDebugGroup.visible = false;
+      if (galaxyAtmosphere) galaxyAtmosphere.group.visible = fallbackVisible;
+      return;
+    }
+
+    galaxyVideoLayer.group.visible = false;
+    if (galaxyAtmosphere) galaxyAtmosphere.group.visible = true;
 
     if (galaxyV2Config) {
       const weights = galaxyV2Config.layerWeights;
@@ -471,15 +542,18 @@ export function createCinematicGalaxy({
     if (!galaxyV2Config) return;
 
     const weights = galaxyV2Config.layerWeights;
+    const fallbackWeight = galaxyVideoPreviewEnabled && videoReady
+      ? 1 - videoRevealOpacity
+      : 1;
 
-    scaleObjectOpacity(arms.points, weights.arms);
-    scaleObjectOpacity(armNebula.points, weights.nebula);
-    scaleObjectOpacity(dustLanes.points, weights.dust);
-    scaleObjectOpacity(outskirts.points, weights.dust);
-    scaleObjectOpacity(armHighlights.points, weights.highlights);
-    scaleObjectOpacity(innerStarDisk.points, weights.innerStarDisk);
-    scaleObjectOpacity(core.group, weights.coreParticles);
-    scaleObjectOpacity(coreGlow.sprite, weights.warmCoreGlow);
+    scaleObjectOpacity(arms.points, weights.arms * fallbackWeight);
+    scaleObjectOpacity(armNebula.points, weights.nebula * fallbackWeight);
+    scaleObjectOpacity(dustLanes.points, weights.dust * fallbackWeight);
+    scaleObjectOpacity(outskirts.points, weights.dust * fallbackWeight);
+    scaleObjectOpacity(armHighlights.points, weights.highlights * fallbackWeight);
+    scaleObjectOpacity(innerStarDisk.points, weights.innerStarDisk * fallbackWeight);
+    scaleObjectOpacity(core.group, weights.coreParticles * fallbackWeight);
+    scaleObjectOpacity(coreGlow.sprite, weights.warmCoreGlow * fallbackWeight);
   }
 
   function measureVersionAlignment(camera) {
@@ -520,6 +594,44 @@ export function createCinematicGalaxy({
     };
   }
 
+  function measureVideoAlignment(camera) {
+    const diagnostics = galaxyVideoLayer.getDiagnostics();
+    const transition = {
+      durationMs: VIDEO_CROSSFADE_SECONDS * 1000,
+      revealOpacity: videoRevealOpacity,
+      readyAtMs: videoReadyAtMs,
+      switchCompleteAtMs: videoSwitchCompleteAtMs,
+      actualDurationMs: videoReadyAtMs !== null && videoSwitchCompleteAtMs !== null
+        ? videoSwitchCompleteAtMs - videoReadyAtMs
+        : null
+    };
+
+    if (!galaxyVideoPreviewEnabled || !camera || !videoReady) {
+      return { ...diagnostics, transition, coreAlignmentErrorPixels: null };
+    }
+
+    group.updateWorldMatrix(true, true);
+    camera.updateWorldMatrix(true, false);
+    const videoCore = galaxyVideoLayer.sourceUvToLocalPoint();
+    const particleCore = new THREE.Vector3();
+
+    galaxyVideoLayer.group.localToWorld(videoCore);
+    coreLayer.localToWorld(particleCore);
+    const videoScreen = projectToScreen(videoCore, camera);
+    const particleScreen = projectToScreen(particleCore, camera);
+
+    return {
+      ...diagnostics,
+      transition,
+      videoCore: videoScreen,
+      particleCore: particleScreen,
+      coreAlignmentErrorPixels: Math.hypot(
+        videoScreen.x - particleScreen.x,
+        videoScreen.y - particleScreen.y
+      )
+    };
+  }
+
   function dispose() {
     disposed = true;
     unsubscribeTextureLoader?.();
@@ -534,6 +646,7 @@ export function createCinematicGalaxy({
     coreGlow.dispose();
     baseLayer.dispose();
     galaxyTextureLayer.dispose();
+    galaxyVideoLayer.dispose();
     galaxyAtmosphere?.dispose();
     heroTextureLoader.dispose();
     shell.dispose();
@@ -551,6 +664,7 @@ export function createCinematicGalaxy({
     layers: {
       base: baseLayerGroup,
       texture: textureLayerGroup,
+      video: galaxyVideoLayer.group,
       atmosphere: galaxyAtmosphere?.group ?? null,
       arms: armsLayer,
       shell: shellLayer,
@@ -565,6 +679,7 @@ export function createCinematicGalaxy({
     applyGalaxyLayerMode,
     applyGalaxyHybridMode,
     measureVersionAlignment,
+    measureVideoAlignment,
     dispose,
     parameters: {
       turns: TURNS,
@@ -578,6 +693,9 @@ export function createCinematicGalaxy({
     galaxyAlignmentDebug,
     galaxyAtmosphereDebug: GALAXY_ATMOSPHERE_DEBUG,
     galaxyAtmosphere,
+    galaxyVideoLayer,
+    galaxyVideoPreview: galaxyVideoPreviewEnabled ? galaxyVideoPreview : null,
+    galaxyVideoComposition: galaxyVideoPreviewEnabled ? galaxyVideoComposition : null,
     galaxyVersion,
     getTextureLoadStatus: () => textureLoadStatus
   };

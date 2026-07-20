@@ -38,6 +38,30 @@ const HERO_GALAXY_VERSION_CONFIG = getHeroGalaxyVersionConfig(
   HERO_GALAXY_VERSION_STATE.version
 );
 const HERO_GALAXY_ATMOSPHERE_DEBUG = readGalaxyAtmosphereDebugState();
+const HERO_GALAXY_VIDEO_PREVIEW = readGalaxyVideoPreview();
+const HERO_GALAXY_VIDEO_COMPOSITION = readGalaxyVideoComposition();
+const GALAXY_RUNTIME_AUDIT = import.meta.env.DEV
+  && readDebugFlag('galaxyAudit', false);
+const galaxyVideoPerformance = {
+  elapsed: 0,
+  frames: 0,
+  fps: null,
+  minFps: null,
+  journeyMinFps: null,
+  p95FrameMs: null,
+  maxP95FrameMs: null,
+  frameTimes: [],
+  heapStartBytes: null,
+  heapCurrentBytes: null,
+  heapPeakBytes: null
+};
+if (HERO_GALAXY_VIDEO_PREVIEW) {
+  document.documentElement.dataset.galaxyVideoPreview = HERO_GALAXY_VIDEO_PREVIEW;
+}
+if (HERO_GALAXY_VIDEO_COMPOSITION) {
+  document.documentElement.dataset.galaxyVideoComposition = HERO_GALAXY_VIDEO_COMPOSITION;
+}
+
 const DEBUG_GALAXY_ATMOSPHERE_ISOLATION = HERO_GALAXY_VERSION_STATE.isV2
   && HERO_GALAXY_ATMOSPHERE_DEBUG.enabled
   && HERO_GALAXY_ATMOSPHERE_DEBUG.mode.endsWith('Only');
@@ -112,6 +136,8 @@ export function createUniverseRoot() {
       shellDebugMode: cinematicDebug.shellDebugMode,
       galaxyVersion: HERO_GALAXY_VERSION_STATE.version,
       galaxyVersionConfig: HERO_GALAXY_VERSION_CONFIG,
+      galaxyVideoPreview: HERO_GALAXY_VIDEO_PREVIEW,
+      galaxyVideoComposition: HERO_GALAXY_VIDEO_COMPOSITION,
       diagnosticsEnabled: HERO_GALAXY_VERSION_STATE.diagnostics
     })
     : createEnergyCore();
@@ -190,6 +216,13 @@ export function createUniverseRoot() {
   universeState.debugBackdrop = debugBackdrop;
   universeState.cinematicDebugSignature = cinematicDebug.signature;
   universeState.heroCompositionDebug = heroCompositionDebug;
+  if (HERO_GALAXY_VIDEO_PREVIEW) {
+    const diagnostics = addGalaxyVideoPerformance(
+      energyCore.measureVideoAlignment?.(getCamera()) ?? null
+    );
+    window.__ACTIVE_THEORY_H1_VIDEO__ = diagnostics;
+    document.documentElement.dataset.galaxyVideoDiagnostics = JSON.stringify(diagnostics);
+  }
   setScrollHintDebugVisibility(sceneDebugActive);
 
   return {
@@ -223,6 +256,7 @@ export function updateUniverseRoot(renderState, delta, time, journeyProgress = 0
   const cinematicDebug = CINEMATIC_GALAXY_DEBUG;
 
   syncCinematicGalaxyDebugState(cinematicDebug);
+  updateGalaxyRuntimePerformance(delta, journeyProgress);
   const debugActive = DEBUG_MAIN_GALAXY_ACTIVE || cinematicDebug.enabled;
   const sceneDebugActive = debugActive
     || EARTH_LAYER_DEBUG.enabled
@@ -331,6 +365,18 @@ export function updateUniverseRoot(renderState, delta, time, journeyProgress = 0
   if (HERO_GALAXY_VERSION_STATE.diagnostics) {
     updateGalaxyVersionDiagnostics();
   }
+  if (HERO_GALAXY_VIDEO_PREVIEW) {
+    const diagnostics = addGalaxyVideoPerformance(
+      universeState.energyCore.measureVideoAlignment?.(getCamera()) ?? null
+    );
+    window.__ACTIVE_THEORY_H1_VIDEO__ = diagnostics;
+    document.documentElement.dataset.galaxyVideoDiagnostics = JSON.stringify(diagnostics);
+  }
+  if (GALAXY_RUNTIME_AUDIT) {
+    document.documentElement.dataset.galaxyRuntimePerformance = JSON.stringify(
+      readGalaxyRuntimePerformance()
+    );
+  }
   universeState.heroCompositionDebug?.update();
 }
 
@@ -394,6 +440,17 @@ function updateGalaxyVersionDiagnostics() {
 export function disposeUniverseRoot() {
   if (HERO_GALAXY_VERSION_STATE.diagnostics) {
     delete window.__ACTIVE_THEORY_GALAXY_VERSION__;
+  }
+  if (HERO_GALAXY_VIDEO_PREVIEW) {
+    delete window.__ACTIVE_THEORY_H1_VIDEO__;
+    delete document.documentElement.dataset.galaxyVideoDiagnostics;
+    delete document.documentElement.dataset.galaxyVideoPreview;
+  }
+  if (HERO_GALAXY_VIDEO_COMPOSITION) {
+    delete document.documentElement.dataset.galaxyVideoComposition;
+  }
+  if (GALAXY_RUNTIME_AUDIT) {
+    delete document.documentElement.dataset.galaxyRuntimePerformance;
   }
   universeState.heroCompositionDebug?.dispose();
 
@@ -464,6 +521,93 @@ function readDebugFlag(name, fallback) {
   }
 
   return params.get(name) !== '0' && params.get(name) !== 'false';
+}
+
+function readGalaxyVideoPreview() {
+  if (typeof window === 'undefined') return 'h1-hd';
+  const params = new URLSearchParams(window.location.search);
+  const version = params.get('galaxyVersion');
+  const preview = params.get('galaxyVideoPreview');
+
+  if (version === 'v24' || version === 'v1') return null;
+
+  return preview === 'h1' || preview === 'h1-hd' ? preview : 'h1-hd';
+}
+
+function readGalaxyVideoComposition() {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  const version = params.get('galaxyVersion');
+
+  if (version === 'v24' || version === 'v1') return null;
+
+  return params.get('galaxyComposition') === 'classic' ? 'classic' : 'd';
+}
+
+function addGalaxyVideoPerformance(diagnostics) {
+  if (!diagnostics) return null;
+
+  return {
+    ...diagnostics,
+    performance: readGalaxyRuntimePerformance()
+  };
+}
+
+function updateGalaxyRuntimePerformance(delta, journeyProgress) {
+  if (delta > 0) {
+    galaxyVideoPerformance.elapsed += delta;
+    galaxyVideoPerformance.frames += 1;
+    galaxyVideoPerformance.frameTimes.push(delta * 1000);
+    if (galaxyVideoPerformance.elapsed >= 1) {
+      const fps = galaxyVideoPerformance.frames / galaxyVideoPerformance.elapsed;
+      const sortedFrameTimes = [...galaxyVideoPerformance.frameTimes]
+        .sort((a, b) => a - b);
+      const p95Index = Math.min(
+        sortedFrameTimes.length - 1,
+        Math.floor(sortedFrameTimes.length * 0.95)
+      );
+
+      galaxyVideoPerformance.fps = fps;
+      galaxyVideoPerformance.minFps = Math.min(
+        galaxyVideoPerformance.minFps ?? fps,
+        fps
+      );
+      galaxyVideoPerformance.p95FrameMs = sortedFrameTimes[p95Index] ?? null;
+      galaxyVideoPerformance.maxP95FrameMs = Math.max(
+        galaxyVideoPerformance.maxP95FrameMs ?? 0,
+        galaxyVideoPerformance.p95FrameMs ?? 0
+      );
+      if (journeyProgress > 0.01 && journeyProgress < 0.99) {
+        galaxyVideoPerformance.journeyMinFps = Math.min(
+          galaxyVideoPerformance.journeyMinFps ?? fps,
+          fps
+        );
+      }
+      galaxyVideoPerformance.elapsed = 0;
+      galaxyVideoPerformance.frames = 0;
+      galaxyVideoPerformance.frameTimes.length = 0;
+    }
+  }
+
+  const memory = window.performance?.memory;
+  if (memory) {
+    galaxyVideoPerformance.heapCurrentBytes = memory.usedJSHeapSize;
+    galaxyVideoPerformance.heapStartBytes ??= memory.usedJSHeapSize;
+    galaxyVideoPerformance.heapPeakBytes = Math.max(
+      galaxyVideoPerformance.heapPeakBytes ?? 0,
+      memory.usedJSHeapSize
+    );
+  }
+
+}
+
+function readGalaxyRuntimePerformance() {
+  const {
+    frameTimes: _frameTimes,
+    ...performance
+  } = galaxyVideoPerformance;
+
+  return performance;
 }
 
 function readCinematicGalaxyDebugState() {
