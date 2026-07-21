@@ -236,7 +236,7 @@ export function createGalaxyBaseLayer(parameters = DEFAULT_PARAMETERS) {
   mesh.frustumCulled = false;
 
   function update(time, pulse, journeyProgress = 0) {
-    const visibility = 1 - smootherstep(0.32, 0.7, journeyProgress);
+    const visibility = 1 - smootherstep(0.34, 0.66, journeyProgress);
 
     material.uniforms.uTime.value = time;
     material.uniforms.uOpacity.value = visibility

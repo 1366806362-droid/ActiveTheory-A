@@ -1,179 +1,315 @@
 import * as THREE from 'three';
+import { createBrandMindScene } from '../scenes/brandMindScene.js';
 import { createFiveAScene } from '../scenes/fiveAScene.js';
 import { createGeoScene } from '../scenes/geoScene.js';
+import {
+  GALAXY_TOUR_ANCHORS,
+  getTourAnchor,
+  getTourRouteDefinition,
+  getTourSegment
+} from './galaxyTourRoute.js';
 
-const SCENE_NAMES = [
-  'HeroScene',
-  'GeoScene',
-  'FiveAScene',
-  'MindScene',
-  'DecisionScene'
-];
-const HERO_TRANSITION_END = 1;
-const GEO_HOLD_END = 1.34;
-const GEO_TRANSITION_END = 2;
-const MAX_SCROLL_PROGRESS = 2;
-const WHEEL_SENSITIVITY = 0.00115;
-const MAX_NORMALIZED_WHEEL = 80;
-const PROGRESS_DAMPING = 2.1;
-const GEO_NEBULA_NAME = 'GEO Nebula';
-const GEO_LOCAL_CORE = new THREE.Vector3(0.06, 0.04, -0.62);
-const GEO_CAMERA_OFFSET = new THREE.Vector3(0.7, 0.82, 3.42);
+const WHEEL_SENSITIVITY = 0.00145;
+const MAX_NORMALIZED_WHEEL = 120;
+const WHEEL_SOFT_THRESHOLD = 72;
+const WHEEL_SOFTNESS = 90;
+const WHEEL_DEAD_ZONE = 1.5;
+const PROGRESS_DAMPING = 3.1;
+const ANCHOR_ARRIVAL_PROGRESS = 0.92;
+const ANCHOR_RELEASE_MS = 160;
+const WHEEL_IDLE_RELEASE_MS = 120;
+const CAMERA_PATH_START_PROGRESS = 0.04;
 const reusablePlanetTarget = new THREE.Vector3();
 const reusableDesiredCamera = new THREE.Vector3();
 const reusableCurrentCamera = new THREE.Vector3();
 const reusableCurrentTarget = new THREE.Vector3();
 const reusableDesiredTarget = new THREE.Vector3();
-const reusableApproachDirection = new THREE.Vector3();
-const reusableOrbitDirection = new THREE.Vector3();
-const reusableWorldUp = new THREE.Vector3(0, 1, 0);
 const heroBackgroundColor = new THREE.Color('#020716');
 const transitionBackgroundColor = new THREE.Color('#05132a');
-const geoBackgroundColor = new THREE.Color('#071b2d');
+const targetBackgroundColor = new THREE.Color('#071b2d');
 const transitionFogColor = new THREE.Color('#05192b');
-const geoFogColor = new THREE.Color('#072234');
+const targetFogColor = new THREE.Color('#072234');
 const blendedBackgroundColor = new THREE.Color();
 const blendedFogColor = new THREE.Color();
+
+const TARGETS = Object.freeze({
+  geo: createTargetConfig({
+    key: 'geo',
+    sceneName: 'GeoScene',
+    nebulaName: 'GEO Nebula',
+    localCore: [0.06, 0.04, -0.62],
+    lockOffset: [0.9, 0.52, 4.15],
+    approachOffset: [0.96, 0.62, 3.92],
+    outerOffset: [0.72, 0.68, 3.3],
+    openingOffset: [0.92, 0.88, 3.72],
+    cameraOffset: [0.7, 0.82, 3.42]
+  }),
+  fiveA: createTargetConfig({
+    key: 'fiveA',
+    sceneName: 'FiveAScene',
+    nebulaName: '5A Nebula',
+    localCore: [-2.35, -0.22, -2.08],
+    lockOffset: [0.72, 0.48, 4.35],
+    approachOffset: [0.82, 0.56, 4.06],
+    outerOffset: [0.64, 0.62, 3.46],
+    openingOffset: [1.05, 0.72, 4.22],
+    cameraOffset: [0.82, 0.64, 4.38]
+  }),
+  brandMind: createTargetConfig({
+    key: 'brandMind',
+    sceneName: 'BrandMindScene',
+    nebulaName: 'Brand Mind Nebula',
+    localCore: [0, 0, -0.72],
+    lockOffset: [0.76, 0.5, 4.08],
+    approachOffset: [0.84, 0.58, 3.82],
+    outerOffset: [0.66, 0.66, 3.34],
+    openingOffset: [0.9, 0.72, 3.86],
+    cameraOffset: [0.68, 0.62, 3.66]
+  })
+});
 
 export function createSceneManager({ heroScene }) {
   const root = new THREE.Group();
   const geoScene = createGeoScene();
   const fiveAScene = createFiveAScene();
+  const brandMindScene = createBrandMindScene();
   const debugScene = new URLSearchParams(window.location.search).get('scene');
-  const debugJourneyProgress = parseDebugJourneyProgress();
-  const showTransitionDebug = readDebugFlag('showTransitionDebug', false);
-  const startInGeoScene = debugScene === 'geo';
-  const startInFiveAScene = debugScene === 'fivea';
-  const initialProgress = debugJourneyProgress ?? (
-    startInFiveAScene ? MAX_SCROLL_PROGRESS : startInGeoScene ? HERO_TRANSITION_END : 0
-  );
-  const scenes = [
-    heroScene,
-    geoScene,
-    fiveAScene,
-    ...createPlaceholderScenes()
-  ];
-  const state = {
-    progress: initialProgress,
-    targetProgress: initialProgress,
-    scrollProgress: initialProgress,
-    transitionProgress: clamp(initialProgress, 0, 1),
-    galaxyOpenProgress: startInGeoScene || startInFiveAScene ? 1 : mapGalaxyOpenProgress(initialProgress),
-    geoToFiveAProgress: startInFiveAScene ? 1 : 0,
-    activeScene: startInFiveAScene ? 'FiveAScene' : startInGeoScene ? 'GeoScene' : 'HeroScene',
-    nextScene: startInFiveAScene ? 'MindScene' : 'GeoScene'
-  };
-  const journey = createHeroGeoJourney();
+  const initialRouteIndex = getDebugRouteIndex(debugScene);
+  const scenes = [heroScene, geoScene, fiveAScene, brandMindScene];
   const sceneContainers = new Map();
-
-  if (showTransitionDebug || debugJourneyProgress !== null) {
-    window.__ACTIVE_THEORY_TRANSITION_DEBUG__ = {
-      state,
-      setJourneyProgress(value) {
-        const progress = clamp(Number(value) || 0, 0, 1);
-
-        state.progress = progress;
-        state.targetProgress = progress;
-      }
-    };
-  }
+  const journeys = new Map(Object.keys(TARGETS).map((key) => [
+    key,
+    createTargetJourney(TARGETS[key])
+  ]));
+  const state = {
+    routeIndex: initialRouteIndex,
+    transition: null,
+    localProgress: 1,
+    targetLocalProgress: 1,
+    direction: 0,
+    anchorLocked: false,
+    lockedUntil: 0,
+    lastWheelAt: -Infinity,
+    transitionStartedAt: 0,
+    lastTransitionDurationMs: 0,
+    lastAnchorReachedAt: performance.now(),
+    scrollProgress: initialRouteIndex,
+    activeScene: getTourAnchor(initialRouteIndex).scene,
+    nextScene: null
+  };
+  const diagnostics = createTourDiagnostics(state);
+  let lastTargetKey = getTourAnchor(initialRouteIndex).target;
 
   root.name = 'ActiveTheorySceneManager';
-
-  scenes.forEach((scene, index) => {
+  scenes.forEach((scene) => {
     const container = new THREE.Group();
 
     container.name = `${scene.name}Container`;
-    container.visible = getInitialSceneVisibility(scene, index, debugScene);
+    container.visible = scene.name === state.activeScene;
     container.add(scene.group);
     root.add(container);
     sceneContainers.set(scene.name, container);
   });
+
   const heroContainer = sceneContainers.get('HeroScene');
-  const geoContainer = sceneContainers.get('GeoScene');
-  const fiveAContainer = sceneContainers.get('FiveAScene');
 
   function handleWheel(event) {
     const normalizedDelta = normalizeWheelDelta(event);
+    const now = performance.now();
+    const direction = Math.sign(normalizedDelta);
+    let consumedDelta = 0;
 
     if (event.cancelable) {
       event.preventDefault();
     }
 
-    state.targetProgress = clamp(
-      state.targetProgress + normalizedDelta * WHEEL_SENSITIVITY,
+    if (direction === 0) {
+      diagnostics.recordWheel(event.deltaY, normalizedDelta, event.deltaMode, consumedDelta);
+      return;
+    }
+
+    if (!state.transition) {
+      const idleFor = now - state.lastWheelAt;
+      const canReleaseAnchor = !state.anchorLocked || (
+        now >= state.lockedUntil && idleFor >= WHEEL_IDLE_RELEASE_MS
+      );
+
+      state.lastWheelAt = now;
+
+      if (!canReleaseAnchor) {
+        diagnostics.recordWheel(event.deltaY, normalizedDelta, event.deltaMode, consumedDelta);
+        return;
+      }
+
+      state.anchorLocked = false;
+      if (!startTransition(direction)) {
+        diagnostics.recordWheel(event.deltaY, normalizedDelta, event.deltaMode, consumedDelta);
+        return;
+      }
+    } else {
+      state.lastWheelAt = now;
+    }
+
+    const transitionDirection = state.transition.direction;
+    const progressDirection = direction === transitionDirection ? 1 : -1;
+
+    consumedDelta = Math.abs(normalizedDelta) * progressDirection;
+    state.targetLocalProgress = clamp(
+      state.targetLocalProgress + consumedDelta * WHEEL_SENSITIVITY,
       0,
-      MAX_SCROLL_PROGRESS
+      1
     );
+    state.direction = progressDirection > 0 ? transitionDirection : -transitionDirection;
+    diagnostics.recordWheel(event.deltaY, normalizedDelta, event.deltaMode, consumedDelta);
   }
 
-  window.addEventListener('wheel', handleWheel, { passive: false });
+  function startTransition(direction) {
+    const toIndex = state.routeIndex + direction;
+    const fromAnchor = getTourAnchor(state.routeIndex);
+    const toAnchor = getTourAnchor(toIndex);
+
+    if (!fromAnchor || !toAnchor) {
+      return false;
+    }
+
+    const segment = getTourSegment(state.routeIndex, toIndex);
+
+    if (!segment) {
+      return false;
+    }
+
+    state.transition = {
+      segment,
+      direction,
+      fromIndex: state.routeIndex,
+      toIndex,
+      fromAnchor,
+      toAnchor,
+      needsCapture: fromAnchor.scene === 'HeroScene'
+    };
+    state.transitionStartedAt = performance.now();
+    state.localProgress = 0;
+    state.targetLocalProgress = 0;
+    state.direction = direction;
+    state.nextScene = toAnchor.scene;
+    return true;
+  }
 
   function update(renderState, delta, time) {
-    const progressFactor = 1 - Math.exp(-PROGRESS_DAMPING * delta);
+    updateTransitionProgress(delta);
+    const view = getTourView(state);
+    const targetConfig = view.targetKey ? TARGETS[view.targetKey] : null;
+    const targetScene = targetConfig ? getSceneByName(scenes, targetConfig.sceneName) : null;
+    const targetContainer = targetConfig ? sceneContainers.get(targetConfig.sceneName) : null;
+    const shouldUpdateHero = view.targetPresence < 0.998;
+    const shouldUpdateTarget = Boolean(targetScene && view.targetPresence > 0.001);
 
-    state.progress += (state.targetProgress - state.progress) * progressFactor;
-    state.scrollProgress = state.progress;
-    state.transitionProgress = clamp(state.progress, 0, 1);
-    state.galaxyOpenProgress = startInGeoScene || startInFiveAScene
-      ? 1
-      : mapGalaxyOpenProgress(state.transitionProgress);
-    state.geoToFiveAProgress = smoothstep(GEO_HOLD_END, GEO_TRANSITION_END, state.progress);
-    const geoEntranceProgress = state.galaxyOpenProgress;
-    state.activeScene = getActiveSceneName(state.transitionProgress, state.geoToFiveAProgress);
-    state.nextScene = state.activeScene === 'HeroScene' ? 'GeoScene' : 'FiveAScene';
-    const shouldUpdateHero = state.transitionProgress < 0.998;
-    const shouldUpdateGeo = geoEntranceProgress > 0.001 || startInGeoScene;
-    const shouldUpdateFiveA = state.geoToFiveAProgress > 0.001;
+    sceneContainers.forEach((container, name) => {
+      container.visible = name === 'HeroScene' ? shouldUpdateHero : (
+        shouldUpdateTarget && name === targetConfig.sceneName
+      );
+    });
 
-    heroScene.setPlanetEntryProgress(GEO_NEBULA_NAME, state.transitionProgress);
+    updateHeroTargetState(heroScene, targetConfig, view.targetPresence, lastTargetKey);
+    lastTargetKey = targetConfig?.key ?? lastTargetKey;
 
     if (shouldUpdateHero) {
-      heroScene.update(renderState, delta, time, state.transitionProgress);
+      heroScene.update(renderState, delta, time, view.targetPresence);
     } else {
       heroScene.overlay.style.opacity = '0';
-      heroScene.scrollHint.style.opacity = '0';
     }
 
-    if (shouldUpdateGeo) {
-      geoScene.update(
+    if (shouldUpdateTarget) {
+      updateTargetScene(targetScene, targetConfig, renderState, delta, time, view.targetPresence);
+    }
+
+    if (targetConfig && view.targetPresence > 0.001) {
+      applyTargetTransition(
         renderState,
-        delta,
-        time,
-        geoEntranceProgress,
-        state.transitionProgress
+        view.targetPresence,
+        heroScene,
+        journeys.get(targetConfig.key),
+        targetConfig,
+        targetContainer,
+        state.transition?.needsCapture ?? false
       );
-      applyGeoSceneExit(geoScene, state.geoToFiveAProgress);
+      if (state.transition) state.transition.needsCapture = false;
     }
 
-    if (shouldUpdateFiveA) {
-      fiveAScene.update(renderState, delta, time, state.geoToFiveAProgress);
+    applyTransitionFov(renderState, view.targetPresence);
+    applyTransitionEnvironment(renderState, view.targetPresence);
+    updateScrollHint(heroScene.scrollHint, state);
+
+    state.activeScene = view.activeScene;
+    state.nextScene = state.transition?.toAnchor.scene ?? null;
+    state.scrollProgress = state.transition
+      ? state.routeIndex + state.transition.direction * state.localProgress
+      : state.routeIndex;
+    diagnostics.update(view, readVideoCurrentTime());
+  }
+
+  function updateTransitionProgress(delta) {
+    if (!state.transition) {
+      return;
     }
 
-    applyHeroToGeoTransition(
-      renderState,
-      state.transitionProgress,
-      heroScene,
-      journey,
-      geoContainer
-    );
-    applyTransitionFov(renderState, state.transitionProgress);
-    applyTransitionEnvironment(renderState, state.transitionProgress);
-    applyGeoToFiveATransition(renderState, state.geoToFiveAProgress);
+    const progressFactor = 1 - Math.exp(-PROGRESS_DAMPING * delta);
 
-    heroContainer.visible = shouldUpdateHero;
-    geoContainer.visible = shouldUpdateGeo;
-    fiveAContainer.visible = shouldUpdateFiveA;
+    state.localProgress += (
+      state.targetLocalProgress - state.localProgress
+    ) * progressFactor;
+
+    if (
+      state.targetLocalProgress >= ANCHOR_ARRIVAL_PROGRESS
+      && state.localProgress >= ANCHOR_ARRIVAL_PROGRESS
+    ) {
+      completeTransition();
+      return;
+    }
+
+    if (state.targetLocalProgress <= 0 && state.localProgress <= 0.001) {
+      cancelTransition();
+    }
+  }
+
+  function completeTransition() {
+    const now = performance.now();
+
+    state.routeIndex = state.transition.toIndex;
+    state.transition = null;
+    state.localProgress = 1;
+    state.targetLocalProgress = 1;
+    state.direction = 0;
+    state.anchorLocked = true;
+    state.lockedUntil = now + ANCHOR_RELEASE_MS;
+    state.lastTransitionDurationMs = now - state.transitionStartedAt;
+    state.lastAnchorReachedAt = now;
+    state.nextScene = null;
+  }
+
+  function cancelTransition() {
+    const now = performance.now();
+
+    state.transition = null;
+    state.localProgress = 1;
+    state.targetLocalProgress = 1;
+    state.direction = 0;
+    state.anchorLocked = true;
+    state.lockedUntil = now + ANCHOR_RELEASE_MS;
+    state.lastTransitionDurationMs = now - state.transitionStartedAt;
+    state.lastAnchorReachedAt = now;
+    state.nextScene = null;
   }
 
   function dispose() {
     window.removeEventListener('wheel', handleWheel);
-    delete window.__ACTIVE_THEORY_TRANSITION_DEBUG__;
-    scenes.forEach((scene) => {
-      scene.dispose?.();
-    });
+    diagnostics.dispose();
+    scenes.forEach((scene) => scene.dispose?.());
+    journeys.forEach((journey) => journey.reset());
     root.clear();
   }
+
+  window.addEventListener('wheel', handleWheel, { passive: false });
 
   return {
     root,
@@ -183,86 +319,81 @@ export function createSceneManager({ heroScene }) {
     dispose,
     getScrollProgress() {
       return state.scrollProgress;
-    }
+    },
+    getRouteDefinition: getTourRouteDefinition
   };
 }
 
-function normalizeWheelDelta(event) {
-  let delta = event.deltaY;
+function getTourView(state) {
+  const anchor = getTourAnchor(state.routeIndex);
 
-  if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
-    delta *= 16;
-  } else if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
-    delta *= window.innerHeight;
+  if (!state.transition) {
+    return {
+      targetKey: anchor.target,
+      targetPresence: anchor.scene === 'HeroScene' ? 0 : 1,
+      activeScene: anchor.scene,
+      anchor
+    };
   }
 
-  return clamp(delta, -MAX_NORMALIZED_WHEEL, MAX_NORMALIZED_WHEEL);
+  const { fromAnchor, toAnchor, segment } = state.transition;
+  const fromIsTarget = fromAnchor.scene !== 'HeroScene';
+  const targetPresence = fromIsTarget ? 1 - state.localProgress : state.localProgress;
+  const targetSceneName = TARGETS[segment.target].sceneName;
+
+  return {
+    targetKey: segment.target,
+    targetPresence,
+    activeScene: targetPresence >= 0.5 ? targetSceneName : 'HeroScene',
+    anchor: fromAnchor
+  };
 }
 
-function createPlaceholderScenes() {
-  return SCENE_NAMES.slice(3).map((name) => ({
-    name,
-    group: createPlaceholderGroup(name),
-    update() {},
-    dispose() {
-      this.group.clear();
-    }
-  }));
-}
-
-function getInitialSceneVisibility(scene, index, debugScene) {
-  if (debugScene === 'geo') {
-    return scene.name === 'GeoScene';
-  }
-
-  if (debugScene === 'fivea') {
-    return scene.name === 'FiveAScene';
-  }
-
-  return index === 0;
-}
-
-function getActiveSceneName(heroToGeoProgress, geoToFiveAProgress) {
-  if (geoToFiveAProgress >= 0.5) {
-    return 'FiveAScene';
-  }
-
-  return heroToGeoProgress < 0.94 ? 'HeroScene' : 'GeoScene';
-}
-
-function createPlaceholderGroup(name) {
-  const group = new THREE.Group();
-
-  group.name = name;
-
-  return group;
-}
-
-function applyHeroToGeoTransition(renderState, transitionProgress, heroScene, journey, geoContainer) {
-  if (transitionProgress <= 0.001) {
-    journey.reset();
-    geoContainer.position.set(0, 0, 0);
+function updateHeroTargetState(heroScene, targetConfig, targetPresence, lastTargetKey) {
+  if (targetConfig) {
+    heroScene.setPlanetEntryProgress(targetConfig.nebulaName, targetPresence);
     return;
   }
 
-  const planetPosition = heroScene.getPlanetWorldPosition(GEO_NEBULA_NAME, reusablePlanetTarget);
+  if (lastTargetKey && TARGETS[lastTargetKey]) {
+    heroScene.setPlanetEntryProgress(TARGETS[lastTargetKey].nebulaName, 0);
+  }
+}
+
+function updateTargetScene(scene, targetConfig, renderState, delta, time, progress) {
+  if (targetConfig.key === 'geo') {
+    scene.update(renderState, delta, time, mapGalaxyOpenProgress(progress), progress);
+    return;
+  }
+
+  scene.update(renderState, delta, time, progress);
+}
+
+function applyTargetTransition(
+  renderState,
+  targetPresence,
+  heroScene,
+  journey,
+  config,
+  targetContainer,
+  needsCapture
+) {
+  const planetPosition = heroScene.getPlanetWorldPosition(config.nebulaName, reusablePlanetTarget);
 
   if (!planetPosition) {
     return;
   }
 
-  if (!journey.active) {
+  if (needsCapture || !journey.active) {
     journey.capture(renderState, planetPosition);
   }
 
-  const handoff = smootherstep(0.55, 1, transitionProgress);
+  const handoff = smootherstep(0.38, 1, targetPresence);
 
-  // GEO's existing content remains untouched. Its container temporarily aligns
-  // the existing core with the Hero GEO nebula, then eases back to its normal pose.
-  reusableDesiredCamera.copy(journey.planetPosition).sub(GEO_LOCAL_CORE);
-  geoContainer.position.copy(reusableDesiredCamera).multiplyScalar(1 - handoff);
+  reusableDesiredCamera.copy(planetPosition).sub(config.localCore);
+  targetContainer.position.copy(reusableDesiredCamera).multiplyScalar(1 - handoff);
 
-  const pathProgress = smootherstep(0, 1, transitionProgress);
+  const pathProgress = mapCameraPathProgress(targetPresence);
 
   if (pathProgress >= 1) {
     reusableDesiredCamera.copy(journey.cameraPath.points.at(-1));
@@ -272,11 +403,11 @@ function applyHeroToGeoTransition(renderState, transitionProgress, heroScene, jo
     journey.targetPath.getPointAt(pathProgress, reusableDesiredTarget);
   }
   applyCameraPose(renderState, reusableDesiredCamera, reusableDesiredTarget);
-  renderState.exposure -= smoothstep(0.58, 0.9, transitionProgress) * 0.035;
+  renderState.exposure -= smoothstep(0.42, 0.82, targetPresence) * 0.035;
 }
 
-function createHeroGeoJourney() {
-  const journey = {
+function createTargetJourney(config) {
+  return {
     active: false,
     planetPosition: new THREE.Vector3(),
     cameraPath: null,
@@ -295,13 +426,13 @@ function createHeroGeoJourney() {
       this.planetPosition.copy(planetPosition);
 
       const lockCamera = reusableCurrentCamera.clone().lerp(
-        planetPosition.clone().add(new THREE.Vector3(0.9, 0.52, 4.15)),
+        planetPosition.clone().add(config.lockOffset),
         0.2
       );
-      const approachCamera = planetPosition.clone().add(new THREE.Vector3(0.96, 0.62, 3.92));
-      const outerCamera = planetPosition.clone().add(new THREE.Vector3(0.72, 0.68, 3.3));
-      const openingCamera = GEO_LOCAL_CORE.clone().add(new THREE.Vector3(0.92, 0.88, 3.72));
-      const internalCamera = GEO_LOCAL_CORE.clone().add(GEO_CAMERA_OFFSET);
+      const approachCamera = planetPosition.clone().add(config.approachOffset);
+      const outerCamera = planetPosition.clone().add(config.outerOffset);
+      const openingCamera = config.localCore.clone().add(config.openingOffset);
+      const internalCamera = config.localCore.clone().add(config.cameraOffset);
       const lockTarget = reusableCurrentTarget.clone().lerp(planetPosition, 0.46);
 
       this.cameraPath = new THREE.CatmullRomCurve3(
@@ -322,8 +453,8 @@ function createHeroGeoJourney() {
           lockTarget,
           planetPosition.clone(),
           planetPosition.clone(),
-          GEO_LOCAL_CORE.clone().lerp(planetPosition, 0.35),
-          GEO_LOCAL_CORE.clone()
+          config.localCore.clone().lerp(planetPosition, 0.35),
+          config.localCore.clone()
         ],
         false,
         'centripetal'
@@ -336,8 +467,33 @@ function createHeroGeoJourney() {
       this.targetPath = null;
     }
   };
+}
 
-  return journey;
+function normalizeWheelDelta(event) {
+  let delta = event.deltaY;
+
+  if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+    delta *= 16;
+  } else if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+    delta *= window.innerHeight;
+  }
+
+  const direction = Math.sign(delta);
+  const magnitude = Math.abs(delta);
+
+  if (magnitude < WHEEL_DEAD_ZONE) {
+    return 0;
+  }
+
+  if (magnitude <= WHEEL_SOFT_THRESHOLD) {
+    return delta;
+  }
+
+  const softRange = MAX_NORMALIZED_WHEEL - WHEEL_SOFT_THRESHOLD;
+  const compressedMagnitude = WHEEL_SOFT_THRESHOLD
+    + softRange * (1 - Math.exp(-(magnitude - WHEEL_SOFT_THRESHOLD) / WHEEL_SOFTNESS));
+
+  return direction * Math.min(compressedMagnitude, MAX_NORMALIZED_WHEEL);
 }
 
 function applyCameraPose(renderState, position, target) {
@@ -349,52 +505,183 @@ function applyCameraPose(renderState, position, target) {
   renderState.cameraOffset.targetZ = target.z - renderState.cubePosition.z;
 }
 
-function applyTransitionFov(renderState, transitionProgress) {
-  const focus = smoothstep(0.22, 0.78, transitionProgress);
-  const settle = smoothstep(0.82, 1, transitionProgress);
+function applyTransitionFov(renderState, progress) {
+  const focus = smoothstep(0.12, 0.72, progress);
+  const settle = smoothstep(0.74, 1, progress);
 
   renderState.cameraFov = lerp(60, 47.5, focus);
   renderState.cameraFov = lerp(renderState.cameraFov, 46, settle);
 }
 
-function applyTransitionEnvironment(renderState, transitionProgress) {
-  const colorShift = smoothstep(0.16, 0.78, transitionProgress);
-  const geoSettle = smoothstep(0.72, 1, transitionProgress);
+function applyTransitionEnvironment(renderState, progress) {
+  const colorShift = smoothstep(0.1, 0.7, progress);
+  const targetSettle = smoothstep(0.62, 1, progress);
 
   blendedBackgroundColor.copy(heroBackgroundColor).lerp(transitionBackgroundColor, colorShift);
-  blendedBackgroundColor.lerp(geoBackgroundColor, geoSettle);
-  blendedFogColor.copy(transitionFogColor).lerp(geoFogColor, geoSettle);
+  blendedBackgroundColor.lerp(targetBackgroundColor, targetSettle);
+  blendedFogColor.copy(transitionFogColor).lerp(targetFogColor, targetSettle);
   renderState.backgroundColor = blendedBackgroundColor;
   renderState.fogColor = blendedFogColor;
   renderState.fogNear = lerp(1.2, 1.65, colorShift);
   renderState.fogFar = lerp(6.5, 9.2, colorShift);
 }
 
-function applyGeoToFiveATransition(renderState, transitionProgress) {
-  if (transitionProgress <= 0) {
+function updateScrollHint(scrollHint, state) {
+  if (state.transition) {
+    scrollHint.style.opacity = '0';
     return;
   }
 
-  const eased = easeInOutCubic(transitionProgress);
+  const anchor = getTourAnchor(state.routeIndex);
 
-  renderState.cameraOffset.z -= eased * 0.96;
-  renderState.cameraOffset.x -= Math.sin(eased * Math.PI) * 0.12 + eased * 0.16;
-  renderState.cameraOffset.y += Math.sin(eased * Math.PI) * 0.1;
-  renderState.cameraOffset.targetX -= eased * 0.1;
-  renderState.cameraOffset.targetY += Math.sin(eased * Math.PI) * 0.12;
+  scrollHint.textContent = anchor.scrollHint;
+  scrollHint.style.opacity = '1';
 }
 
-function applyGeoSceneExit(geoScene, transitionProgress) {
-  if (transitionProgress <= 0) {
-    return;
+function mapGalaxyOpenProgress(progress) {
+  if (progress <= 0.3) return 0;
+  if (progress <= 0.48) return smootherstep(0.3, 0.48, progress) * 0.25;
+  if (progress <= 0.72) {
+    return lerp(0.25, 0.75, smootherstep(0.48, 0.72, progress));
+  }
+  return lerp(0.75, 1, smootherstep(0.72, 1, progress));
+}
+
+function mapCameraPathProgress(progress) {
+  return smootherstep(CAMERA_PATH_START_PROGRESS, 1, progress);
+}
+
+function createTourDiagnostics(state) {
+  if (!import.meta.env.DEV) {
+    return {
+      recordWheel() {},
+      update() {},
+      dispose() {}
+    };
   }
 
-  const eased = easeInOutCubic(transitionProgress);
+  const status = {
+    routeIndex: state.routeIndex,
+    currentChapter: getTourAnchor(state.routeIndex).id,
+    currentAnchor: getTourAnchor(state.routeIndex).id,
+    transitionFrom: null,
+    transitionTo: null,
+    localProgress: state.localProgress,
+    targetLocalProgress: state.targetLocalProgress,
+    direction: 'idle',
+    rawDelta: 0,
+    normalizedDelta: 0,
+    deltaMode: WheelEvent.DOM_DELTA_PIXEL,
+    wheelEventCount: 0,
+    cumulativeRawDelta: 0,
+    cumulativeEffectiveDelta: 0,
+    activeScene: state.activeScene,
+    nextScene: null,
+    anchorLocked: state.anchorLocked,
+    videoCurrentTime: 0,
+    lastTransitionDurationMs: state.lastTransitionDurationMs,
+    lastAnchorReachedAt: state.lastAnchorReachedAt,
+    damping: PROGRESS_DAMPING
+  };
+  let publishFrame = 0;
 
-  geoScene.group.position.z -= eased * 2.4;
-  geoScene.group.position.y += eased * 0.4;
-  geoScene.group.rotation.y += eased * 0.16;
-  geoScene.group.scale.setScalar(1 - eased * 0.12);
+  window.__GALAXY_TOUR_STATUS__ = status;
+  window.__HERO_GEO_SCROLL_STATUS__ = status;
+  window.HERO_GEO_SCROLL_STATUS = status;
+  publish();
+
+  return {
+    recordWheel(rawDelta, normalizedDelta, deltaMode, consumedDelta) {
+      status.rawDelta = rawDelta;
+      status.normalizedDelta = normalizedDelta;
+      status.deltaMode = deltaMode;
+      status.wheelEventCount += 1;
+      status.cumulativeRawDelta += rawDelta;
+      status.cumulativeEffectiveDelta += consumedDelta;
+      syncState();
+      publish();
+    },
+    update(view, videoCurrentTime) {
+      syncState();
+      status.activeScene = view.activeScene;
+      status.videoCurrentTime = videoCurrentTime;
+      publishFrame += 1;
+      if (publishFrame % 4 === 0) publish();
+    },
+    dispose() {
+      delete window.__GALAXY_TOUR_STATUS__;
+      delete window.__HERO_GEO_SCROLL_STATUS__;
+      delete window.HERO_GEO_SCROLL_STATUS;
+      delete document.documentElement.dataset.galaxyTourStatus;
+      delete document.documentElement.dataset.heroGeoScrollStatus;
+    }
+  };
+
+  function syncState() {
+    const anchor = getTourAnchor(state.routeIndex);
+
+    status.routeIndex = state.routeIndex;
+    status.currentChapter = state.transition?.segment.id ?? anchor.id;
+    status.currentAnchor = anchor.id;
+    status.transitionFrom = state.transition?.fromAnchor.id ?? null;
+    status.transitionTo = state.transition?.toAnchor.id ?? null;
+    status.localProgress = state.localProgress;
+    status.targetLocalProgress = state.targetLocalProgress;
+    status.direction = state.direction > 0 ? 'down' : state.direction < 0 ? 'up' : 'idle';
+    status.activeScene = state.activeScene;
+    status.nextScene = state.nextScene;
+    status.anchorLocked = state.anchorLocked;
+    status.lastTransitionDurationMs = state.lastTransitionDurationMs;
+    status.lastAnchorReachedAt = state.lastAnchorReachedAt;
+  }
+
+  function publish() {
+    const serialized = JSON.stringify(status);
+
+    // Re-publish the live object as well as the serialized DOM snapshot. During
+    // Vite HMR an older manager may dispose after the replacement manager was
+    // created; assigning here keeps the development-only diagnostic handle
+    // attached to the currently active scene manager.
+    window.__GALAXY_TOUR_STATUS__ = status;
+    window.__HERO_GEO_SCROLL_STATUS__ = status;
+    window.HERO_GEO_SCROLL_STATUS = status;
+    document.documentElement.dataset.galaxyTourStatus = serialized;
+    document.documentElement.dataset.heroGeoScrollStatus = serialized;
+  }
+}
+
+function readVideoCurrentTime() {
+  const serialized = document.documentElement.dataset.galaxyVideoDiagnostics;
+
+  if (!serialized) return 0;
+  try {
+    return Number(JSON.parse(serialized).currentTime) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function getDebugRouteIndex(debugScene) {
+  if (debugScene === 'geo') return 1;
+  if (debugScene === 'fivea') return 3;
+  if (debugScene === 'brandmind') return 5;
+  return 0;
+}
+
+function getSceneByName(scenes, name) {
+  return scenes.find((scene) => scene.name === name) ?? null;
+}
+
+function createTargetConfig(config) {
+  return Object.freeze({
+    ...config,
+    localCore: new THREE.Vector3(...config.localCore),
+    lockOffset: new THREE.Vector3(...config.lockOffset),
+    approachOffset: new THREE.Vector3(...config.approachOffset),
+    outerOffset: new THREE.Vector3(...config.outerOffset),
+    openingOffset: new THREE.Vector3(...config.openingOffset),
+    cameraOffset: new THREE.Vector3(...config.cameraOffset)
+  });
 }
 
 function smoothstep(edge0, edge1, value) {
@@ -407,56 +694,12 @@ function smootherstep(edge0, edge1, value) {
   return smoothstep(edge0, edge1, value);
 }
 
-function easeInOutCubic(value) {
-  return value < 0.5
-    ? 4 * value * value * value
-    : 1 - Math.pow(-2 * value + 2, 3) / 2;
-}
-
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
 function lerp(start, end, value) {
   return start + (end - start) * value;
-}
-
-function mapGalaxyOpenProgress(journeyProgress) {
-  if (journeyProgress <= 0.55) {
-    return 0;
-  }
-
-  if (journeyProgress <= 0.72) {
-    return smootherstep(0.55, 0.72, journeyProgress) * 0.25;
-  }
-
-  if (journeyProgress <= 0.88) {
-    return lerp(0.25, 0.7, smootherstep(0.72, 0.88, journeyProgress));
-  }
-
-  return lerp(0.7, 1, smootherstep(0.88, 1, journeyProgress));
-}
-
-function parseDebugJourneyProgress() {
-  const params = new URLSearchParams(window.location.search);
-
-  if (!params.has('debugJourneyProgress')) {
-    return null;
-  }
-
-  const value = Number(params.get('debugJourneyProgress'));
-
-  return Number.isFinite(value) ? clamp(value, 0, 1) : null;
-}
-
-function readDebugFlag(name, fallback) {
-  const params = new URLSearchParams(window.location.search);
-
-  if (!params.has(name)) {
-    return fallback;
-  }
-
-  return params.get(name) !== '0' && params.get(name) !== 'false';
 }
 
 export const worldSceneManager = {

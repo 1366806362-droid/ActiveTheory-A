@@ -16,9 +16,9 @@ export function createHeroScene() {
   scrollHint.style.display = debugMainGalaxyOnly ? 'none' : '';
 
   function update(renderState, delta, time, sceneProgress) {
-    const heroPresence = 1 - smoothstep(0.68, 0.97, sceneProgress);
-    const brandCoreDeparture = smoothstep(0.34, 0.9, sceneProgress);
-    const sceneDeparture = smoothstep(0.9, 0.99, sceneProgress);
+    const heroPresence = 1 - smoothstep(0.52, 0.94, sceneProgress);
+    const brandCoreDeparture = smoothstep(0.3, 0.82, sceneProgress);
+    const sceneDeparture = smoothstep(0.56, 0.99, sceneProgress);
 
     updateUniverseRoot(renderState, delta, time, sceneProgress);
     // The core update restores its idle pose each frame. Apply departure as an
@@ -37,9 +37,9 @@ export function createHeroScene() {
     group.position.set(0, 0, -sceneDeparture * 0.9);
     group.rotation.set(0, 0, 0);
     group.scale.setScalar(1 - sceneDeparture * 0.82);
-    overlay.style.opacity = String(1 - smoothstep(0.06, 0.4, sceneProgress));
-    overlay.style.transform = `translate3d(0, ${-smoothstep(0.06, 0.4, sceneProgress) * 14}px, 0)`;
-    scrollHint.style.opacity = String(1 - smoothstep(0.02, 0.18, sceneProgress));
+    overlay.style.opacity = String(1 - smoothstep(0.1, 0.48, sceneProgress));
+    overlay.style.transform = `translate3d(0, ${-smoothstep(0.1, 0.48, sceneProgress) * 14}px, 0)`;
+    scrollHint.style.opacity = String(1 - smoothstep(0.03, 0.2, sceneProgress));
   }
 
   function dispose() {

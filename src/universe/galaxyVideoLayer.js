@@ -245,7 +245,7 @@ export function createGalaxyVideoLayer({
 
   function update(journeyProgress = 0, revealOpacity = 1) {
     if (disposed) return;
-    const textureFade = smootherstep(0.22, 0.72, journeyProgress);
+    const textureFade = smootherstep(0.3, 0.64, journeyProgress);
 
     currentJourneyOpacity = 1 - textureFade * 0.84;
     currentRevealOpacity = THREE.MathUtils.clamp(revealOpacity, 0, 1);

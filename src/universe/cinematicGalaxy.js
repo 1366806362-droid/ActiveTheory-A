@@ -297,7 +297,7 @@ export function createCinematicGalaxy({
     applyOrientation();
     shell.update(delta, time, journeyProgress);
     baseLayer.update(time, pulse, journeyProgress);
-    const textureFade = smootherstep(0.22, 0.72, journeyProgress);
+    const textureFade = smootherstep(0.3, 0.64, journeyProgress);
     const textureJourneyOpacity = 1 - textureFade * 0.84;
 
     if (videoReady && videoRevealOpacity < 1) {

@@ -175,7 +175,7 @@ export function createGalaxyAtmosphere({
   function update(delta, time, interaction, journeyProgress = 0) {
     if (disposed) return;
 
-    journeyOpacity = 1 - smootherstep(0.18, 0.72, journeyProgress);
+    journeyOpacity = 1 - smootherstep(0.28, 0.66, journeyProgress);
     phaseTime = time;
     volumeAura.update(time, journeyOpacity);
     rearMist.update(time, journeyOpacity);
