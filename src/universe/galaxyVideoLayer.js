@@ -1,7 +1,8 @@
 import * as THREE from 'three';
-
-const H1_VIDEO_URL = '/videos/hero/galaxy/h1-galaxy-alpha.webm';
-export const H1_HD_VIDEO_URL = '/videos/hero/galaxy/h1-galaxy-alpha-hd.webm';
+import {
+  GALAXY_ASSET_PROFILES,
+  getGalaxyAssetProfile
+} from './galaxyAssetProfiles.js';
 export const H1_COMPOSITION_D_CONFIG = Object.freeze({
   localPosition: Object.freeze([0.46, 0.186, 0.018]),
   localScale: 1.296,
@@ -9,6 +10,7 @@ export const H1_COMPOSITION_D_CONFIG = Object.freeze({
 });
 const VIDEO_ASPECT = 16 / 9;
 const LOAD_TIMEOUT_MS = 12000;
+const AVAILABILITY_TIMEOUT_MS = 2500;
 const DEFAULT_CONFIG = Object.freeze({
   outerRadius: 0.78,
   extentScale: 2.7,
@@ -20,12 +22,13 @@ const DEFAULT_CONFIG = Object.freeze({
 
 export function createGalaxyVideoLayer({
   enabled = false,
-  url = H1_VIDEO_URL,
+  profile = GALAXY_ASSET_PROFILES.H1_HD,
   onReady = null,
   onFallback = null,
   ...parameters
 } = {}) {
   const config = { ...DEFAULT_CONFIG, ...parameters };
+  const requestedProfile = getGalaxyAssetProfile(profile);
   const group = new THREE.Group();
   const createdAtMs = readPerformanceNow();
 
@@ -33,7 +36,7 @@ export function createGalaxyVideoLayer({
   group.visible = false;
 
   if (!enabled || typeof document === 'undefined') {
-    return createDisabledLayer(group, config);
+    return createDisabledLayer(group, config, requestedProfile);
   }
 
   const video = document.createElement('video');
@@ -57,6 +60,7 @@ export function createGalaxyVideoLayer({
       config,
       video,
       reason: 'vp9-unsupported',
+      requestedProfile,
       onFallback,
       createdAtMs
     });
@@ -95,6 +99,7 @@ export function createGalaxyVideoLayer({
       config,
       video,
       reason: 'video-texture-creation-failed',
+      requestedProfile,
       error,
       onFallback,
       createdAtMs
@@ -135,32 +140,62 @@ export function createGalaxyVideoLayer({
 
   const handleVisibilityChange = () => {
     if (!disposed && ready && !document.hidden && video.paused) {
-      void video.play().catch((error) => fail('resume-playback-failed', error));
+      void video.play().catch((error) => recoverOrFail('resume-playback-failed', error));
     }
   };
   const handleVideoError = () => {
-    fail('video-decode-failed', video.error);
+    if (status === 'ready') {
+      void recoverOrFail('video-decode-failed', video.error);
+    }
   };
   const handleWebGlContextLost = () => {
     fail('webgl-context-lost');
   };
 
   document.addEventListener('visibilitychange', handleVisibilityChange);
-  video.addEventListener('error', handleVideoError, { once: true });
+  video.addEventListener('error', handleVideoError);
   canvas?.addEventListener('webglcontextlost', handleWebGlContextLost, { once: true });
-  readyPromise = loadFirstFrame();
-  requestStartedAtMs = readPerformanceNow();
-  video.src = url;
-  video.load();
+  let activeProfile = requestedProfile;
+  let fallbackUsed = false;
+  let fallbackReason = null;
+  let loadGeneration = 0;
+  const requestHistory = [];
+  readyPromise = loadProfile(requestedProfile);
 
-  async function loadFirstFrame() {
+  async function loadProfile(candidateProfile) {
+    const generation = ++loadGeneration;
+    activeProfile = candidateProfile;
+    status = fallbackUsed ? 'loading-fallback' : 'loading';
+    ready = false;
+    group.visible = false;
+    mesh.visible = false;
+    material.opacity = 0;
     try {
+      if (candidateProfile.id === GALAXY_ASSET_PROFILES.H1_4K.id) {
+        requestHistory.push({
+          profile: candidateProfile.id,
+          url: candidateProfile.url,
+          type: 'availability-probe'
+        });
+        await verifyAssetAvailability(candidateProfile.url);
+      }
+      if (disposed || generation !== loadGeneration) return false;
+
+      resetVideoSource();
+      requestStartedAtMs = readPerformanceNow();
+      requestHistory.push({
+        profile: candidateProfile.id,
+        url: candidateProfile.url,
+        type: 'video'
+      });
+      video.src = candidateProfile.url;
+      video.load();
       await waitForLoadedData(video);
-      if (disposed) return false;
+      if (disposed || generation !== loadGeneration) return false;
       loadedDataAtMs = readPerformanceNow();
       await video.play();
       await waitForDecodedFrame(video);
-      if (disposed) return false;
+      if (disposed || generation !== loadGeneration) return false;
 
       const alphaResult = inspectVideoAlpha(video);
 
@@ -179,14 +214,33 @@ export function createGalaxyVideoLayer({
       onReady?.();
       return true;
     } catch (error) {
-      fail(classifyLoadError(error), error);
-      return false;
+      if (disposed || generation !== loadGeneration) return false;
+      return recoverOrFail(classifyLoadError(error), error, candidateProfile);
     } finally {
       if (timeoutId !== null) {
         window.clearTimeout(timeoutId);
         timeoutId = null;
       }
     }
+  }
+
+  async function recoverOrFail(reason, error, failedProfile = activeProfile) {
+    const nextProfileId = failedProfile?.fallbackProfile;
+    const nextProfile = nextProfileId ? getGalaxyAssetProfile(nextProfileId) : null;
+
+    if (nextProfile?.url && nextProfile.id !== failedProfile.id) {
+      fallbackUsed = true;
+      fallbackReason = reason;
+      warnOnce(
+        `[Galaxy asset] ${failedProfile.id} unavailable (${reason}); falling back to ${nextProfile.id}.`,
+        error
+      );
+      if (ready) onFallback?.(reason);
+      return loadProfile(nextProfile);
+    }
+
+    fail(reason, error);
+    return false;
   }
 
   function update(journeyProgress = 0, revealOpacity = 1) {
@@ -219,11 +273,16 @@ export function createGalaxyVideoLayer({
     mesh.visible = false;
     material.opacity = 0;
     video.pause();
-    if (!warningIssued) {
-      warningIssued = true;
-      console.warn(`[H1 galaxy video preview] ${reason}; keeping V2.4 fallback.`, error ?? '');
-    }
+    fallbackUsed = true;
+    fallbackReason = reason;
+    warnOnce(`[H1 galaxy video] ${reason}; keeping V2.4 fallback.`, error);
     onFallback?.(reason);
+  }
+
+  function warnOnce(message, error) {
+    if (warningIssued) return;
+    warningIssued = true;
+    console.warn(message, error ?? '');
   }
 
   function getDiagnostics() {
@@ -235,6 +294,13 @@ export function createGalaxyVideoLayer({
       duration: Number.isFinite(video.duration) ? video.duration : null,
       paused: video.paused,
       ended: video.ended,
+      readyState: video.readyState,
+      requestedProfile: requestedProfile.id,
+      activeProfile: activeProfile.id,
+      activeUrl: activeProfile.url,
+      fallbackUsed,
+      fallbackReason,
+      requestHistory: requestHistory.map((request) => ({ ...request })),
       videoWidth: video.videoWidth,
       videoHeight: video.videoHeight,
       alphaCorners,
@@ -251,6 +317,10 @@ export function createGalaxyVideoLayer({
           : null
       },
       creationCounts: counters,
+      videoElementCount: counters.videoElements,
+      videoTextureCount: counters.videoTextures,
+      geometryCount: counters.geometries,
+      materialCount: counters.materials,
       configuration: {
         localPosition: [...config.localPosition],
         localScale: config.localScale,
@@ -291,6 +361,7 @@ export function createGalaxyVideoLayer({
       const cleanup = () => {
         element.removeEventListener('loadeddata', handleLoaded);
         element.removeEventListener('canplay', handleLoaded);
+        element.removeEventListener('error', handleError);
         if (timeoutId !== null) {
           window.clearTimeout(timeoutId);
           timeoutId = null;
@@ -300,14 +371,25 @@ export function createGalaxyVideoLayer({
         cleanup();
         resolve();
       };
+      const handleError = () => {
+        cleanup();
+        reject(new Error(`Video asset failed to load: ${activeProfile.url}`));
+      };
 
       element.addEventListener('loadeddata', handleLoaded, { once: true });
       element.addEventListener('canplay', handleLoaded, { once: true });
+      element.addEventListener('error', handleError, { once: true });
       timeoutId = window.setTimeout(() => {
         cleanup();
         reject(new Error('H1 video load timeout'));
       }, LOAD_TIMEOUT_MS);
     });
+  }
+
+  function resetVideoSource() {
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
   }
 
   function waitForDecodedFrame(element) {
@@ -347,11 +429,32 @@ export function createGalaxyVideoLayer({
   };
 }
 
+async function verifyAssetAvailability(url) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), AVAILABILITY_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      method: 'HEAD',
+      cache: 'no-store',
+      signal: controller.signal
+    });
+    const contentType = response.headers.get('content-type') ?? '';
+
+    if (!response.ok || !contentType.toLowerCase().includes('video/')) {
+      throw new Error(`Video asset unavailable: ${response.status} ${contentType || 'unknown type'}`);
+    }
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
 function createFallbackLayer({
   group,
   config,
   video,
   reason,
+  requestedProfile,
   error = null,
   onFallback = null,
   createdAtMs = null
@@ -374,13 +477,26 @@ function createFallbackLayer({
         enabled: true,
         status: 'fallback',
         ready: false,
+        requestedProfile: requestedProfile.id,
+        activeProfile: GALAXY_ASSET_PROFILES.V24.id,
+        activeUrl: null,
+        fallbackUsed: true,
         fallbackReason: reason,
+        videoWidth: 0,
+        videoHeight: 0,
+        duration: null,
+        readyState: video.readyState,
+        currentTime: video.currentTime,
         creationCounts: {
           videoElements: 1,
           videoTextures: 0,
           geometries: 0,
           materials: 0
         },
+        videoElementCount: 1,
+        videoTextureCount: 0,
+        geometryCount: 0,
+        materialCount: 0,
         timings: {
           domReadyAtMs: readDomReadyTime(),
           createdAtMs,
@@ -408,7 +524,7 @@ function createFallbackLayer({
   };
 }
 
-function createDisabledLayer(group, config) {
+function createDisabledLayer(group, config, requestedProfile) {
   return {
     group,
     mesh: null,
@@ -422,12 +538,26 @@ function createDisabledLayer(group, config) {
         enabled: false,
         status: 'disabled',
         ready: false,
+        requestedProfile: requestedProfile.id,
+        activeProfile: requestedProfile.id,
+        activeUrl: requestedProfile.url,
+        fallbackUsed: false,
+        fallbackReason: null,
+        videoWidth: 0,
+        videoHeight: 0,
+        duration: null,
+        readyState: 0,
+        currentTime: 0,
         creationCounts: {
           videoElements: 0,
           videoTextures: 0,
           geometries: 0,
           materials: 0
         },
+        videoElementCount: 0,
+        videoTextureCount: 0,
+        geometryCount: 0,
+        materialCount: 0,
         configuration: {
           localPosition: [...config.localPosition],
           localScale: config.localScale,
@@ -475,6 +605,7 @@ function inspectVideoAlpha(video) {
 function classifyLoadError(error) {
   const message = String(error?.message ?? error ?? '').toLowerCase();
 
+  if (message.includes('asset unavailable')) return 'asset-unavailable';
   if (message.includes('timeout')) return 'video-load-timeout';
   if (message.includes('notallowed') || message.includes('play')) return 'autoplay-failed';
   if (message.includes('alpha')) return 'vp9-alpha-unsupported';

@@ -8,10 +8,10 @@ import {
   readGalaxyAtmosphereDebugState
 } from './galaxyAtmosphere.js';
 import { createGalaxyTextureLayer } from './galaxyTextureLayer.js';
+import { isGalaxyVideoProfile } from './galaxyAssetProfiles.js';
 import {
   createGalaxyVideoLayer,
-  H1_COMPOSITION_D_CONFIG,
-  H1_HD_VIDEO_URL
+  H1_COMPOSITION_D_CONFIG
 } from './galaxyVideoLayer.js';
 import { createHeroTextureLoader } from './heroTextureLoader.js';
 
@@ -39,6 +39,7 @@ export function createCinematicGalaxy({
   galaxyVersionConfig = null,
   galaxyVideoPreview = null,
   galaxyVideoComposition = null,
+  galaxyAssetProfile = null,
   diagnosticsEnabled = false
 } = {}) {
   const galaxyLayerDebugMode = readGalaxyLayerDebugMode();
@@ -46,7 +47,7 @@ export function createCinematicGalaxy({
   const galaxyAlignmentDebug = GALAXY_ALIGNMENT_DEBUG;
   const galaxyV2Config = galaxyVersion === 'v2' ? galaxyVersionConfig : null;
   const galaxyVideoPreviewEnabled = Boolean(
-    galaxyV2Config && ['h1', 'h1-hd'].includes(galaxyVideoPreview)
+    galaxyV2Config && isGalaxyVideoProfile(galaxyAssetProfile)
   );
 
   if (galaxyV2Config && diagnosticsEnabled) {
@@ -112,7 +113,7 @@ export function createCinematicGalaxy({
   let unsubscribeTextureLoader = null;
   const galaxyVideoLayer = createGalaxyVideoLayer({
     enabled: galaxyVideoPreviewEnabled,
-    ...(galaxyVideoPreview === 'h1-hd' ? { url: H1_HD_VIDEO_URL } : {}),
+    profile: galaxyAssetProfile,
     ...(galaxyVideoComposition === 'd' ? H1_COMPOSITION_D_CONFIG : {}),
     onReady() {
       if (disposed) return;
@@ -696,6 +697,7 @@ export function createCinematicGalaxy({
     galaxyVideoLayer,
     galaxyVideoPreview: galaxyVideoPreviewEnabled ? galaxyVideoPreview : null,
     galaxyVideoComposition: galaxyVideoPreviewEnabled ? galaxyVideoComposition : null,
+    galaxyAssetProfile,
     galaxyVersion,
     getTextureLoadStatus: () => textureLoadStatus
   };

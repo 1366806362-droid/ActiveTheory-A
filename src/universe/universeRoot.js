@@ -4,6 +4,7 @@ import { createCinematicGalaxy } from './cinematicGalaxy.js';
 import { createEnergyCore } from './core.js';
 import { createDeepSpaceBackground } from './deepSpaceBackground.js';
 import { createEarthHorizon } from './earthHorizon.js';
+import { readGalaxyAssetSelection } from './galaxyAssetProfiles.js';
 import { createGalaxyPlanets } from './galaxyPlanets.js';
 import { readGalaxyAtmosphereDebugState } from './galaxyAtmosphere.js';
 import {
@@ -38,8 +39,11 @@ const HERO_GALAXY_VERSION_CONFIG = getHeroGalaxyVersionConfig(
   HERO_GALAXY_VERSION_STATE.version
 );
 const HERO_GALAXY_ATMOSPHERE_DEBUG = readGalaxyAtmosphereDebugState();
-const HERO_GALAXY_VIDEO_PREVIEW = readGalaxyVideoPreview();
-const HERO_GALAXY_VIDEO_COMPOSITION = readGalaxyVideoComposition();
+const HERO_GALAXY_ASSET_SELECTION = readGalaxyAssetSelection(
+  typeof window === 'undefined' ? '' : window.location.search
+);
+const HERO_GALAXY_VIDEO_PREVIEW = HERO_GALAXY_ASSET_SELECTION.legacyPreview;
+const HERO_GALAXY_VIDEO_COMPOSITION = HERO_GALAXY_ASSET_SELECTION.composition;
 const GALAXY_RUNTIME_AUDIT = import.meta.env.DEV
   && readDebugFlag('galaxyAudit', false);
 const galaxyVideoPerformance = {
@@ -60,6 +64,10 @@ if (HERO_GALAXY_VIDEO_PREVIEW) {
 }
 if (HERO_GALAXY_VIDEO_COMPOSITION) {
   document.documentElement.dataset.galaxyVideoComposition = HERO_GALAXY_VIDEO_COMPOSITION;
+}
+if (import.meta.env.DEV) {
+  document.documentElement.dataset.galaxyAssetRequested =
+    HERO_GALAXY_ASSET_SELECTION.requestedProfile.id;
 }
 
 const DEBUG_GALAXY_ATMOSPHERE_ISOLATION = HERO_GALAXY_VERSION_STATE.isV2
@@ -138,6 +146,7 @@ export function createUniverseRoot() {
       galaxyVersionConfig: HERO_GALAXY_VERSION_CONFIG,
       galaxyVideoPreview: HERO_GALAXY_VIDEO_PREVIEW,
       galaxyVideoComposition: HERO_GALAXY_VIDEO_COMPOSITION,
+      galaxyAssetProfile: HERO_GALAXY_ASSET_SELECTION.requestedProfile,
       diagnosticsEnabled: HERO_GALAXY_VERSION_STATE.diagnostics
     })
     : createEnergyCore();
@@ -216,12 +225,15 @@ export function createUniverseRoot() {
   universeState.debugBackdrop = debugBackdrop;
   universeState.cinematicDebugSignature = cinematicDebug.signature;
   universeState.heroCompositionDebug = heroCompositionDebug;
-  if (HERO_GALAXY_VIDEO_PREVIEW) {
+  if (HERO_GALAXY_VIDEO_PREVIEW || import.meta.env.DEV) {
     const diagnostics = addGalaxyVideoPerformance(
       energyCore.measureVideoAlignment?.(getCamera()) ?? null
     );
-    window.__ACTIVE_THEORY_H1_VIDEO__ = diagnostics;
-    document.documentElement.dataset.galaxyVideoDiagnostics = JSON.stringify(diagnostics);
+    if (HERO_GALAXY_VIDEO_PREVIEW) {
+      window.__ACTIVE_THEORY_H1_VIDEO__ = diagnostics;
+      document.documentElement.dataset.galaxyVideoDiagnostics = JSON.stringify(diagnostics);
+    }
+    publishGalaxyAssetStatus(diagnostics);
   }
   setScrollHintDebugVisibility(sceneDebugActive);
 
@@ -365,12 +377,15 @@ export function updateUniverseRoot(renderState, delta, time, journeyProgress = 0
   if (HERO_GALAXY_VERSION_STATE.diagnostics) {
     updateGalaxyVersionDiagnostics();
   }
-  if (HERO_GALAXY_VIDEO_PREVIEW) {
+  if (HERO_GALAXY_VIDEO_PREVIEW || import.meta.env.DEV) {
     const diagnostics = addGalaxyVideoPerformance(
       universeState.energyCore.measureVideoAlignment?.(getCamera()) ?? null
     );
-    window.__ACTIVE_THEORY_H1_VIDEO__ = diagnostics;
-    document.documentElement.dataset.galaxyVideoDiagnostics = JSON.stringify(diagnostics);
+    if (HERO_GALAXY_VIDEO_PREVIEW) {
+      window.__ACTIVE_THEORY_H1_VIDEO__ = diagnostics;
+      document.documentElement.dataset.galaxyVideoDiagnostics = JSON.stringify(diagnostics);
+    }
+    publishGalaxyAssetStatus(diagnostics);
   }
   if (GALAXY_RUNTIME_AUDIT) {
     document.documentElement.dataset.galaxyRuntimePerformance = JSON.stringify(
@@ -449,6 +464,11 @@ export function disposeUniverseRoot() {
   if (HERO_GALAXY_VIDEO_COMPOSITION) {
     delete document.documentElement.dataset.galaxyVideoComposition;
   }
+  if (import.meta.env.DEV) {
+    delete window.__GALAXY_ASSET_STATUS__;
+    delete document.documentElement.dataset.galaxyAssetRequested;
+    delete document.documentElement.dataset.galaxyAssetStatus;
+  }
   if (GALAXY_RUNTIME_AUDIT) {
     delete document.documentElement.dataset.galaxyRuntimePerformance;
   }
@@ -523,25 +543,29 @@ function readDebugFlag(name, fallback) {
   return params.get(name) !== '0' && params.get(name) !== 'false';
 }
 
-function readGalaxyVideoPreview() {
-  if (typeof window === 'undefined') return 'h1-hd';
-  const params = new URLSearchParams(window.location.search);
-  const version = params.get('galaxyVersion');
-  const preview = params.get('galaxyVideoPreview');
+function publishGalaxyAssetStatus(diagnostics) {
+  if (!import.meta.env.DEV || !diagnostics) return;
 
-  if (version === 'v24' || version === 'v1') return null;
+  const status = {
+    requestedProfile: diagnostics.requestedProfile,
+    activeProfile: diagnostics.activeProfile,
+    activeUrl: diagnostics.activeUrl,
+    fallbackUsed: diagnostics.fallbackUsed,
+    fallbackReason: diagnostics.fallbackReason,
+    requestHistory: diagnostics.requestHistory ?? [],
+    videoWidth: diagnostics.videoWidth,
+    videoHeight: diagnostics.videoHeight,
+    duration: diagnostics.duration,
+    readyState: diagnostics.readyState,
+    currentTime: diagnostics.currentTime,
+    videoElementCount: diagnostics.videoElementCount,
+    videoTextureCount: diagnostics.videoTextureCount,
+    geometryCount: diagnostics.geometryCount,
+    materialCount: diagnostics.materialCount
+  };
 
-  return preview === 'h1' || preview === 'h1-hd' ? preview : 'h1-hd';
-}
-
-function readGalaxyVideoComposition() {
-  if (typeof window === 'undefined') return null;
-  const params = new URLSearchParams(window.location.search);
-  const version = params.get('galaxyVersion');
-
-  if (version === 'v24' || version === 'v1') return null;
-
-  return params.get('galaxyComposition') === 'classic' ? 'classic' : 'd';
+  window.__GALAXY_ASSET_STATUS__ = status;
+  document.documentElement.dataset.galaxyAssetStatus = JSON.stringify(status);
 }
 
 function addGalaxyVideoPerformance(diagnostics) {
