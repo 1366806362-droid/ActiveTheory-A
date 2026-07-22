@@ -14,30 +14,37 @@ import {
 } from './geo/geoBusinessClusters.js';
 import { createGeoDataStreams } from './geo/geoDataStreams.js';
 import { createGeoNebulaField } from './geo/geoNebulaField.js';
+import { resolveGeoVisualProfile } from './geo/geoVisualProfiles.js';
+import { createGeoGyroscopeCore } from './geo/geoGyroscopeCore.js';
 
-const CORE_POSITION = Object.freeze({ x: 0.14, y: 0.04, z: 0 });
-const BACKGROUND_STAR_COUNT = 420;
-const DEPTH_PARTICLE_COUNT = 180;
 const GEO_DEBUG = Object.freeze({
   showInternalPlanets: readDebugFlag('showInternalPlanets', true),
   showInternalOrbits: readDebugFlag('showInternalOrbits', true),
   showLabels: readDebugFlag('showLabels', true)
 });
+const GEO_CORE_MODE = resolveGeoCoreMode();
+const GEO_CORE_DEBUG = resolveGeoCoreDebug(GEO_CORE_MODE);
 
 export function createGeoScene() {
+  const visualProfile = resolveGeoVisualProfile();
   const group = new THREE.Group();
   const systemGroup = new THREE.Group();
   const resources = createGeoVisualResources();
-  const background = createGeoBackground(resources);
-  const nebula = createGeoNebulaField(resources);
-  const streams = createGeoDataStreams(resources, GEO_CLUSTER_CONFIGS);
-  const core = createGeoSignalCore(resources);
-  const businessClusters = createGeoBusinessClusters(resources);
+  const background = createGeoBackground(resources, visualProfile);
+  const businessClusters = createGeoBusinessClusters(resources, visualProfile);
+  const clusterConfigs = businessClusters.configs ?? GEO_CLUSTER_CONFIGS;
+  const nebula = createGeoNebulaField(resources, visualProfile, clusterConfigs);
+  const streams = createGeoDataStreams(resources, clusterConfigs, visualProfile);
+  const core = GEO_CORE_MODE === 'gyroscope'
+    ? createGeoGyroscopeCore(resources, visualProfile)
+    : createGeoSignalCore(resources, visualProfile);
   let revealProgress = 0;
 
   group.name = 'GeoScene';
-  systemGroup.name = 'GEO Signal System';
-  systemGroup.position.set(CORE_POSITION.x, CORE_POSITION.y, CORE_POSITION.z);
+  systemGroup.name = visualProfile.cinematic
+    ? 'GEO Cinematic Signal Universe'
+    : 'GEO Signal System';
+  systemGroup.position.set(...visualProfile.scene.corePosition);
   systemGroup.add(
     nebula.group,
     streams.group,
@@ -46,9 +53,20 @@ export function createGeoScene() {
   );
   group.add(background.group, systemGroup);
 
-  core.setDebugVisibility(GEO_DEBUG.showInternalPlanets, GEO_DEBUG.showLabels);
-  businessClusters.setDebugVisibility(GEO_DEBUG.showInternalPlanets, GEO_DEBUG.showLabels);
-  streams.setDebugVisibility(GEO_DEBUG.showInternalOrbits);
+  core.setDebugVisibility(
+    GEO_CORE_DEBUG.enabled ? true : GEO_DEBUG.showInternalPlanets,
+    GEO_CORE_DEBUG.enabled ? GEO_CORE_DEBUG.layer === 'full' : GEO_DEBUG.showLabels
+  );
+  core.setDebugLayer(GEO_CORE_DEBUG.layer);
+  businessClusters.setDebugVisibility(
+    GEO_CORE_DEBUG.enabled ? false : GEO_DEBUG.showInternalPlanets,
+    GEO_CORE_DEBUG.enabled ? false : GEO_DEBUG.showLabels
+  );
+  streams.setDebugVisibility(GEO_CORE_DEBUG.enabled ? false : GEO_DEBUG.showInternalOrbits);
+  if (GEO_CORE_DEBUG.enabled) {
+    nebula.group.visible = false;
+    background.group.visible = false;
+  }
 
   const particleCount = background.particleCount
     + nebula.particleCount
@@ -56,7 +74,13 @@ export function createGeoScene() {
     + core.particleCount
     + businessClusters.particleCount;
   const resourceCounts = countSceneResources(group);
-  const diagnostics = createGeoDiagnostics({ particleCount, resourceCounts });
+  const diagnostics = createGeoDiagnostics({
+    particleCount,
+    resourceCounts,
+    visualProfile: visualProfile.id,
+    coreMode: GEO_CORE_MODE
+  });
+  const coreDebugDiagnostics = createGeoCoreDebugDiagnostics(GEO_CORE_DEBUG);
 
   function update(renderState, delta, time, galaxyOpenProgress = 1, journeyProgress = 1) {
     revealProgress = clamp(galaxyOpenProgress, 0, 1);
@@ -64,18 +88,27 @@ export function createGeoScene() {
     const backgroundReveal = smootherstep(0.18, 0.78, journey);
     const compactViewport = window.innerWidth < 700;
     const mediumViewport = window.innerWidth < 1500;
-    const sceneScale = compactViewport ? 0.72 : mediumViewport ? 1.04 : 1.12;
+    const sceneScale = compactViewport
+      ? visualProfile.scene.compactScale
+      : mediumViewport
+        ? visualProfile.scene.mediumScale
+        : visualProfile.scene.desktopScale;
+    const finalPosition = compactViewport
+      ? visualProfile.scene.compactPosition
+      : mediumViewport
+        ? visualProfile.scene.mediumPosition
+        : visualProfile.scene.desktopPosition;
     const placementProgress = smootherstep(0.2, 0.82, revealProgress);
 
     group.visible = journey > 0.001 || revealProgress > 0.001;
     group.position.set(
       lerp(
         0.08,
-        compactViewport ? -0.42 : mediumViewport ? 0.02 : 0.07,
+        finalPosition[0],
         smootherstep(0.25, 0.76, revealProgress)
       ),
-      lerp(-0.08, 0, smootherstep(0.25, 0.76, revealProgress)),
-      lerp(-2.1, compactViewport ? -1.15 : -0.62, placementProgress)
+      lerp(-0.08, finalPosition[1], smootherstep(0.25, 0.76, revealProgress)),
+      lerp(-2.1, finalPosition[2], placementProgress)
     );
     group.scale.setScalar(lerp(0.66, 1, placementProgress) * sceneScale);
     group.rotation.y = Math.sin(time * 0.021) * 0.009 * smootherstep(0.88, 1, revealProgress);
@@ -99,6 +132,7 @@ export function createGeoScene() {
 
   function dispose() {
     diagnostics.dispose();
+    coreDebugDiagnostics.dispose();
     background.dispose();
     core.dispose();
     businessClusters.dispose();
@@ -116,20 +150,70 @@ export function createGeoScene() {
   };
 }
 
-function createGeoBackground(resources) {
+function resolveGeoCoreMode(search = window.location.search) {
+  const params = new URLSearchParams(search);
+  return params.get('geoCore') === 'gyroscope' ? 'gyroscope' : 'v2.3';
+}
+
+function resolveGeoCoreDebug(coreMode, search = window.location.search) {
+  if (!import.meta.env.DEV) return Object.freeze({ enabled: false, layer: 'full' });
+  const params = new URLSearchParams(search);
+  const gyroscopeLayer = coreMode === 'gyroscope' && params.has('geoCoreLayer');
+  const enabled = params.get('geoCoreDebug') === '1' || gyroscopeLayer;
+  const requested = params.get('geoCoreLayer') ?? 'full';
+  const aliases = Object.freeze({
+    'data-seed': 'seed',
+    'processing-disk': 'disk',
+    'processing-sectors': 'sectors',
+    'output-fragments': 'fragments',
+    'hidden-label': 'hidden-label'
+  });
+  const layer = aliases[requested] ?? requested;
+  const supported = coreMode === 'gyroscope'
+    ? new Set(['seed', 'answer', 'citation', 'keyword', 'fragments', 'full', 'hidden-label'])
+    : new Set(['seed', 'disk', 'sectors', 'fragments', 'full', 'hidden-label']);
+  return Object.freeze({
+    enabled,
+    layer: enabled && supported.has(layer) ? layer : 'full'
+  });
+}
+
+function createGeoCoreDebugDiagnostics(debug) {
+  if (!import.meta.env.DEV) return { dispose() {} };
+  const status = Object.freeze({
+    enabled: debug.enabled,
+    layer: debug.layer,
+    layers: Object.freeze(
+      GEO_CORE_MODE === 'gyroscope'
+        ? ['seed', 'answer', 'citation', 'keyword', 'fragments', 'full', 'hidden-label']
+        : ['seed', 'disk', 'sectors', 'fragments', 'full', 'hidden-label']
+    ),
+    coreMode: GEO_CORE_MODE
+  });
+  window.__GEO_CORE_DEBUG__ = status;
+  return {
+    dispose() {
+      if (window.__GEO_CORE_DEBUG__ === status) delete window.__GEO_CORE_DEBUG__;
+    }
+  };
+}
+
+function createGeoBackground(resources, visualProfile) {
   const group = new THREE.Group();
   const deepSpace = createDeepSpace();
   const farStars = createBackgroundPoints(
-    BACKGROUND_STAR_COUNT,
+    visualProfile.scene.backgroundStars,
     resources.pointTexture,
     false,
-    7103
+    7103,
+    visualProfile
   );
   const depthParticles = createBackgroundPoints(
-    DEPTH_PARTICLE_COUNT,
+    visualProfile.scene.foregroundParticles,
     resources.pointTexture,
     true,
-    8209
+    8209,
+    visualProfile
   );
 
   group.name = 'GEO Deep Space';
@@ -140,14 +224,14 @@ function createGeoBackground(resources) {
 
   return {
     group,
-    particleCount: BACKGROUND_STAR_COUNT + DEPTH_PARTICLE_COUNT,
+    particleCount: visualProfile.scene.backgroundStars + visualProfile.scene.foregroundParticles,
     update(time, reveal, localProgress) {
       const foregroundReveal = smootherstep(0.58, 0.94, localProgress);
 
-      deepSpace.update(time, reveal);
-      farStars.material.uniforms.uOpacity.value = reveal * 0.26;
+      deepSpace.update(time, reveal, visualProfile.cinematic);
+      farStars.material.uniforms.uOpacity.value = reveal * (visualProfile.cinematic ? 0.31 : 0.26);
       farStars.points.rotation.y = time * 0.0025;
-      depthParticles.material.uniforms.uOpacity.value = foregroundReveal * 0.12;
+      depthParticles.material.uniforms.uOpacity.value = foregroundReveal * (visualProfile.cinematic ? 0.16 : 0.12);
       depthParticles.points.position.z = lerp(-0.48, 0.24, foregroundReveal);
       depthParticles.points.rotation.z = time * 0.004;
     },
@@ -219,9 +303,9 @@ function createDeepSpace() {
   mesh.name = 'GEO Deep Space Background';
   return {
     mesh,
-    update(time, reveal) {
+    update(time, reveal, cinematic = false) {
       material.uniforms.uTime.value = time;
-      material.uniforms.uOpacity.value = reveal * 0.76;
+      material.uniforms.uOpacity.value = reveal * (cinematic ? 0.86 : 0.76);
     },
     dispose() {
       geometry.dispose();
@@ -230,7 +314,7 @@ function createDeepSpace() {
   };
 }
 
-function createBackgroundPoints(count, texture, near, seed) {
+function createBackgroundPoints(count, texture, near, seed, visualProfile = null) {
   const geometry = new THREE.BufferGeometry();
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
@@ -239,11 +323,17 @@ function createBackgroundPoints(count, texture, near, seed) {
   const farColor = new THREE.Color(near ? '#78e3ef' : '#5aaed7');
   const iceColor = new THREE.Color('#d7f7ff');
   const color = new THREE.Color();
-  const foregroundPaths = [
-    [[1.34, -0.22, 0.34], [0.14, 0.04, 0]],
-    [[-0.94, 0.28, -0.48], [0.14, 0.04, 0]],
-    [[0.76, 0.72, -0.12], [0.14, 0.04, 0]]
-  ];
+  const foregroundPaths = visualProfile?.cinematic
+    ? [
+      [[-1.08, 0.45, 0.28], [0, 0.015, 0]],
+      [[1.06, 0.53, -0.46], [0, 0.015, 0]],
+      [[1.02, -0.61, -0.05], [0, 0.015, 0]]
+    ]
+    : [
+      [[1.34, -0.22, 0.34], [0.14, 0.04, 0]],
+      [[-0.94, 0.28, -0.48], [0.14, 0.04, 0]],
+      [[0.76, 0.72, -0.12], [0.14, 0.04, 0]]
+    ];
 
   for (let index = 0; index < count; index += 1) {
     const stride = index * 3;
@@ -322,7 +412,7 @@ function countSceneResources(root) {
   };
 }
 
-function createGeoDiagnostics({ particleCount, resourceCounts }) {
+function createGeoDiagnostics({ particleCount, resourceCounts, visualProfile, coreMode }) {
   if (!import.meta.env.DEV) {
     return { update() {}, dispose() {} };
   }
@@ -342,7 +432,9 @@ function createGeoDiagnostics({ particleCount, resourceCounts }) {
     materialCount: resourceCounts.materialCount,
     textureCount: resourceCounts.textureCount,
     direction: 'idle',
-    activeScene: 'HeroScene'
+    activeScene: 'HeroScene',
+    visualProfile,
+    coreMode
   };
   let previousProgress = 0;
   let publishFrame = 0;
