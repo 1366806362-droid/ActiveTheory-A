@@ -17,6 +17,9 @@ import { createGeoNebulaField } from './geo/geoNebulaField.js';
 import { resolveGeoVersionSelection } from './geo/geoVisualProfiles.js';
 import { createGeoGyroscopeCore } from './geo/geoGyroscopeCore.js';
 import { createGeoBioDigitalField } from './geo/geoBioDigitalField.js';
+import { createGeoCinematicMembraneField } from './geo/geoCinematicMembraneField.js';
+import { createGeoCinematicCoreShell } from './geo/geoCinematicCoreShell.js';
+import { createGeoCinematicStreams } from './geo/geoCinematicStreams.js';
 
 const GEO_DEBUG = Object.freeze({
   showInternalPlanets: readDebugFlag('showInternalPlanets', true),
@@ -27,8 +30,11 @@ export function createGeoScene() {
   const versionSelection = resolveGeoVersionSelection();
   const visualProfile = versionSelection.visualProfile;
   const coreMode = versionSelection.coreMode;
+  const cinematicV3 = versionSelection.activeVersion === 'v3';
   const coreDebug = resolveGeoCoreDebug(coreMode);
   const backgroundDebug = resolveGeoBackgroundDebug(visualProfile);
+  const v3Debug = resolveGeoV3Debug(cinematicV3);
+  const v3StreamDebug = resolveGeoV3StreamDebug(cinematicV3);
   const group = new THREE.Group();
   const systemGroup = new THREE.Group();
   const resources = createGeoVisualResources();
@@ -36,14 +42,20 @@ export function createGeoScene() {
   const businessClusters = createGeoBusinessClusters(resources, visualProfile);
   const clusterConfigs = businessClusters.configs ?? GEO_CLUSTER_CONFIGS;
   const nebula = createGeoNebulaField(resources, visualProfile, clusterConfigs);
-  const streams = createGeoDataStreams(resources, clusterConfigs, visualProfile);
-  const core = coreMode === 'gyroscope'
-    ? createGeoGyroscopeCore(resources, visualProfile)
-    : createGeoSignalCore(resources, visualProfile);
+  const streams = cinematicV3
+    ? createGeoCinematicStreams(resources, clusterConfigs, visualProfile)
+    : createGeoDataStreams(resources, clusterConfigs, visualProfile);
+  const core = cinematicV3
+    ? createGeoCinematicCoreShell(resources, visualProfile)
+    : coreMode === 'gyroscope'
+      ? createGeoGyroscopeCore(resources, visualProfile)
+      : createGeoSignalCore(resources, visualProfile);
   let revealProgress = 0;
 
   group.name = 'GeoScene';
-  systemGroup.name = visualProfile.cinematic
+  systemGroup.name = cinematicV3
+    ? 'GEO V3 Cinematic Organic Signal Space'
+    : visualProfile.cinematic
     ? 'GEO Cinematic Signal Universe'
     : 'GEO Signal System';
   systemGroup.position.set(...visualProfile.scene.corePosition);
@@ -57,6 +69,7 @@ export function createGeoScene() {
   const coreInstanceCount = systemGroup.children.filter(
     (child) => child.name === 'GEO SIGNAL CORE'
       || child.name === 'GEO Broken Gyroscope Core'
+      || child.name === 'GEO V3 Cinematic Core'
   ).length;
 
   core.setDebugVisibility(
@@ -83,6 +96,22 @@ export function createGeoScene() {
     nebula.group.visible = showNebulaOnly;
     systemGroup.visible = showNebulaOnly;
   }
+  applyGeoV3Debug({
+    debug: v3Debug,
+    background,
+    nebula,
+    streams,
+    core,
+    businessClusters
+  });
+  applyGeoV3StreamDebug({
+    debug: v3StreamDebug,
+    background,
+    nebula,
+    streams,
+    core,
+    businessClusters
+  });
 
   const particleCount = background.particleCount
     + nebula.particleCount
@@ -103,6 +132,8 @@ export function createGeoScene() {
     backgroundDebug,
     versionSelection
   );
+  const v3DebugDiagnostics = createGeoV3DebugDiagnostics(v3Debug);
+  const v3StreamDebugDiagnostics = createGeoV3StreamDebugDiagnostics(v3StreamDebug);
 
   function update(renderState, delta, time, galaxyOpenProgress = 1, journeyProgress = 1) {
     revealProgress = clamp(galaxyOpenProgress, 0, 1);
@@ -157,6 +188,8 @@ export function createGeoScene() {
     diagnostics.dispose();
     coreDebugDiagnostics.dispose();
     backgroundDebugDiagnostics.dispose();
+    v3DebugDiagnostics.dispose();
+    v3StreamDebugDiagnostics.dispose();
     background.dispose();
     core.dispose();
     businessClusters.dispose();
@@ -171,6 +204,122 @@ export function createGeoScene() {
     group,
     update,
     dispose
+  };
+}
+
+function resolveGeoV3StreamDebug(enabled, search = window.location.search) {
+  if (!import.meta.env.DEV || !enabled) {
+    return Object.freeze({ enabled: false, stream: 'full' });
+  }
+  const requested = new URLSearchParams(search).get('geoV3Stream');
+  const supported = new Set(['answer', 'citation', 'keyword', 'fields', 'full']);
+
+  return Object.freeze({
+    enabled: supported.has(requested),
+    stream: supported.has(requested) ? requested : 'full'
+  });
+}
+
+function applyGeoV3StreamDebug({
+  debug,
+  background,
+  nebula,
+  streams,
+  core,
+  businessClusters
+}) {
+  streams.setDebugStream?.(debug.stream);
+  if (!debug.enabled) return;
+
+  background.group.visible = false;
+  nebula.group.visible = false;
+  core.setDebugVisibility(false, false);
+  businessClusters.setDebugVisibility(false, false);
+  streams.setDebugVisibility(true);
+}
+
+function createGeoV3StreamDebugDiagnostics(debug) {
+  if (!import.meta.env.DEV) return { dispose() {} };
+  const status = Object.freeze({
+    enabled: debug.enabled,
+    stream: debug.stream,
+    streams: Object.freeze(['answer', 'citation', 'keyword', 'fields', 'full'])
+  });
+
+  window.__GEO_V3_STREAM_DEBUG__ = status;
+  return {
+    dispose() {
+      if (window.__GEO_V3_STREAM_DEBUG__ === status) {
+        delete window.__GEO_V3_STREAM_DEBUG__;
+      }
+    }
+  };
+}
+
+function resolveGeoV3Debug(enabled, search = window.location.search) {
+  if (!import.meta.env.DEV || !enabled) {
+    return Object.freeze({ enabled: false, layer: 'full' });
+  }
+  const requested = new URLSearchParams(search).get('geoV3Layer');
+  const aliases = Object.freeze({ 'core-shell': 'full' });
+  const layer = aliases[requested] ?? requested;
+  const supported = new Set([
+    'membranes',
+    'streams',
+    'background',
+    'seed',
+    'shell',
+    'bands',
+    'full',
+    'hidden-label'
+  ]);
+
+  return Object.freeze({
+    enabled: supported.has(layer),
+    layer: supported.has(layer) ? layer : 'full'
+  });
+}
+
+function applyGeoV3Debug({ debug, background, nebula, streams, core, businessClusters }) {
+  if (!debug.enabled) return;
+  const showBackground = debug.layer === 'background' || debug.layer === 'membranes';
+  const showCore = debug.layer === 'seed'
+    || debug.layer === 'shell'
+    || debug.layer === 'bands'
+    || debug.layer === 'full'
+    || debug.layer === 'hidden-label';
+
+  background.setDebugLayer(debug.layer);
+  nebula.group.visible = debug.layer === 'background';
+  core.setDebugVisibility(showCore, debug.layer === 'full');
+  if (showCore) core.setDebugLayer(debug.layer);
+  businessClusters.setDebugVisibility(false, false);
+  streams.setDebugVisibility(debug.layer === 'streams');
+  background.group.visible = showBackground;
+}
+
+function createGeoV3DebugDiagnostics(debug) {
+  if (!import.meta.env.DEV) return { dispose() {} };
+  const status = Object.freeze({
+    enabled: debug.enabled,
+    layer: debug.layer,
+    layers: Object.freeze([
+      'membranes',
+      'streams',
+      'background',
+      'seed',
+      'shell',
+      'bands',
+      'full',
+      'hidden-label'
+    ])
+  });
+
+  window.__GEO_V3_DEBUG__ = status;
+  return {
+    dispose() {
+      if (window.__GEO_V3_DEBUG__ === status) delete window.__GEO_V3_DEBUG__;
+    }
   };
 }
 
@@ -259,6 +408,7 @@ function createGeoCoreDebugDiagnostics(debug, coreMode) {
 function createGeoBackground(resources, visualProfile) {
   const group = new THREE.Group();
   const elevated = visualProfile.backgroundMode === 'biodigital-elevated';
+  const cinematicV3 = visualProfile.backgroundMode === 'cinematic-organic-v3';
   const deepSpace = createDeepSpace();
   const farStars = createBackgroundPoints(
     visualProfile.scene.backgroundStars,
@@ -267,7 +417,7 @@ function createGeoBackground(resources, visualProfile) {
     7103,
     visualProfile
   );
-  const depthParticles = elevated
+  const depthParticles = elevated || cinematicV3
     ? null
     : createBackgroundPoints(
       visualProfile.scene.foregroundParticles,
@@ -277,34 +427,50 @@ function createGeoBackground(resources, visualProfile) {
       visualProfile
     );
   const bioDigital = elevated ? createGeoBioDigitalField(resources) : null;
+  const cinematicField = cinematicV3 ? createGeoCinematicMembraneField(resources) : null;
 
-  group.name = elevated ? 'GEO BioDigital Elevated Background' : 'GEO Deep Space';
+  group.name = cinematicV3
+    ? 'GEO V3 Cinematic Organic Background'
+    : elevated
+      ? 'GEO BioDigital Elevated Background'
+      : 'GEO Deep Space';
   deepSpace.mesh.renderOrder = -20;
   farStars.points.renderOrder = -12;
   if (depthParticles) depthParticles.points.renderOrder = 12;
   group.add(deepSpace.mesh, farStars.points);
   if (bioDigital) group.add(bioDigital.group);
+  if (cinematicField) group.add(cinematicField.group);
   if (depthParticles) group.add(depthParticles.points);
 
   return {
     group,
     particleCount: visualProfile.scene.backgroundStars
-      + (bioDigital?.particleCount ?? visualProfile.scene.foregroundParticles),
-    backgroundMode: elevated ? 'biodigital-organic-v27' : 'formal',
+      + (bioDigital?.particleCount
+        ?? cinematicField?.particleCount
+        ?? visualProfile.scene.foregroundParticles),
+    backgroundMode: cinematicV3
+      ? 'cinematic-organic-v3'
+      : elevated
+        ? 'biodigital-organic-v27'
+        : 'formal',
     backgroundInstanceCount: 1,
     bioDigitalInstanceCount: elevated ? 1 : 0,
-    formalBackgroundInstanceCount: elevated ? 0 : 1,
+    cinematicBackgroundInstanceCount: cinematicV3 ? 1 : 0,
+    formalBackgroundInstanceCount: elevated || cinematicV3 ? 0 : 1,
     farParticleCount: visualProfile.scene.backgroundStars,
     foregroundParticleCount: bioDigital?.foregroundParticleCount
       ?? visualProfile.scene.foregroundParticles,
     bioDigitalParticleCount: bioDigital?.particleCount ?? 0,
     bioDigitalSegmentCount: bioDigital?.segmentCount ?? 0,
+    cinematicParticleCount: cinematicField?.particleCount ?? 0,
+    cinematicSegmentCount: cinematicField?.segmentCount ?? 0,
     setDebugLayer(layer = 'full') {
       const baseVisible = layer === 'full' || layer === 'clean';
       deepSpace.mesh.visible = baseVisible;
       farStars.points.visible = baseVisible;
       if (depthParticles) depthParticles.points.visible = baseVisible || layer === 'foreground';
       bioDigital?.setDebugLayer(layer);
+      cinematicField?.setDebugLayer(layer);
     },
     update(time, reveal, localProgress) {
       const foregroundReveal = smootherstep(0.58, 0.94, localProgress);
@@ -328,12 +494,14 @@ function createGeoBackground(resources, visualProfile) {
         depthParticles.points.rotation.z = time * 0.004;
       }
       bioDigital?.update(time, localProgress);
+      cinematicField?.update(time, localProgress);
     },
     dispose() {
       deepSpace.dispose();
       farStars.dispose();
       depthParticles?.dispose();
       bioDigital?.dispose();
+      cinematicField?.dispose();
       group.clear();
     }
   };
@@ -560,6 +728,9 @@ function createGeoDiagnostics({
     foregroundParticleCount: background.foregroundParticleCount,
     bioDigitalParticleCount: background.bioDigitalParticleCount,
     bioDigitalSegmentCount: background.bioDigitalSegmentCount,
+    cinematicBackgroundInstanceCount: background.cinematicBackgroundInstanceCount,
+    cinematicParticleCount: background.cinematicParticleCount,
+    cinematicSegmentCount: background.cinematicSegmentCount,
     fps: null,
     averageFps: null,
     completedStateSeconds: 0

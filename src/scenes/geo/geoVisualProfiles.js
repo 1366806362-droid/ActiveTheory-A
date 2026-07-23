@@ -91,6 +91,37 @@ export const GEO_VISUAL_V27_BIODIGITAL = Object.freeze({
   })
 });
 
+export const GEO_VISUAL_V3_CINEMATIC = Object.freeze({
+  ...GEO_VISUAL_V2,
+  id: 'v3-cinematic-organic',
+  backgroundMode: 'cinematic-organic-v3',
+  scene: Object.freeze({
+    ...GEO_VISUAL_V2.scene,
+    foregroundParticles: 96,
+    backgroundStars: 320,
+    backgroundStarOpacity: 0.24,
+    backgroundStarSizeScale: 0.72,
+    foregroundOpacity: 0.1,
+    foregroundSizeScale: 0.76,
+    deepSpaceOpacity: 0.82
+  }),
+  core: Object.freeze({
+    ...GEO_VISUAL_V2.core,
+    scale: 1.66,
+    labelScale: 0.61,
+    labelOpacity: 0.32
+  }),
+  streams: Object.freeze({
+    ...GEO_VISUAL_V2.streams,
+    segments: 44,
+    flowParticles: 540,
+    secondaryLanes: 1,
+    crossGain: 0.11,
+    mainLineGain: 1.28,
+    flowOpacity: 0.8
+  })
+});
+
 const GEO_VERSION_CONFIGS = Object.freeze({
   v12: Object.freeze({
     activeVersion: 'v12',
@@ -109,6 +140,12 @@ const GEO_VERSION_CONFIGS = Object.freeze({
     visualProfile: GEO_VISUAL_V2,
     coreMode: 'gyroscope',
     coreType: 'gyroscope'
+  }),
+  v3: Object.freeze({
+    activeVersion: 'v3',
+    visualProfile: GEO_VISUAL_V3_CINEMATIC,
+    coreMode: 'cinematic-shell',
+    coreType: 'cinematic-organic-shell'
   })
 });
 
@@ -125,6 +162,20 @@ export function resolveGeoVersionSelection(search = window.location.search) {
       fallbackUsed: !GEO_VERSION_CONFIGS[explicitVersion],
       legacyQueryUsed: false
     }, params);
+  }
+
+  if (params.get('geoVisual') === 'v3-cinematic') {
+    return Object.freeze({
+      ...GEO_VERSION_CONFIGS.v3,
+      requestedVersion: 'v3',
+      isDefaultVersion: false,
+      fallbackUsed: false,
+      legacyQueryUsed: true,
+      requestedBackground: 'cinematic-organic-v3',
+      activeBackground: 'cinematic-organic-v3',
+      backgroundIsDefault: false,
+      backgroundFallbackUsed: false
+    });
   }
 
   const legacyV2 = params.get('geoVisual') === 'v2';
