@@ -14,7 +14,7 @@ import {
 } from './geo/geoBusinessClusters.js';
 import { createGeoDataStreams } from './geo/geoDataStreams.js';
 import { createGeoNebulaField } from './geo/geoNebulaField.js';
-import { resolveGeoVisualProfile } from './geo/geoVisualProfiles.js';
+import { resolveGeoVersionSelection } from './geo/geoVisualProfiles.js';
 import { createGeoGyroscopeCore } from './geo/geoGyroscopeCore.js';
 
 const GEO_DEBUG = Object.freeze({
@@ -22,11 +22,11 @@ const GEO_DEBUG = Object.freeze({
   showInternalOrbits: readDebugFlag('showInternalOrbits', true),
   showLabels: readDebugFlag('showLabels', true)
 });
-const GEO_CORE_MODE = resolveGeoCoreMode();
-const GEO_CORE_DEBUG = resolveGeoCoreDebug(GEO_CORE_MODE);
-
 export function createGeoScene() {
-  const visualProfile = resolveGeoVisualProfile();
+  const versionSelection = resolveGeoVersionSelection();
+  const visualProfile = versionSelection.visualProfile;
+  const coreMode = versionSelection.coreMode;
+  const coreDebug = resolveGeoCoreDebug(coreMode);
   const group = new THREE.Group();
   const systemGroup = new THREE.Group();
   const resources = createGeoVisualResources();
@@ -35,7 +35,7 @@ export function createGeoScene() {
   const clusterConfigs = businessClusters.configs ?? GEO_CLUSTER_CONFIGS;
   const nebula = createGeoNebulaField(resources, visualProfile, clusterConfigs);
   const streams = createGeoDataStreams(resources, clusterConfigs, visualProfile);
-  const core = GEO_CORE_MODE === 'gyroscope'
+  const core = coreMode === 'gyroscope'
     ? createGeoGyroscopeCore(resources, visualProfile)
     : createGeoSignalCore(resources, visualProfile);
   let revealProgress = 0;
@@ -52,18 +52,22 @@ export function createGeoScene() {
     businessClusters.group
   );
   group.add(background.group, systemGroup);
+  const coreInstanceCount = systemGroup.children.filter(
+    (child) => child.name === 'GEO SIGNAL CORE'
+      || child.name === 'GEO Broken Gyroscope Core'
+  ).length;
 
   core.setDebugVisibility(
-    GEO_CORE_DEBUG.enabled ? true : GEO_DEBUG.showInternalPlanets,
-    GEO_CORE_DEBUG.enabled ? GEO_CORE_DEBUG.layer === 'full' : GEO_DEBUG.showLabels
+    coreDebug.enabled ? true : GEO_DEBUG.showInternalPlanets,
+    coreDebug.enabled ? coreDebug.layer === 'full' : GEO_DEBUG.showLabels
   );
-  core.setDebugLayer(GEO_CORE_DEBUG.layer);
+  core.setDebugLayer(coreDebug.layer);
   businessClusters.setDebugVisibility(
-    GEO_CORE_DEBUG.enabled ? false : GEO_DEBUG.showInternalPlanets,
-    GEO_CORE_DEBUG.enabled ? false : GEO_DEBUG.showLabels
+    coreDebug.enabled ? false : GEO_DEBUG.showInternalPlanets,
+    coreDebug.enabled ? false : GEO_DEBUG.showLabels
   );
-  streams.setDebugVisibility(GEO_CORE_DEBUG.enabled ? false : GEO_DEBUG.showInternalOrbits);
-  if (GEO_CORE_DEBUG.enabled) {
+  streams.setDebugVisibility(coreDebug.enabled ? false : GEO_DEBUG.showInternalOrbits);
+  if (coreDebug.enabled) {
     nebula.group.visible = false;
     background.group.visible = false;
   }
@@ -78,9 +82,10 @@ export function createGeoScene() {
     particleCount,
     resourceCounts,
     visualProfile: visualProfile.id,
-    coreMode: GEO_CORE_MODE
+    versionSelection,
+    coreInstanceCount
   });
-  const coreDebugDiagnostics = createGeoCoreDebugDiagnostics(GEO_CORE_DEBUG);
+  const coreDebugDiagnostics = createGeoCoreDebugDiagnostics(coreDebug, coreMode);
 
   function update(renderState, delta, time, galaxyOpenProgress = 1, journeyProgress = 1) {
     revealProgress = clamp(galaxyOpenProgress, 0, 1);
@@ -150,11 +155,6 @@ export function createGeoScene() {
   };
 }
 
-function resolveGeoCoreMode(search = window.location.search) {
-  const params = new URLSearchParams(search);
-  return params.get('geoCore') === 'gyroscope' ? 'gyroscope' : 'v2.3';
-}
-
 function resolveGeoCoreDebug(coreMode, search = window.location.search) {
   if (!import.meta.env.DEV) return Object.freeze({ enabled: false, layer: 'full' });
   const params = new URLSearchParams(search);
@@ -178,17 +178,17 @@ function resolveGeoCoreDebug(coreMode, search = window.location.search) {
   });
 }
 
-function createGeoCoreDebugDiagnostics(debug) {
+function createGeoCoreDebugDiagnostics(debug, coreMode) {
   if (!import.meta.env.DEV) return { dispose() {} };
   const status = Object.freeze({
     enabled: debug.enabled,
     layer: debug.layer,
     layers: Object.freeze(
-      GEO_CORE_MODE === 'gyroscope'
+      coreMode === 'gyroscope'
         ? ['seed', 'answer', 'citation', 'keyword', 'fragments', 'full', 'hidden-label']
         : ['seed', 'disk', 'sectors', 'fragments', 'full', 'hidden-label']
     ),
-    coreMode: GEO_CORE_MODE
+    coreMode
   });
   window.__GEO_CORE_DEBUG__ = status;
   return {
@@ -412,7 +412,13 @@ function countSceneResources(root) {
   };
 }
 
-function createGeoDiagnostics({ particleCount, resourceCounts, visualProfile, coreMode }) {
+function createGeoDiagnostics({
+  particleCount,
+  resourceCounts,
+  visualProfile,
+  versionSelection,
+  coreInstanceCount
+}) {
   if (!import.meta.env.DEV) {
     return { update() {}, dispose() {} };
   }
@@ -434,7 +440,14 @@ function createGeoDiagnostics({ particleCount, resourceCounts, visualProfile, co
     direction: 'idle',
     activeScene: 'HeroScene',
     visualProfile,
-    coreMode
+    coreMode: versionSelection.coreMode,
+    requestedVersion: versionSelection.requestedVersion,
+    activeVersion: versionSelection.activeVersion,
+    isDefaultVersion: versionSelection.isDefaultVersion,
+    fallbackUsed: versionSelection.fallbackUsed,
+    legacyQueryUsed: versionSelection.legacyQueryUsed,
+    coreType: versionSelection.coreType,
+    coreInstanceCount
   };
   let previousProgress = 0;
   let publishFrame = 0;

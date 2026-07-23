@@ -66,7 +66,60 @@ export const GEO_VISUAL_V2 = Object.freeze({
   })
 });
 
-export function resolveGeoVisualProfile(search = window.location.search) {
+const GEO_VERSION_CONFIGS = Object.freeze({
+  v12: Object.freeze({
+    activeVersion: 'v12',
+    visualProfile: GEO_VISUAL_V1,
+    coreMode: 'v1.2',
+    coreType: 'signal-v12'
+  }),
+  v23: Object.freeze({
+    activeVersion: 'v23',
+    visualProfile: GEO_VISUAL_V2,
+    coreMode: 'v2.3',
+    coreType: 'processing-v23'
+  }),
+  v24: Object.freeze({
+    activeVersion: 'v24',
+    visualProfile: GEO_VISUAL_V2,
+    coreMode: 'gyroscope',
+    coreType: 'gyroscope'
+  })
+});
+
+export function resolveGeoVersionSelection(search = window.location.search) {
   const params = new URLSearchParams(search);
-  return params.get('geoVisual') === 'v2' ? GEO_VISUAL_V2 : GEO_VISUAL_V1;
+  const explicitVersion = params.get('geoVersion');
+
+  if (explicitVersion) {
+    const config = GEO_VERSION_CONFIGS[explicitVersion] ?? GEO_VERSION_CONFIGS.v24;
+    return Object.freeze({
+      ...config,
+      requestedVersion: explicitVersion,
+      isDefaultVersion: false,
+      fallbackUsed: !GEO_VERSION_CONFIGS[explicitVersion],
+      legacyQueryUsed: false
+    });
+  }
+
+  const legacyV2 = params.get('geoVisual') === 'v2';
+  const legacyGyroscope = params.get('geoCore') === 'gyroscope';
+  const legacyQueryUsed = legacyV2 || legacyGyroscope;
+  const config = legacyGyroscope
+    ? GEO_VERSION_CONFIGS.v24
+    : legacyV2
+      ? GEO_VERSION_CONFIGS.v23
+      : GEO_VERSION_CONFIGS.v24;
+
+  return Object.freeze({
+    ...config,
+    requestedVersion: config.activeVersion,
+    isDefaultVersion: !legacyQueryUsed,
+    fallbackUsed: false,
+    legacyQueryUsed
+  });
+}
+
+export function resolveGeoVisualProfile(search = window.location.search) {
+  return resolveGeoVersionSelection(search).visualProfile;
 }
