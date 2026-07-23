@@ -16,6 +16,7 @@ import { createGeoDataStreams } from './geo/geoDataStreams.js';
 import { createGeoNebulaField } from './geo/geoNebulaField.js';
 import { resolveGeoVersionSelection } from './geo/geoVisualProfiles.js';
 import { createGeoGyroscopeCore } from './geo/geoGyroscopeCore.js';
+import { createGeoBioDigitalField } from './geo/geoBioDigitalField.js';
 
 const GEO_DEBUG = Object.freeze({
   showInternalPlanets: readDebugFlag('showInternalPlanets', true),
@@ -27,6 +28,7 @@ export function createGeoScene() {
   const visualProfile = versionSelection.visualProfile;
   const coreMode = versionSelection.coreMode;
   const coreDebug = resolveGeoCoreDebug(coreMode);
+  const backgroundDebug = resolveGeoBackgroundDebug(visualProfile);
   const group = new THREE.Group();
   const systemGroup = new THREE.Group();
   const resources = createGeoVisualResources();
@@ -71,6 +73,16 @@ export function createGeoScene() {
     nebula.group.visible = false;
     background.group.visible = false;
   }
+  background.setDebugLayer(backgroundDebug.layer);
+  if (backgroundDebug.enabled) {
+    core.setDebugVisibility(false, false);
+    businessClusters.setDebugVisibility(false, false);
+    streams.setDebugVisibility(false);
+    const showNebulaOnly = backgroundDebug.layer === 'glow'
+      || backgroundDebug.layer === 'clean';
+    nebula.group.visible = showNebulaOnly;
+    systemGroup.visible = showNebulaOnly;
+  }
 
   const particleCount = background.particleCount
     + nebula.particleCount
@@ -83,9 +95,14 @@ export function createGeoScene() {
     resourceCounts,
     visualProfile: visualProfile.id,
     versionSelection,
-    coreInstanceCount
+    coreInstanceCount,
+    background
   });
   const coreDebugDiagnostics = createGeoCoreDebugDiagnostics(coreDebug, coreMode);
+  const backgroundDebugDiagnostics = createGeoBackgroundDebugDiagnostics(
+    backgroundDebug,
+    versionSelection
+  );
 
   function update(renderState, delta, time, galaxyOpenProgress = 1, journeyProgress = 1) {
     revealProgress = clamp(galaxyOpenProgress, 0, 1);
@@ -128,6 +145,7 @@ export function createGeoScene() {
     diagnostics.update({
       progress: revealProgress,
       journeyProgress: journey,
+      delta,
       coreIntensity,
       clusterProgress,
       activeStreamCount,
@@ -138,6 +156,7 @@ export function createGeoScene() {
   function dispose() {
     diagnostics.dispose();
     coreDebugDiagnostics.dispose();
+    backgroundDebugDiagnostics.dispose();
     background.dispose();
     core.dispose();
     businessClusters.dispose();
@@ -152,6 +171,45 @@ export function createGeoScene() {
     group,
     update,
     dispose
+  };
+}
+
+function resolveGeoBackgroundDebug(visualProfile, search = window.location.search) {
+  if (!import.meta.env.DEV || visualProfile.backgroundMode !== 'biodigital-elevated') {
+    return Object.freeze({ enabled: false, layer: 'full' });
+  }
+  const params = new URLSearchParams(search);
+  const requested = params.get('geoBackgroundLayer');
+  const aliases = Object.freeze({
+    'semantic-membrane': 'membrane',
+    'answer-filaments': 'answer',
+    'citation-network': 'citation',
+    'background-glow': 'glow',
+    'foreground-only': 'foreground',
+    'clean-background': 'clean'
+  });
+  const layer = aliases[requested] ?? requested;
+  const supported = new Set(['membrane', 'answer', 'citation', 'glow', 'foreground', 'clean']);
+  return Object.freeze({
+    enabled: supported.has(layer),
+    layer: supported.has(layer) ? layer : 'full'
+  });
+}
+
+function createGeoBackgroundDebugDiagnostics(debug, versionSelection) {
+  if (!import.meta.env.DEV) return { dispose() {} };
+  const status = Object.freeze({
+    enabled: debug.enabled,
+    layer: debug.layer,
+    activeBackground: versionSelection.activeBackground,
+    backgroundIsDefault: versionSelection.backgroundIsDefault,
+    layers: Object.freeze(['membrane', 'answer', 'citation', 'glow', 'foreground', 'clean'])
+  });
+  window.__GEO_BACKGROUND_DEBUG__ = status;
+  return {
+    dispose() {
+      if (window.__GEO_BACKGROUND_DEBUG__ === status) delete window.__GEO_BACKGROUND_DEBUG__;
+    }
   };
 }
 
@@ -200,6 +258,7 @@ function createGeoCoreDebugDiagnostics(debug, coreMode) {
 
 function createGeoBackground(resources, visualProfile) {
   const group = new THREE.Group();
+  const elevated = visualProfile.backgroundMode === 'biodigital-elevated';
   const deepSpace = createDeepSpace();
   const farStars = createBackgroundPoints(
     visualProfile.scene.backgroundStars,
@@ -208,37 +267,73 @@ function createGeoBackground(resources, visualProfile) {
     7103,
     visualProfile
   );
-  const depthParticles = createBackgroundPoints(
-    visualProfile.scene.foregroundParticles,
-    resources.pointTexture,
-    true,
-    8209,
-    visualProfile
-  );
+  const depthParticles = elevated
+    ? null
+    : createBackgroundPoints(
+      visualProfile.scene.foregroundParticles,
+      resources.pointTexture,
+      true,
+      8209,
+      visualProfile
+    );
+  const bioDigital = elevated ? createGeoBioDigitalField(resources) : null;
 
-  group.name = 'GEO Deep Space';
+  group.name = elevated ? 'GEO BioDigital Elevated Background' : 'GEO Deep Space';
   deepSpace.mesh.renderOrder = -20;
   farStars.points.renderOrder = -12;
-  depthParticles.points.renderOrder = 12;
-  group.add(deepSpace.mesh, farStars.points, depthParticles.points);
+  if (depthParticles) depthParticles.points.renderOrder = 12;
+  group.add(deepSpace.mesh, farStars.points);
+  if (bioDigital) group.add(bioDigital.group);
+  if (depthParticles) group.add(depthParticles.points);
 
   return {
     group,
-    particleCount: visualProfile.scene.backgroundStars + visualProfile.scene.foregroundParticles,
+    particleCount: visualProfile.scene.backgroundStars
+      + (bioDigital?.particleCount ?? visualProfile.scene.foregroundParticles),
+    backgroundMode: elevated ? 'biodigital-organic-v27' : 'formal',
+    backgroundInstanceCount: 1,
+    bioDigitalInstanceCount: elevated ? 1 : 0,
+    formalBackgroundInstanceCount: elevated ? 0 : 1,
+    farParticleCount: visualProfile.scene.backgroundStars,
+    foregroundParticleCount: bioDigital?.foregroundParticleCount
+      ?? visualProfile.scene.foregroundParticles,
+    bioDigitalParticleCount: bioDigital?.particleCount ?? 0,
+    bioDigitalSegmentCount: bioDigital?.segmentCount ?? 0,
+    setDebugLayer(layer = 'full') {
+      const baseVisible = layer === 'full' || layer === 'clean';
+      deepSpace.mesh.visible = baseVisible;
+      farStars.points.visible = baseVisible;
+      if (depthParticles) depthParticles.points.visible = baseVisible || layer === 'foreground';
+      bioDigital?.setDebugLayer(layer);
+    },
     update(time, reveal, localProgress) {
       const foregroundReveal = smootherstep(0.58, 0.94, localProgress);
 
       deepSpace.update(time, reveal, visualProfile.cinematic);
-      farStars.material.uniforms.uOpacity.value = reveal * (visualProfile.cinematic ? 0.31 : 0.26);
+      deepSpace.material.uniforms.uOpacity.value = reveal * (
+        visualProfile.scene.deepSpaceOpacity
+        ?? (visualProfile.cinematic ? 0.86 : 0.76)
+      );
+      farStars.material.uniforms.uOpacity.value = reveal * (
+        visualProfile.scene.backgroundStarOpacity
+        ?? (visualProfile.cinematic ? 0.31 : 0.26)
+      );
       farStars.points.rotation.y = time * 0.0025;
-      depthParticles.material.uniforms.uOpacity.value = foregroundReveal * (visualProfile.cinematic ? 0.16 : 0.12);
-      depthParticles.points.position.z = lerp(-0.48, 0.24, foregroundReveal);
-      depthParticles.points.rotation.z = time * 0.004;
+      if (depthParticles) {
+        depthParticles.material.uniforms.uOpacity.value = foregroundReveal * (
+          visualProfile.scene.foregroundOpacity
+          ?? (visualProfile.cinematic ? 0.16 : 0.12)
+        );
+        depthParticles.points.position.z = lerp(-0.48, 0.24, foregroundReveal);
+        depthParticles.points.rotation.z = time * 0.004;
+      }
+      bioDigital?.update(time, localProgress);
     },
     dispose() {
       deepSpace.dispose();
       farStars.dispose();
-      depthParticles.dispose();
+      depthParticles?.dispose();
+      bioDigital?.dispose();
       group.clear();
     }
   };
@@ -303,6 +398,7 @@ function createDeepSpace() {
   mesh.name = 'GEO Deep Space Background';
   return {
     mesh,
+    material,
     update(time, reveal, cinematic = false) {
       material.uniforms.uTime.value = time;
       material.uniforms.uOpacity.value = reveal * (cinematic ? 0.86 : 0.76);
@@ -359,7 +455,10 @@ function createBackgroundPoints(count, texture, near, seed, visualProfile = null
     colors[stride] = color.r;
     colors[stride + 1] = color.g;
     colors[stride + 2] = color.b;
-    sizes[index] = near ? 0.92 + random() * 1.18 : 0.58 + random() * 1.15;
+    const sizeScale = near
+      ? visualProfile?.scene?.foregroundSizeScale ?? 1
+      : visualProfile?.scene?.backgroundStarSizeScale ?? 1;
+    sizes[index] = (near ? 0.92 + random() * 1.18 : 0.58 + random() * 1.15) * sizeScale;
   }
 
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -417,7 +516,8 @@ function createGeoDiagnostics({
   resourceCounts,
   visualProfile,
   versionSelection,
-  coreInstanceCount
+  coreInstanceCount,
+  background
 }) {
   if (!import.meta.env.DEV) {
     return { update() {}, dispose() {} };
@@ -447,16 +547,35 @@ function createGeoDiagnostics({
     fallbackUsed: versionSelection.fallbackUsed,
     legacyQueryUsed: versionSelection.legacyQueryUsed,
     coreType: versionSelection.coreType,
-    coreInstanceCount
+    coreInstanceCount,
+    requestedBackground: versionSelection.requestedBackground,
+    activeBackground: versionSelection.activeBackground,
+    backgroundIsDefault: versionSelection.backgroundIsDefault,
+    backgroundFallbackUsed: versionSelection.backgroundFallbackUsed,
+    backgroundInstanceCount: background.backgroundInstanceCount,
+    bioDigitalInstanceCount: background.bioDigitalInstanceCount,
+    formalBackgroundInstanceCount: background.formalBackgroundInstanceCount,
+    backgroundParticleCount: background.particleCount,
+    farBackgroundParticleCount: background.farParticleCount,
+    foregroundParticleCount: background.foregroundParticleCount,
+    bioDigitalParticleCount: background.bioDigitalParticleCount,
+    bioDigitalSegmentCount: background.bioDigitalSegmentCount,
+    fps: null,
+    averageFps: null,
+    completedStateSeconds: 0
   };
   let previousProgress = 0;
   let publishFrame = 0;
+  let completedFrames = 0;
+  let completedElapsed = 0;
+  let fpsWindowFrames = 0;
+  let fpsWindowElapsed = 0;
 
   window.__GEO_SCENE_STATUS__ = status;
   publish();
   return {
-    update({ progress, journeyProgress, coreIntensity, clusterProgress, activeStreamCount, activeScene }) {
-      const delta = progress - previousProgress;
+    update({ progress, journeyProgress, delta: frameDelta, coreIntensity, clusterProgress, activeStreamCount, activeScene }) {
+      const progressDelta = progress - previousProgress;
       status.localProgress = progress;
       status.journeyProgress = journeyProgress;
       status.currentStage = getGeoStage(progress);
@@ -465,8 +584,21 @@ function createGeoDiagnostics({
       status.citationProgress = clusterProgress.citation ?? 0;
       status.keywordProgress = clusterProgress.keyword ?? 0;
       status.activeStreamCount = activeStreamCount;
-      status.direction = delta > 0.0001 ? 'entering' : delta < -0.0001 ? 'returning' : 'idle';
+      status.direction = progressDelta > 0.0001 ? 'entering' : progressDelta < -0.0001 ? 'returning' : 'idle';
       status.activeScene = activeScene;
+      if (activeScene === 'GeoScene' && progress > 0.98 && frameDelta > 0 && frameDelta < 0.25) {
+        completedFrames += 1;
+        completedElapsed += frameDelta;
+        fpsWindowFrames += 1;
+        fpsWindowElapsed += frameDelta;
+        status.averageFps = completedFrames / completedElapsed;
+        status.completedStateSeconds = completedElapsed;
+        if (fpsWindowElapsed >= 0.5) {
+          status.fps = fpsWindowFrames / fpsWindowElapsed;
+          fpsWindowFrames = 0;
+          fpsWindowElapsed = 0;
+        }
+      }
       previousProgress = progress;
       publishFrame += 1;
       if (publishFrame % 3 === 0) publish();

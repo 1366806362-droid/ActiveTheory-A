@@ -66,6 +66,31 @@ export const GEO_VISUAL_V2 = Object.freeze({
   })
 });
 
+export const GEO_VISUAL_V27_BIODIGITAL = Object.freeze({
+  ...GEO_VISUAL_V2,
+  id: 'v2.7-biodigital-organic',
+  backgroundMode: 'biodigital-elevated',
+  scene: Object.freeze({
+    ...GEO_VISUAL_V2.scene,
+    foregroundParticles: 110,
+    backgroundStars: 338,
+    backgroundStarOpacity: 0.25,
+    backgroundStarSizeScale: 0.76,
+    foregroundOpacity: 0.105,
+    foregroundSizeScale: 0.78,
+    deepSpaceOpacity: 0.78
+  }),
+  streams: Object.freeze({
+    ...GEO_VISUAL_V2.streams,
+    secondaryLanes: 1,
+    crossGain: 0.13
+  }),
+  nebula: Object.freeze({
+    particleCount: 185,
+    particleOpacity: 0.135
+  })
+});
+
 const GEO_VERSION_CONFIGS = Object.freeze({
   v12: Object.freeze({
     activeVersion: 'v12',
@@ -93,13 +118,13 @@ export function resolveGeoVersionSelection(search = window.location.search) {
 
   if (explicitVersion) {
     const config = GEO_VERSION_CONFIGS[explicitVersion] ?? GEO_VERSION_CONFIGS.v24;
-    return Object.freeze({
+    return withBackgroundSelection({
       ...config,
       requestedVersion: explicitVersion,
       isDefaultVersion: false,
       fallbackUsed: !GEO_VERSION_CONFIGS[explicitVersion],
       legacyQueryUsed: false
-    });
+    }, params);
   }
 
   const legacyV2 = params.get('geoVisual') === 'v2';
@@ -111,15 +136,42 @@ export function resolveGeoVersionSelection(search = window.location.search) {
       ? GEO_VERSION_CONFIGS.v23
       : GEO_VERSION_CONFIGS.v24;
 
-  return Object.freeze({
+  return withBackgroundSelection({
     ...config,
     requestedVersion: config.activeVersion,
     isDefaultVersion: !legacyQueryUsed,
     fallbackUsed: false,
     legacyQueryUsed
-  });
+  }, params);
 }
 
 export function resolveGeoVisualProfile(search = window.location.search) {
   return resolveGeoVersionSelection(search).visualProfile;
+}
+
+function withBackgroundSelection(config, params) {
+  const requestedBackground = params.get('geoBackground');
+  const formalRequested = requestedBackground === 'formal';
+  const organicRequested = requestedBackground === 'biodigital-elevated';
+  const organicDefault = requestedBackground === null
+    && config.activeVersion === 'v24';
+  const organicSupported = config.activeVersion === 'v24'
+    || config.activeVersion === 'v23';
+  const organicEnabled = !formalRequested
+    && (organicDefault || (organicRequested && organicSupported));
+  const recognizedBackground = requestedBackground === null
+    || formalRequested
+    || organicRequested;
+  const backgroundFallbackUsed = !recognizedBackground
+    || (organicRequested && !organicSupported);
+
+  return Object.freeze({
+    ...config,
+    visualProfile: organicEnabled ? GEO_VISUAL_V27_BIODIGITAL : config.visualProfile,
+    requestedBackground: requestedBackground
+      ?? (organicDefault ? 'biodigital-organic-v27' : 'formal'),
+    activeBackground: organicEnabled ? 'biodigital-organic-v27' : 'formal',
+    backgroundIsDefault: organicDefault,
+    backgroundFallbackUsed
+  });
 }

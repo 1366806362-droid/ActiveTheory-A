@@ -23,38 +23,120 @@ const CINEMATIC_NEBULA_REGIONS = Object.freeze([
   { name: 'Foreground Broken Signal Veil', position: [-0.22, -0.38, 0.82], scale: [1.24, 0.32], color: '#2383a3', opacity: 0.021, phase: 4.8, rotation: 0.28 }
 ]);
 
+const BIODIGITAL_NEBULA_REGIONS = Object.freeze([
+  { name: 'BioDigital Core Rear Semantic Mist', position: [0.02, 0.01, -1.16], scale: [1.36, 0.7], color: '#0b6385', opacity: 0.052, phase: 0.2, rotation: 0.02 },
+  { name: 'BioDigital Answer Directional Mist', position: [-0.66, 0.33, -0.46], scale: [1.96, 0.34], color: '#1584a9', opacity: 0.068, phase: 1.1, rotation: -0.31 },
+  { name: 'BioDigital Citation Directional Mist', position: [0.66, 0.37, -0.86], scale: [1.72, 0.32], color: '#315779', opacity: 0.056, phase: 2.4, rotation: 0.29 },
+  { name: 'BioDigital Keyword Clean Tail Mist', position: [0.86, -0.5, -0.61], scale: [1.18, 0.2], color: '#087b86', opacity: 0.025, phase: 3.6, rotation: -0.3 },
+  { name: 'BioDigital Foreground Minimal Veil', position: [-0.2, -0.42, 0.72], scale: [0.72, 0.16], color: '#1d718a', opacity: 0.007, phase: 4.8, rotation: 0.26 }
+]);
+
 export function createGeoNebulaField(resources, visualProfile = null) {
   const group = new THREE.Group();
-  const regions = visualProfile?.cinematic ? CINEMATIC_NEBULA_REGIONS : NEBULA_REGIONS;
-  const cloudParticleCount = visualProfile?.cinematic ? 320 : CLOUD_PARTICLE_COUNT;
-  const sprites = regions.map((region, index) => createNebulaSprite(region, index, resources));
+  const elevated = visualProfile?.backgroundMode === 'biodigital-elevated';
+  const regions = elevated
+    ? BIODIGITAL_NEBULA_REGIONS
+    : visualProfile?.cinematic
+      ? CINEMATIC_NEBULA_REGIONS
+      : NEBULA_REGIONS;
+  const cloudParticleCount = elevated
+    ? visualProfile.nebula.particleCount
+    : visualProfile?.cinematic
+      ? 320
+      : CLOUD_PARTICLE_COUNT;
+  const elevatedSprites = elevated
+    ? createElevatedNebulaInstances(regions, resources)
+    : null;
+  const sprites = elevated
+    ? []
+    : regions.map((region, index) => createNebulaSprite(region, index, resources));
   const cloud = createCloudParticles(resources.pointTexture, regions, cloudParticleCount);
 
   group.name = 'GEO Local Nebula Field';
   sprites.forEach((sprite) => group.add(sprite.sprite));
+  if (elevatedSprites) group.add(elevatedSprites.mesh);
   group.add(cloud.points);
 
   return {
     group,
-    regionCount: NEBULA_REGIONS.length,
+    regionCount: regions.length,
     particleCount: cloudParticleCount,
     update(time, progress) {
       const reveal = smootherstep(0.12, 0.82, progress);
       const stable = smootherstep(0.86, 1, progress);
 
-      sprites.forEach(({ sprite, material, region, baseX, baseY }) => {
-        material.opacity = reveal * region.opacity;
-        material.rotation = region.rotation + Math.sin(time * 0.018 + region.phase) * 0.018;
-        sprite.position.x = baseX + Math.sin(time * 0.017 + region.phase) * 0.012 * stable;
-        sprite.position.y = baseY + Math.cos(time * 0.014 + region.phase) * 0.008 * stable;
-      });
-      cloud.material.uniforms.uOpacity.value = reveal * (visualProfile?.cinematic ? 0.21 : 0.14);
+      if (elevatedSprites) {
+        elevatedSprites.update(reveal, time, stable);
+      } else {
+        sprites.forEach(({ sprite, material, region, baseX, baseY }) => {
+          material.opacity = reveal * region.opacity;
+          material.rotation = region.rotation + Math.sin(time * 0.018 + region.phase) * 0.018;
+          sprite.position.x = baseX + Math.sin(time * 0.017 + region.phase) * 0.012 * stable;
+          sprite.position.y = baseY + Math.cos(time * 0.014 + region.phase) * 0.008 * stable;
+        });
+      }
+      cloud.material.uniforms.uOpacity.value = reveal * (elevated
+        ? visualProfile.nebula.particleOpacity
+        : visualProfile?.cinematic ? 0.21 : 0.14);
       cloud.points.rotation.y = Math.sin(time * 0.012) * 0.018 * stable;
     },
     dispose() {
       sprites.forEach(({ material }) => material.dispose());
+      elevatedSprites?.dispose();
       cloud.dispose();
       group.clear();
+    }
+  };
+}
+
+function createElevatedNebulaInstances(regions, resources) {
+  const maxOpacity = Math.max(...regions.map((region) => region.opacity));
+  const geometry = new THREE.PlaneGeometry(1, 1);
+  const material = new THREE.MeshBasicMaterial({
+    map: resources.hazeTexture,
+    color: '#ffffff',
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false,
+    vertexColors: true
+  });
+  const mesh = new THREE.InstancedMesh(geometry, material, regions.length);
+  const matrix = new THREE.Matrix4();
+  const quaternion = new THREE.Quaternion();
+  const position = new THREE.Vector3();
+  const scale = new THREE.Vector3();
+  const color = new THREE.Color();
+  const rotationAxis = new THREE.Vector3(0, 0, 1);
+
+  regions.forEach((region, index) => {
+    position.set(...region.position);
+    scale.set(region.scale[0], region.scale[1], 1);
+    quaternion.setFromAxisAngle(rotationAxis, region.rotation);
+    matrix.compose(position, quaternion, scale);
+    mesh.setMatrixAt(index, matrix);
+    color
+      .set(region.color)
+      .multiplyScalar(region.opacity / maxOpacity);
+    mesh.setColorAt(index, color);
+  });
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  mesh.name = 'GEO Shared Directional Nebula Fields';
+  mesh.renderOrder = -2;
+
+  return {
+    mesh,
+    material,
+    update(reveal, time, stable) {
+      material.opacity = reveal * maxOpacity;
+      mesh.position.x = Math.sin(time * 0.006) * 0.004 * stable;
+      mesh.position.y = Math.cos(time * 0.005) * 0.003 * stable;
+    },
+    dispose() {
+      geometry.dispose();
+      material.dispose();
     }
   };
 }
@@ -74,7 +156,7 @@ function createNebulaSprite(region, index, resources) {
   sprite.name = region.name;
   sprite.position.set(...region.position);
   sprite.scale.set(region.scale[0], region.scale[1], 1);
-  sprite.renderOrder = index === NEBULA_REGIONS.length - 1 ? 9 : -2;
+  sprite.renderOrder = index === 4 ? 9 : -2;
   return {
     sprite,
     material,
