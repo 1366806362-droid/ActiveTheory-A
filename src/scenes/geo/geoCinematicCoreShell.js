@@ -113,8 +113,10 @@ export function createGeoCinematicCoreShell(resources, visualProfile) {
       debugLabel = showLabel;
       applyDebugVisibility();
     },
-    update(time, progress) {
-      const intensity = baseCore.update(time, progress);
+    update(time, progress, journey = null) {
+      const coreProgress = journey?.baseTimeline ?? progress;
+      const chamberProgress = journey?.chamber ?? progress;
+      const intensity = baseCore.update(time, coreProgress);
       dataSeed?.scale.setScalar(1.06);
       if (dataSeed?.material?.uniforms?.uOpacity) {
         dataSeed.material.uniforms.uOpacity.value *= DATA_SEED_OPACITY_FACTOR;
@@ -134,8 +136,9 @@ export function createGeoCinematicCoreShell(resources, visualProfile) {
       });
       processingFragments?.scale.setScalar(0.68);
       entryResponses?.scale.setScalar(0.61);
-      shell.update(time, progress);
+      shell.update(time, chamberProgress, journey);
       if (labelSprite) labelSprite.material.opacity *= TITLE_OPACITY_FACTOR;
+      if (journey) labelSprite.material.opacity *= journey.label;
       applyDebugVisibility();
       return intensity;
     },
@@ -208,16 +211,26 @@ function createTransparentShell(pointTexture) {
 
   return {
     group,
-    update(time, progress) {
+    update(time, progress, journey = null) {
       const reveal = smootherstep(0.22, 0.86, progress);
       const stable = smootherstep(0.88, 1, progress);
-      const answer = createEntryResponse(progress, 0.5, 0.7, stable);
-      const citation = createEntryResponse(progress, 0.58, 0.78, stable);
-      const keyword = createEntryResponse(progress, 0.66, 0.86, stable);
+      const answer = journey
+        ? createJourneyResponse(journey.response, 0, stable)
+        : createEntryResponse(progress, 0.5, 0.7, stable);
+      const citation = journey
+        ? createJourneyResponse(journey.response, 0.18, stable)
+        : createEntryResponse(progress, 0.58, 0.78, stable);
+      const keyword = journey
+        ? createJourneyResponse(journey.response, 0.36, stable)
+        : createEntryResponse(progress, 0.66, 0.86, stable);
 
       updateShellUniforms(surfaceMaterial, time, reveal, stable, answer, citation, keyword);
       updateShellUniforms(edgeMaterial, time, reveal, stable, answer, citation, keyword);
       updateShellUniforms(nodeMaterial, time, reveal, stable, answer, citation, keyword);
+      const assembly = journey?.chamber ?? reveal;
+      surfaceMaterial.uniforms.uAssembly.value = assembly;
+      edgeMaterial.uniforms.uAssembly.value = assembly;
+      nodeMaterial.uniforms.uAssembly.value = assembly;
       group.rotation.y = Math.sin(time * 0.008) * 0.012 * stable;
       group.rotation.x = Math.cos(time * 0.0065) * 0.007 * stable;
     },
@@ -416,6 +429,7 @@ function createShellSurfaceMaterial() {
       attribute float aFragment;
       uniform float uTime;
       uniform float uStable;
+      uniform float uAssembly;
       varying vec3 vColor;
       varying vec3 vNormal;
       varying vec3 vViewDirection;
@@ -425,6 +439,9 @@ function createShellSurfaceMaterial() {
       void main() {
         float drift = sin(uTime * 0.075 + aFragment * 1.73) * 0.006 * uStable;
         vec3 animated = position + normal * drift;
+        float assemblyOffset = (1.0 - uAssembly) * (aFragment - 2.0);
+        animated.xy *= mix(0.78, 1.0, uAssembly);
+        animated.z += assemblyOffset * 0.075;
         vec4 viewPosition = modelViewMatrix * vec4(animated, 1.0);
         vColor = color;
         vNormal = normalize(normalMatrix * normal);
@@ -479,6 +496,7 @@ function createShellEdgeMaterial() {
       attribute float aFragment;
       uniform float uTime;
       uniform float uStable;
+      uniform float uAssembly;
       varying vec3 vColor;
       varying float vAlpha;
       varying float vFragment;
@@ -486,6 +504,9 @@ function createShellEdgeMaterial() {
       void main() {
         vec3 animated = position;
         animated.z += sin(uTime * 0.08 + aFragment * 1.91) * 0.004 * uStable;
+        float assemblyOffset = (1.0 - uAssembly) * (aFragment - 2.0);
+        animated.xy *= mix(0.78, 1.0, uAssembly);
+        animated.z += assemblyOffset * 0.075;
         vColor = color;
         vAlpha = aAlpha;
         vFragment = aFragment;
@@ -534,12 +555,17 @@ function createShellNodeMaterial(pointTexture) {
       attribute float aPhase;
       uniform float uTime;
       uniform float uStable;
+      uniform float uAssembly;
       varying vec3 vColor;
       varying float vFragment;
       varying float vTwinkle;
 
       void main() {
-        vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+        vec3 animated = position;
+        float assemblyOffset = (1.0 - uAssembly) * (aFragment - 2.0);
+        animated.xy *= mix(0.78, 1.0, uAssembly);
+        animated.z += assemblyOffset * 0.075;
+        vec4 viewPosition = modelViewMatrix * vec4(animated, 1.0);
         vColor = color;
         vFragment = aFragment;
         vTwinkle = 0.88 + sin(uTime * 0.19 + aPhase) * 0.12 * uStable;
@@ -586,7 +612,8 @@ function createShellUniforms(opacity) {
     uProgress: { value: 0 },
     uStable: { value: 0 },
     uTime: { value: 0 },
-    uResponses: { value: new THREE.Vector3() }
+    uResponses: { value: new THREE.Vector3() },
+    uAssembly: { value: 1 }
   };
 }
 
@@ -601,4 +628,10 @@ function createEntryResponse(progress, start, end, stable) {
   const arrival = smootherstep(start, end, progress);
   const decay = 1 - smootherstep(end - 0.015, end + 0.11, progress);
   return arrival * decay + stable * 0.1;
+}
+
+function createJourneyResponse(progress, delay, stable) {
+  const local = smootherstep(delay, Math.min(1, delay + 0.48), progress);
+  const decay = 1 - smootherstep(Math.min(0.86, delay + 0.38), Math.min(1, delay + 0.72), progress);
+  return local * decay + stable * 0.1;
 }

@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 
 export const GEO_CINEMATIC_BLOOM_LAYER = 1;
+const GRADE_STRENGTH = { value: 1 };
+const BLOOM_STRENGTH = { value: 0.55 };
 
 const BLOOM_OBJECT_NAMES = Object.freeze(new Set([
   'Gyroscope Data Seed',
@@ -27,6 +29,16 @@ export function resolveGeoCinematicGrade(search = window.location.search) {
   });
 }
 
+export function setGeoCinematicGradeProgress(progress = 1) {
+  const value = THREE.MathUtils.clamp(progress, 0, 1);
+  GRADE_STRENGTH.value = value;
+  BLOOM_STRENGTH.value = 0.55 * value;
+  if (import.meta.env.DEV && window.__GEO_CINEMATIC_GRADE_STATUS__) {
+    window.__GEO_CINEMATIC_GRADE_STATUS__.journeyBlend = value;
+    publishStatus(window.__GEO_CINEMATIC_GRADE_STATUS__);
+  }
+}
+
 export function prepareGeoCinematicGradeScene(scene, selection) {
   const originalLayerMasks = new Map();
   const selectedNames = [];
@@ -41,7 +53,8 @@ export function prepareGeoCinematicGradeScene(scene, selection) {
     bloomBufferScale: 0.5,
     geometryAdded: 0,
     materialAdded: selection.enabled ? 1 : 0,
-    textureAdded: selection.enabled ? 1 : 0
+    textureAdded: selection.enabled ? 1 : 0,
+    journeyBlend: GRADE_STRENGTH.value
   };
 
   if (selection.enabled) {
@@ -92,8 +105,8 @@ export function createGeoCinematicGradeShader(bloomTexture, debugLayer = 'full')
       tDiffuse: { value: null },
       tBloom: { value: bloomTexture },
       uBloomTexel: { value: new THREE.Vector2(1, 1) },
-      uBloomStrength: { value: 0.55 },
-      uGradeStrength: { value: 1 },
+      uBloomStrength: BLOOM_STRENGTH,
+      uGradeStrength: GRADE_STRENGTH,
       uBloomOnly: { value: debugLayer === 'bloom' ? 1 : 0 }
     },
     vertexShader: `

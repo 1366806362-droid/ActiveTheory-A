@@ -69,17 +69,25 @@ export function createGeoCinematicMembraneField(resources) {
       debugLayer = layer;
       applyVisibility();
     },
-    update(time, progress) {
+    update(time, progress, journey = null) {
       const reveal = smootherstep(0.08, 0.72, progress);
       const stable = smootherstep(0.9, 1, progress);
+      const regionReveal = journey
+        ? [journey.answer, journey.citation, journey.foreground]
+        : [1, 1, 1];
+      const regionDepth = journey?.depth ?? [0, 0, 0];
 
       membrane.lineMaterial.uniforms.uOpacity.value = reveal;
       membrane.lineMaterial.uniforms.uTime.value = time;
       membrane.lineMaterial.uniforms.uStable.value = stable;
+      membrane.lineMaterial.uniforms.uRegionReveal.value.fromArray(regionReveal);
+      membrane.lineMaterial.uniforms.uRegionDepth.value.fromArray(regionDepth);
       membrane.nodeMaterial.uniforms.uOpacity.value = reveal;
       membrane.nodeMaterial.uniforms.uTime.value = time;
       membrane.nodeMaterial.uniforms.uStable.value = stable;
       membrane.nodeMaterial.uniforms.uScale.value = 0.86;
+      membrane.nodeMaterial.uniforms.uRegionReveal.value.fromArray(regionReveal);
+      membrane.nodeMaterial.uniforms.uRegionDepth.value.fromArray(regionDepth);
     },
     dispose() {
       membrane.dispose();
@@ -605,12 +613,16 @@ function createOrganicLineMaterial() {
       uOpacity: { value: 0 },
       uTime: { value: 0 },
       uStable: { value: 0 },
-      uRegion: { value: REGION_ALL }
+      uRegion: { value: REGION_ALL },
+      uRegionReveal: { value: new THREE.Vector3(1, 1, 1) },
+      uRegionDepth: { value: new THREE.Vector3() }
     },
     vertexShader: `
       uniform float uTime;
       uniform float uStable;
       uniform float uRegion;
+      uniform vec3 uRegionReveal;
+      uniform vec3 uRegionDepth;
       attribute float aAlpha;
       attribute float aRegion;
       varying vec3 vColor;
@@ -620,6 +632,16 @@ function createOrganicLineMaterial() {
         float regionMask = uRegion < -0.5
           ? 1.0
           : 1.0 - step(0.25, abs(aRegion - uRegion));
+        float journeyReveal = aRegion < 0.5
+          ? uRegionReveal.x
+          : aRegion < 1.5
+            ? uRegionReveal.y
+            : uRegionReveal.z;
+        float journeyDepth = aRegion < 0.5
+          ? uRegionDepth.x
+          : aRegion < 1.5
+            ? uRegionDepth.y
+            : uRegionDepth.z;
         float phase = position.x * 1.37 + position.y * 1.91 + aRegion * 2.43;
         float drift = sin(uTime * 0.12 + phase) * 0.006
           + sin(uTime * 0.071 + phase * 0.63) * 0.003;
@@ -627,8 +649,9 @@ function createOrganicLineMaterial() {
         organicPosition.x += drift * uStable;
         organicPosition.y += cos(uTime * 0.093 + phase * 0.71) * 0.004 * uStable;
         organicPosition.z += sin(uTime * 0.064 + phase * 0.82) * 0.008 * uStable;
+        organicPosition.z += journeyDepth;
         vColor = color;
-        vAlpha = aAlpha * regionMask;
+        vAlpha = aAlpha * regionMask * journeyReveal;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(organicPosition, 1.0);
       }
     `,
@@ -661,13 +684,17 @@ function createOrganicNodeMaterial(pointTexture) {
       uScale: { value: 1 },
       uTime: { value: 0 },
       uStable: { value: 0 },
-      uRegion: { value: REGION_ALL }
+      uRegion: { value: REGION_ALL },
+      uRegionReveal: { value: new THREE.Vector3(1, 1, 1) },
+      uRegionDepth: { value: new THREE.Vector3() }
     },
     vertexShader: `
       uniform float uScale;
       uniform float uTime;
       uniform float uStable;
       uniform float uRegion;
+      uniform vec3 uRegionReveal;
+      uniform vec3 uRegionDepth;
       attribute float aSize;
       attribute float aAlpha;
       attribute float aRegion;
@@ -678,14 +705,25 @@ function createOrganicNodeMaterial(pointTexture) {
         float regionMask = uRegion < -0.5
           ? 1.0
           : 1.0 - step(0.25, abs(aRegion - uRegion));
+        float journeyReveal = aRegion < 0.5
+          ? uRegionReveal.x
+          : aRegion < 1.5
+            ? uRegionReveal.y
+            : uRegionReveal.z;
+        float journeyDepth = aRegion < 0.5
+          ? uRegionDepth.x
+          : aRegion < 1.5
+            ? uRegionDepth.y
+            : uRegionDepth.z;
         float phase = position.x * 1.63 + position.y * 1.19 + aRegion * 2.71;
         vec3 organicPosition = position;
         organicPosition.x += sin(uTime * 0.1 + phase) * 0.005 * uStable;
         organicPosition.y += cos(uTime * 0.078 + phase * 0.67) * 0.004 * uStable;
         organicPosition.z += sin(uTime * 0.061 + phase * 0.89) * 0.009 * uStable;
+        organicPosition.z += journeyDepth;
         vec4 viewPosition = modelViewMatrix * vec4(organicPosition, 1.0);
         vColor = color;
-        vAlpha = aAlpha * regionMask;
+        vAlpha = aAlpha * regionMask * journeyReveal;
         gl_PointSize = aSize * uScale * (13.5 / max(-viewPosition.z, 1.0));
         gl_Position = projectionMatrix * viewPosition;
       }

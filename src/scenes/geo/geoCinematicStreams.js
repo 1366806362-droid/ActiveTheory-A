@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createGeoDataStreams } from './geoDataStreams.js';
 import {
+  lerp,
   seededRandom,
   smootherstep
 } from './geoSignalCore.js';
@@ -80,10 +81,11 @@ export function createGeoCinematicStreams(resources, clusterConfigs, visualProfi
         : 'full';
       applyDebugVisibility();
     },
-    update(time, progress) {
-      const active = base.update(time, progress);
+    update(time, progress, journey = null) {
+      const baseProgress = journey?.baseTimeline ?? progress;
+      const active = base.update(time, baseProgress);
       attenuateBaseParticleLayer(base.group);
-      cinematic.update(time, progress);
+      cinematic.update(time, progress, journey);
       return active;
     },
     dispose() {
@@ -160,13 +162,20 @@ function createCinematicLayers(pointTexture, clusterConfigs) {
       filaments.material.uniforms.uDebugStream.value = debugCode;
       particles.setDebugStream(debugCode);
     },
-    update(time, progress) {
+    update(time, progress, journey = null) {
       const reveal = smootherstep(0.24, 0.86, progress);
+      const streamReveal = journey
+        ? [journey.answer, journey.citation, journey.keyword]
+        : [1, 1, 1];
+      const streamHeads = journey ? streamReveal : [1, 1, 1];
 
       directionField.material.uniforms.uOpacity.value = reveal;
       directionField.material.uniforms.uTime.value = time;
+      directionField.material.uniforms.uStreamReveal.value.fromArray(streamReveal);
       filaments.material.uniforms.uOpacity.value = reveal * 0.54;
-      particles.update(time, progress);
+      filaments.material.uniforms.uStreamReveal.value.fromArray(streamReveal);
+      filaments.material.uniforms.uStreamHeads.value.fromArray(streamHeads);
+      particles.update(time, progress, journey);
       if (debugStream === 'fields') {
         directionField.material.uniforms.uOpacity.value = reveal * 1.08;
       }
@@ -315,7 +324,8 @@ function createDirectionField(curves) {
     uniforms: {
       uOpacity: { value: 0 },
       uDebugStream: { value: 0 },
-      uTime: { value: 0 }
+      uTime: { value: 0 },
+      uStreamReveal: { value: new THREE.Vector3(1, 1, 1) }
     },
     vertexShader: `
       attribute vec3 color;
@@ -323,6 +333,7 @@ function createDirectionField(curves) {
       attribute float aStream;
       uniform float uDebugStream;
       uniform float uTime;
+      uniform vec3 uStreamReveal;
       varying vec3 vColor;
       varying float vAlpha;
 
@@ -333,8 +344,13 @@ function createDirectionField(curves) {
           : 0.0;
         vec3 animated = position;
         animated.z += sin(uTime * 0.035 + aStream * 1.7) * 0.004;
+        float journeyReveal = aStream < 0.5
+          ? uStreamReveal.x
+          : aStream < 1.5
+            ? uStreamReveal.y
+            : uStreamReveal.z;
         vColor = color;
-        vAlpha = aAlpha * streamVisible;
+        vAlpha = aAlpha * streamVisible * journeyReveal;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(animated, 1.0);
       }
     `,
@@ -467,7 +483,9 @@ function createFineFilaments(curves) {
   const material = new THREE.ShaderMaterial({
     uniforms: {
       uOpacity: { value: 0 },
-      uDebugStream: { value: 0 }
+      uDebugStream: { value: 0 },
+      uStreamReveal: { value: new THREE.Vector3(1, 1, 1) },
+      uStreamHeads: { value: new THREE.Vector3(1, 1, 1) }
     },
     vertexShader: `
       attribute vec3 color;
@@ -475,6 +493,8 @@ function createFineFilaments(curves) {
       attribute float aStream;
       attribute float aT;
       uniform float uDebugStream;
+      uniform vec3 uStreamReveal;
+      uniform vec3 uStreamHeads;
       varying vec3 vColor;
       varying float vAlpha;
       varying float vT;
@@ -484,8 +504,20 @@ function createFineFilaments(curves) {
           || abs(aStream - (uDebugStream - 1.0)) < 0.25
           ? 1.0
           : 0.0;
+        float journeyReveal = aStream < 0.5
+          ? uStreamReveal.x
+          : aStream < 1.5
+            ? uStreamReveal.y
+            : uStreamReveal.z;
+        float journeyHead = aStream < 0.5
+          ? uStreamHeads.x
+          : aStream < 1.5
+            ? uStreamHeads.y
+            : uStreamHeads.z;
+        float pathReveal = 1.0 - smoothstep(journeyHead - 0.035, journeyHead + 0.015, aT);
+        pathReveal = mix(pathReveal, 1.0, step(0.999, journeyHead));
         vColor = color;
-        vAlpha = aAlpha * streamVisible;
+        vAlpha = aAlpha * streamVisible * journeyReveal * pathReveal;
         vT = aT;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
@@ -540,9 +572,9 @@ function createFlowParticles(pointTexture, curves) {
       body.material.uniforms.uDebugStream.value = debugCode;
       nodes.material.uniforms.uDebugStream.value = debugCode;
     },
-    update(time, progress) {
-      body.update(time, progress);
-      nodes.update(time, progress);
+    update(time, progress, journey = null) {
+      body.update(time, progress, journey);
+      nodes.update(time, progress, journey);
     },
     dispose() {
       body.dispose();
@@ -635,8 +667,14 @@ function createParticleLayer(pointTexture, curves, highlightLayer) {
   return {
     points,
     material,
-    update(time, progress) {
+    update(time, progress, journey = null) {
       const reveal = smootherstep(0.28, 0.84, progress);
+      const effectiveTime = journey
+        ? lerp(journey.deterministicTime, time, journey.liveMotionMix)
+        : time;
+      const streamReveal = journey
+        ? [journey.answer, journey.citation, journey.keyword]
+        : [1, 1, 1];
       const positionAttribute = geometry.getAttribute('position');
       const sizeAttribute = geometry.getAttribute('aSize');
       const opacityAttribute = geometry.getAttribute('aOpacity');
@@ -644,8 +682,19 @@ function createParticleLayer(pointTexture, curves, highlightLayer) {
       for (let index = 0; index < totalCount; index += 1) {
         const curveIndex = streamIndices[index];
         const { curve, style } = curves[curveIndex];
-        const rawT = (phases[index] + time * style.speed * (highlightLayer ? 0.72 : 1)) % 1;
+        const rawT = (
+          phases[index]
+          + effectiveTime * style.speed * (highlightLayer ? 0.72 : 1)
+        ) % 1;
         const t = applyDensityWarp(style.id, rawT);
+        const journeyReveal = streamReveal[curveIndex];
+        const pathMask = journey && journeyReveal < 0.999
+          ? 1 - smootherstep(
+            Math.max(0, journeyReveal - 0.075),
+            Math.min(1, journeyReveal + 0.015),
+            t
+          )
+          : 1;
         const stride = index * 3;
         const spread = getSpreadEnvelope(style.id, t, branchIndices[index]);
         const coreShield = smootherstep(0.75, 0.91, t)
@@ -671,6 +720,8 @@ function createParticleLayer(pointTexture, curves, highlightLayer) {
           * (1 + entryLift * (highlightLayer ? 0.14 : 0.07));
         opacityAttribute.array[index] = baseOpacities[index]
           * reveal
+          * journeyReveal
+          * pathMask
           * (1 - coreShield * 0.14)
           * (1 + entryLift * (highlightLayer ? 0.18 : 0.1));
       }

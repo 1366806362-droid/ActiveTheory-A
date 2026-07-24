@@ -20,6 +20,11 @@ import { createGeoBioDigitalField } from './geo/geoBioDigitalField.js';
 import { createGeoCinematicMembraneField } from './geo/geoCinematicMembraneField.js';
 import { createGeoCinematicCoreShell } from './geo/geoCinematicCoreShell.js';
 import { createGeoCinematicStreams } from './geo/geoCinematicStreams.js';
+import {
+  createGeoCinematicJourney,
+  resolveGeoCinematicJourney
+} from './geo/geoCinematicJourney.js';
+import { setGeoCinematicGradeProgress } from './geo/geoCinematicGrade.js';
 
 const GEO_DEBUG = Object.freeze({
   showInternalPlanets: readDebugFlag('showInternalPlanets', true),
@@ -31,6 +36,9 @@ export function createGeoScene() {
   const visualProfile = versionSelection.visualProfile;
   const coreMode = versionSelection.coreMode;
   const cinematicV3 = versionSelection.activeVersion === 'v3';
+  const journeySelection = resolveGeoCinematicJourney();
+  const cinematicJourney = createGeoCinematicJourney(journeySelection);
+  if (cinematicJourney.enabled) setGeoCinematicGradeProgress(0);
   const coreDebug = resolveGeoCoreDebug(coreMode);
   const backgroundDebug = resolveGeoBackgroundDebug(visualProfile);
   const v3Debug = resolveGeoV3Debug(cinematicV3);
@@ -138,7 +146,28 @@ export function createGeoScene() {
   function update(renderState, delta, time, galaxyOpenProgress = 1, journeyProgress = 1) {
     revealProgress = clamp(galaxyOpenProgress, 0, 1);
     const journey = clamp(journeyProgress, 0, 1);
-    const backgroundReveal = smootherstep(0.18, 0.78, journey);
+    const visualProgress = cinematicJourney.enabled
+      && journeySelection.debugProgress !== null
+      ? journeySelection.debugProgress
+      : revealProgress;
+    const journeyState = cinematicJourney.enabled
+      ? cinematicJourney.update(
+        visualProgress,
+        visualProgress > 0.001 ? 'GeoScene' : 'HeroScene'
+      )
+      : null;
+    const lockedJourneyState = journeyState?.finalBaseline ? null : journeyState;
+    const visualTime = cinematicV3 && journeySelection.debugTime !== null
+      ? journeySelection.debugTime
+      : time;
+    setGeoCinematicGradeProgress(
+      journeyState?.finalBaseline ? 1 : journeyState?.gradeProgress ?? 1
+    );
+    const backgroundReveal = smootherstep(
+      0.18,
+      0.78,
+      journeyState ? visualProgress : journey
+    );
     const compactViewport = window.innerWidth < 700;
     const mediumViewport = window.innerWidth < 1500;
     const sceneScale = compactViewport
@@ -151,30 +180,41 @@ export function createGeoScene() {
       : mediumViewport
         ? visualProfile.scene.mediumPosition
         : visualProfile.scene.desktopPosition;
-    const placementProgress = smootherstep(0.2, 0.82, revealProgress);
+    const placementProgress = smootherstep(0.2, 0.82, visualProgress);
 
-    group.visible = journey > 0.001 || revealProgress > 0.001;
+    group.visible = journey > 0.001 || visualProgress > 0.001;
     group.position.set(
       lerp(
         0.08,
         finalPosition[0],
-        smootherstep(0.25, 0.76, revealProgress)
+        smootherstep(0.25, 0.76, visualProgress)
       ),
-      lerp(-0.08, finalPosition[1], smootherstep(0.25, 0.76, revealProgress)),
+      lerp(-0.08, finalPosition[1], smootherstep(0.25, 0.76, visualProgress)),
       lerp(-2.1, finalPosition[2], placementProgress)
     );
     group.scale.setScalar(lerp(0.66, 1, placementProgress) * sceneScale);
-    group.rotation.y = Math.sin(time * 0.021) * 0.009 * smootherstep(0.88, 1, revealProgress);
+    group.rotation.y = Math.sin(visualTime * 0.021) * 0.009 * smootherstep(0.88, 1, visualProgress);
 
-    background.update(time, backgroundReveal, revealProgress);
-    nebula.update(time, revealProgress);
-    const clusterProgress = businessClusters.update(time, revealProgress);
-    const activeStreamCount = streams.update(time, revealProgress);
-    const coreIntensity = core.update(time, revealProgress);
+    background.update(visualTime, backgroundReveal, visualProgress, lockedJourneyState);
+    nebula.update(visualTime, visualProgress);
+    const clusterProgress = businessClusters.update(
+      visualTime,
+      lockedJourneyState?.clusterTimeline ?? visualProgress
+    );
+    const activeStreamCount = streams.update(
+      visualTime,
+      visualProgress,
+      lockedJourneyState?.streams
+    );
+    const coreIntensity = core.update(
+      visualTime,
+      visualProgress,
+      lockedJourneyState?.core
+    );
     renderState.exposure += coreIntensity * 0.022;
 
     diagnostics.update({
-      progress: revealProgress,
+      progress: visualProgress,
       journeyProgress: journey,
       delta,
       coreIntensity,
@@ -190,6 +230,8 @@ export function createGeoScene() {
     backgroundDebugDiagnostics.dispose();
     v3DebugDiagnostics.dispose();
     v3StreamDebugDiagnostics.dispose();
+    cinematicJourney.dispose();
+    setGeoCinematicGradeProgress(1);
     background.dispose();
     core.dispose();
     businessClusters.dispose();
@@ -472,7 +514,7 @@ function createGeoBackground(resources, visualProfile) {
       bioDigital?.setDebugLayer(layer);
       cinematicField?.setDebugLayer(layer);
     },
-    update(time, reveal, localProgress) {
+    update(time, reveal, localProgress, journeyState = null) {
       const foregroundReveal = smootherstep(0.58, 0.94, localProgress);
 
       deepSpace.update(time, reveal, visualProfile.cinematic);
@@ -494,7 +536,7 @@ function createGeoBackground(resources, visualProfile) {
         depthParticles.points.rotation.z = time * 0.004;
       }
       bioDigital?.update(time, localProgress);
-      cinematicField?.update(time, localProgress);
+      cinematicField?.update(time, localProgress, journeyState?.membrane);
     },
     dispose() {
       deepSpace.dispose();
@@ -707,6 +749,8 @@ function createGeoDiagnostics({
     textureCount: resourceCounts.textureCount,
     direction: 'idle',
     activeScene: 'HeroScene',
+    transitionFps: null,
+    minTransitionFps: null,
     visualProfile,
     coreMode: versionSelection.coreMode,
     requestedVersion: versionSelection.requestedVersion,
@@ -741,6 +785,8 @@ function createGeoDiagnostics({
   let completedElapsed = 0;
   let fpsWindowFrames = 0;
   let fpsWindowElapsed = 0;
+  let transitionFrames = 0;
+  let transitionElapsed = 0;
 
   window.__GEO_SCENE_STATUS__ = status;
   publish();
@@ -757,6 +803,24 @@ function createGeoDiagnostics({
       status.activeStreamCount = activeStreamCount;
       status.direction = progressDelta > 0.0001 ? 'entering' : progressDelta < -0.0001 ? 'returning' : 'idle';
       status.activeScene = activeScene;
+      if (
+        activeScene === 'GeoScene'
+        && progress > 0.001
+        && progress < 0.98
+        && frameDelta > 0
+        && frameDelta < 0.25
+      ) {
+        transitionFrames += 1;
+        transitionElapsed += frameDelta;
+        if (transitionElapsed >= 0.3) {
+          status.transitionFps = transitionFrames / transitionElapsed;
+          status.minTransitionFps = status.minTransitionFps === null
+            ? status.transitionFps
+            : Math.min(status.minTransitionFps, status.transitionFps);
+          transitionFrames = 0;
+          transitionElapsed = 0;
+        }
+      }
       if (activeScene === 'GeoScene' && progress > 0.98 && frameDelta > 0 && frameDelta < 0.25) {
         completedFrames += 1;
         completedElapsed += frameDelta;
