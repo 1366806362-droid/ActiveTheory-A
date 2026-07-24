@@ -58,6 +58,9 @@ export function createGeoScene() {
     : coreMode === 'gyroscope'
       ? createGeoGyroscopeCore(resources, visualProfile)
       : createGeoSignalCore(resources, visualProfile);
+  const journeyPriority = cinematicJourney.enabled
+    ? createJourneyVisualPriority(core.group, businessClusters.clusters)
+    : null;
   let revealProgress = 0;
 
   group.name = 'GeoScene';
@@ -149,7 +152,9 @@ export function createGeoScene() {
     const visualProgress = cinematicJourney.enabled
       && journeySelection.debugProgress !== null
       ? journeySelection.debugProgress
-      : revealProgress;
+      : cinematicJourney.enabled
+        ? journey
+        : revealProgress;
     const journeyState = cinematicJourney.enabled
       ? cinematicJourney.update(
         visualProgress,
@@ -161,7 +166,8 @@ export function createGeoScene() {
       ? journeySelection.debugTime
       : time;
     setGeoCinematicGradeProgress(
-      journeyState?.finalBaseline ? 1 : journeyState?.gradeProgress ?? 1
+      journeyState?.finalBaseline ? 1 : journeyState?.gradeProgress ?? 1,
+      journeyState?.finalBaseline ? 1 : journeyState?.bloomProgress ?? 1
     );
     const backgroundReveal = smootherstep(
       0.18,
@@ -211,6 +217,7 @@ export function createGeoScene() {
       visualProgress,
       lockedJourneyState?.core
     );
+    journeyPriority?.apply(journeyState?.priority);
     renderState.exposure += coreIntensity * 0.022;
 
     diagnostics.update({
@@ -247,6 +254,97 @@ export function createGeoScene() {
     update,
     dispose
   };
+}
+
+function createJourneyVisualPriority(coreGroup, clusters) {
+  const dynamicCoreMaterials = [];
+  const chamberMaterials = [];
+  const clusterPresentation = new Map();
+  const chamberNames = new Set([
+    'V3.3 Chamber Fresnel Edges And Internal Traces',
+    'V3.3 Chamber Processing Nodes'
+  ]);
+
+  coreGroup.traverse((object) => {
+    const materials = getObjectMaterials(object);
+    if (chamberNames.has(object.name)) {
+      materials.forEach((material) => {
+        chamberMaterials.push({
+          material,
+          opacity: material.opacity,
+          uniformOpacity: material.uniforms?.uOpacity?.value ?? null
+        });
+      });
+      return;
+    }
+    if (
+      object.name === 'Gyroscope Data Seed'
+      || object.name.endsWith('Processing Band Particles')
+      || object.name.endsWith('Processing Band Broken Lines')
+    ) {
+      dynamicCoreMaterials.push(...materials);
+    }
+  });
+
+  clusters.forEach((cluster) => {
+    const points = cluster.group.getObjectByName(`${cluster.group.name} Particles`);
+    const title = cluster.group.children.find((child) => child.isSprite);
+
+    clusterPresentation.set(cluster.key, {
+      pointsMaterial: points?.material ?? null,
+      titleMaterial: title?.material ?? null
+    });
+  });
+
+  return {
+    apply(priority = null) {
+      const coreFactor = priority?.core ?? 1;
+      const answerFactor = priority?.answer ?? 1;
+      const citationFactor = priority?.citation ?? 1;
+
+      dynamicCoreMaterials.forEach((material) => {
+        if (material.uniforms?.uOpacity) {
+          material.uniforms.uOpacity.value = Math.min(
+            1,
+            material.uniforms.uOpacity.value * coreFactor
+          );
+        } else if (material.transparent) {
+          material.opacity = Math.min(1, material.opacity * coreFactor);
+        }
+      });
+      chamberMaterials.forEach(({ material, opacity, uniformOpacity }) => {
+        if (uniformOpacity !== null && material.uniforms?.uOpacity) {
+          material.uniforms.uOpacity.value = Math.min(1, uniformOpacity * coreFactor);
+        } else if (material.transparent) {
+          material.opacity = Math.min(1, opacity * coreFactor);
+        }
+      });
+      applyClusterFactor(
+        clusterPresentation.get('answer'),
+        answerFactor,
+        priority?.answerLabel ?? 1
+      );
+      applyClusterFactor(
+        clusterPresentation.get('citation'),
+        citationFactor,
+        priority?.citationLabel ?? 1
+      );
+    }
+  };
+}
+
+function applyClusterFactor(presentation, visualFactor, labelFactor) {
+  if (presentation?.pointsMaterial?.uniforms?.uOpacity) {
+    presentation.pointsMaterial.uniforms.uOpacity.value *= visualFactor;
+  }
+  if (presentation?.titleMaterial) {
+    presentation.titleMaterial.opacity *= labelFactor;
+  }
+}
+
+function getObjectMaterials(object) {
+  if (!object.material) return [];
+  return Array.isArray(object.material) ? object.material : [object.material];
 }
 
 function resolveGeoV3StreamDebug(enabled, search = window.location.search) {
@@ -776,6 +874,8 @@ function createGeoDiagnostics({
     cinematicParticleCount: background.cinematicParticleCount,
     cinematicSegmentCount: background.cinematicSegmentCount,
     fps: null,
+    fpsOnePercentLow: null,
+    fpsMinimum: null,
     averageFps: null,
     completedStateSeconds: 0
   };
@@ -787,6 +887,8 @@ function createGeoDiagnostics({
   let fpsWindowElapsed = 0;
   let transitionFrames = 0;
   let transitionElapsed = 0;
+  const frameTimeHistogram = new Uint32Array(121);
+  let frameSampleCount = 0;
 
   window.__GEO_SCENE_STATUS__ = status;
   publish();
@@ -803,6 +905,22 @@ function createGeoDiagnostics({
       status.activeStreamCount = activeStreamCount;
       status.direction = progressDelta > 0.0001 ? 'entering' : progressDelta < -0.0001 ? 'returning' : 'idle';
       status.activeScene = activeScene;
+      if (activeScene === 'GeoScene' && frameDelta > 0 && frameDelta < 0.25) {
+        const frameTimeMs = Math.min(120, Math.max(1, Math.round(frameDelta * 1000)));
+        const currentFps = 1 / frameDelta;
+
+        frameTimeHistogram[frameTimeMs] += 1;
+        frameSampleCount += 1;
+        status.fpsMinimum = status.fpsMinimum === null
+          ? currentFps
+          : Math.min(status.fpsMinimum, currentFps);
+        if (frameSampleCount % 60 === 0) {
+          status.fpsOnePercentLow = calculateOnePercentLow(
+            frameTimeHistogram,
+            frameSampleCount
+          );
+        }
+      }
       if (
         activeScene === 'GeoScene'
         && progress > 0.001
@@ -848,6 +966,19 @@ function createGeoDiagnostics({
     window.__GEO_SCENE_STATUS__ = status;
     document.documentElement.dataset.geoSceneStatus = JSON.stringify(status);
   }
+}
+
+function calculateOnePercentLow(histogram, sampleCount) {
+  const percentileTarget = Math.max(1, Math.ceil(sampleCount * 0.99));
+  let cumulative = 0;
+
+  for (let frameTimeMs = 1; frameTimeMs < histogram.length; frameTimeMs += 1) {
+    cumulative += histogram[frameTimeMs];
+    if (cumulative >= percentileTarget) {
+      return 1000 / frameTimeMs;
+    }
+  }
+  return 1000 / (histogram.length - 1);
 }
 
 function getGeoStage(progress) {

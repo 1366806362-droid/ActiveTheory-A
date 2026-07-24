@@ -29,12 +29,14 @@ export function resolveGeoCinematicGrade(search = window.location.search) {
   });
 }
 
-export function setGeoCinematicGradeProgress(progress = 1) {
+export function setGeoCinematicGradeProgress(progress = 1, bloomProgress = progress) {
   const value = THREE.MathUtils.clamp(progress, 0, 1);
+  const bloomValue = THREE.MathUtils.clamp(bloomProgress, 0, 1);
   GRADE_STRENGTH.value = value;
-  BLOOM_STRENGTH.value = 0.55 * value;
+  BLOOM_STRENGTH.value = 0.55 * bloomValue;
   if (import.meta.env.DEV && window.__GEO_CINEMATIC_GRADE_STATUS__) {
     window.__GEO_CINEMATIC_GRADE_STATUS__.journeyBlend = value;
+    window.__GEO_CINEMATIC_GRADE_STATUS__.journeyBloomBlend = bloomValue;
     publishStatus(window.__GEO_CINEMATIC_GRADE_STATUS__);
   }
 }
@@ -51,10 +53,12 @@ export function prepareGeoCinematicGradeScene(scene, selection) {
     bloomObjectCount: 0,
     bloomObjectNames: selectedNames,
     bloomBufferScale: 0.5,
+    renderTargetCount: selection.enabled ? 3 : 0,
     geometryAdded: 0,
     materialAdded: selection.enabled ? 1 : 0,
     textureAdded: selection.enabled ? 1 : 0,
-    journeyBlend: GRADE_STRENGTH.value
+    journeyBlend: GRADE_STRENGTH.value,
+    journeyBloomBlend: BLOOM_STRENGTH.value / 0.55
   };
 
   if (selection.enabled) {
