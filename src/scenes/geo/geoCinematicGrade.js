@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { resolveGeoRuntimeMode } from './geoVisualProfiles.js';
 
 export const GEO_CINEMATIC_BLOOM_LAYER = 1;
 const GRADE_STRENGTH = { value: 1 };
@@ -17,9 +18,14 @@ const BLOOM_OBJECT_NAMES = Object.freeze(new Set([
 ]));
 
 export function resolveGeoCinematicGrade(search = window.location.search) {
-  const params = new URLSearchParams(search);
-  const enabled = params.get('geoVisual') === 'v3-cinematic'
-    && params.get('geoGrade') === 'cinematic';
+  const runtimeMode = resolveGeoRuntimeMode(search);
+  const { params } = runtimeMode;
+  const enabled = runtimeMode.isDefaultV363
+    || (
+      !runtimeMode.hasExplicitVersion
+      && runtimeMode.explicitV3
+      && params.get('geoGrade') === 'cinematic'
+    );
 
   return Object.freeze({
     enabled,

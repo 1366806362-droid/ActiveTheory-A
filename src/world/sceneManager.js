@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { createBrandMindScene } from '../scenes/brandMindScene.js';
 import { createFiveAScene } from '../scenes/fiveAScene.js';
 import { createGeoScene } from '../scenes/geoScene.js';
+import { resolveGeoRuntimeMode } from '../scenes/geo/geoVisualProfiles.js';
 import {
   GALAXY_TOUR_ANCHORS,
   getTourAnchor,
@@ -662,10 +663,16 @@ function synchronizeGeoJourneyUxEndpoint(state, enabled) {
 }
 
 function isGeoV3JourneyWheelMode(search = window.location.search) {
-  const params = new URLSearchParams(search);
-  return params.get('geoVisual') === 'v3-cinematic'
-    && params.get('geoGrade') === 'cinematic'
-    && params.get('geoJourney') === 'v1';
+  const runtimeMode = resolveGeoRuntimeMode(search);
+  const { params } = runtimeMode;
+
+  return runtimeMode.isDefaultV363
+    || (
+      !runtimeMode.hasExplicitVersion
+      && runtimeMode.explicitV3
+      && params.get('geoGrade') === 'cinematic'
+      && params.get('geoJourney') === 'v1'
+    );
 }
 
 function applyCameraPose(renderState, position, target) {

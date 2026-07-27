@@ -1,4 +1,5 @@
 import { clamp, lerp, smootherstep } from './geoSignalCore.js';
+import { resolveGeoRuntimeMode } from './geoVisualProfiles.js';
 
 const JOURNEY_STAGES = Object.freeze([
   ['hero-space-handoff', 0, 0.12],
@@ -18,7 +19,8 @@ function linearstep(edge0, edge1, value) {
 }
 
 export function resolveGeoCinematicJourney(search = window.location.search) {
-  const params = new URLSearchParams(search);
+  const runtimeMode = resolveGeoRuntimeMode(search);
+  const { params } = runtimeMode;
   const requestedProgress = Number(params.get('geoJourneyProgress'));
   const requestedTime = Number(params.get('geoDebugTime'));
   const debugProgress = import.meta.env.DEV
@@ -32,10 +34,16 @@ export function resolveGeoCinematicJourney(search = window.location.search) {
     ? Math.max(0, requestedTime)
     : null;
   return Object.freeze({
-    enabled: params.get('geoVisual') === 'v3-cinematic'
-      && params.get('geoGrade') === 'cinematic'
-      && params.get('geoJourney') === 'v1',
-    id: params.get('geoJourney') === 'v1' ? 'v1' : 'off',
+    enabled: runtimeMode.isDefaultV363
+      || (
+        !runtimeMode.hasExplicitVersion
+        && runtimeMode.explicitV3
+        && params.get('geoGrade') === 'cinematic'
+        && params.get('geoJourney') === 'v1'
+      ),
+    id: runtimeMode.isDefaultV363 || params.get('geoJourney') === 'v1'
+      ? 'v1'
+      : 'off',
     debugProgress,
     debugTime
   });

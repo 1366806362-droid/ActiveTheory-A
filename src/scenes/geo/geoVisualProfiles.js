@@ -149,9 +149,43 @@ const GEO_VERSION_CONFIGS = Object.freeze({
   })
 });
 
-export function resolveGeoVersionSelection(search = window.location.search) {
+const GEO_EXPLICIT_MODE_PARAMS = Object.freeze([
+  'geoVersion',
+  'geoVisual',
+  'geoCore',
+  'geoBackground',
+  'geoCoreDebug',
+  'geoCoreLayer',
+  'geoBackgroundLayer',
+  'geoV3Layer',
+  'geoV3Stream',
+  'geoGrade',
+  'geoGradeLayer',
+  'geoJourney',
+  'geoJourneyProgress',
+  'geoDebugTime'
+]);
+
+export function resolveGeoRuntimeMode(search = window.location.search) {
   const params = new URLSearchParams(search);
   const explicitVersion = params.get('geoVersion');
+  const explicitVisual = params.get('geoVisual');
+  const hasExplicitMode = GEO_EXPLICIT_MODE_PARAMS.some((name) => params.has(name))
+    || params.get('scene') === 'geo';
+
+  return Object.freeze({
+    params,
+    explicitVersion,
+    explicitVisual,
+    hasExplicitVersion: explicitVersion !== null,
+    explicitV3: explicitVisual === 'v3-cinematic',
+    isDefaultV363: !hasExplicitMode
+  });
+}
+
+export function resolveGeoVersionSelection(search = window.location.search) {
+  const runtimeMode = resolveGeoRuntimeMode(search);
+  const { params, explicitVersion } = runtimeMode;
 
   if (explicitVersion) {
     const config = GEO_VERSION_CONFIGS[explicitVersion] ?? GEO_VERSION_CONFIGS.v24;
@@ -164,16 +198,16 @@ export function resolveGeoVersionSelection(search = window.location.search) {
     }, params);
   }
 
-  if (params.get('geoVisual') === 'v3-cinematic') {
+  if (runtimeMode.explicitV3 || runtimeMode.isDefaultV363) {
     return Object.freeze({
       ...GEO_VERSION_CONFIGS.v3,
       requestedVersion: 'v3',
-      isDefaultVersion: false,
+      isDefaultVersion: runtimeMode.isDefaultV363,
       fallbackUsed: false,
-      legacyQueryUsed: true,
+      legacyQueryUsed: runtimeMode.explicitV3,
       requestedBackground: 'cinematic-organic-v3',
       activeBackground: 'cinematic-organic-v3',
-      backgroundIsDefault: false,
+      backgroundIsDefault: runtimeMode.isDefaultV363,
       backgroundFallbackUsed: false
     });
   }
