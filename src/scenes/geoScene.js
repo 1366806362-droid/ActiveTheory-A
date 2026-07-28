@@ -25,6 +25,7 @@ import {
   resolveGeoCinematicJourney
 } from './geo/geoCinematicJourney.js';
 import { setGeoCinematicGradeProgress } from './geo/geoCinematicGrade.js';
+import { createGeoV4Visual } from './geo/geoV4Visual.js';
 
 const GEO_DEBUG = Object.freeze({
   showInternalPlanets: readDebugFlag('showInternalPlanets', true),
@@ -33,6 +34,9 @@ const GEO_DEBUG = Object.freeze({
 });
 export function createGeoScene() {
   const versionSelection = resolveGeoVersionSelection();
+  if (versionSelection.activeVersion === 'v4') {
+    return createGeoV4StaticScene(versionSelection);
+  }
   const visualProfile = versionSelection.visualProfile;
   const coreMode = versionSelection.coreMode;
   const cinematicV3 = versionSelection.activeVersion === 'v3';
@@ -253,6 +257,154 @@ export function createGeoScene() {
     group,
     update,
     dispose
+  };
+}
+
+function createGeoV4StaticScene(versionSelection) {
+  const visualProfile = versionSelection.visualProfile;
+  const group = new THREE.Group();
+  const resources = createGeoVisualResources();
+  const visual = createGeoV4Visual(resources);
+  const resourceCounts = countSceneResources(visual.group);
+  const fps = createLightweightFps();
+  let diagnosticsFrame = 0;
+
+  group.name = 'GeoScene';
+  visual.group.position.set(...visualProfile.scene.corePosition);
+  group.add(visual.group);
+  setGeoCinematicGradeProgress(1, 1);
+  document.documentElement.dataset.geoMode = 'v4-organic';
+  document.documentElement.dataset.geoV4Instances = '1';
+
+  const v4Status = {
+    ...visual.diagnostics,
+    activeVersion: 'v4',
+    activeBackground: 'organic-neural-v4',
+    gradeEnabled: false,
+    journeyEnabled: false,
+    canvasCount: document.querySelectorAll('canvas').length,
+    resources: resourceCounts,
+    fpsAverage: 0,
+    fpsOnePercentLow: 0,
+    fpsMinimum: 0,
+    localProgress: 0
+  };
+  const geoStatus = {
+    requestedVersion: 'v4',
+    activeVersion: 'v4',
+    isDefaultVersion: false,
+    fallbackUsed: false,
+    legacyQueryUsed: false,
+    coreType: 'organic-neural-core',
+    coreInstanceCount: 1,
+    requestedBackground: 'organic-neural-v4',
+    activeBackground: 'organic-neural-v4',
+    backgroundInstanceCount: 1
+  };
+  window.__GEO_V4_STATUS__ = v4Status;
+  window.__GEO_SCENE_STATUS__ = geoStatus;
+  document.documentElement.dataset.geoV4Status = JSON.stringify(v4Status);
+  document.documentElement.dataset.geoSceneStatus = JSON.stringify(geoStatus);
+
+  function update(renderState, delta, time, galaxyOpenProgress = 1) {
+    const reveal = clamp(galaxyOpenProgress, 0, 1);
+    const compactViewport = window.innerWidth < 700;
+    const mediumViewport = window.innerWidth < 1500;
+    const sceneScale = compactViewport
+      ? visualProfile.scene.compactScale
+      : mediumViewport
+        ? visualProfile.scene.mediumScale
+        : visualProfile.scene.desktopScale;
+    const finalPosition = compactViewport
+      ? visualProfile.scene.compactPosition
+      : mediumViewport
+        ? visualProfile.scene.mediumPosition
+        : visualProfile.scene.desktopPosition;
+    const placement = smootherstep(0.08, 0.82, reveal);
+    const contentReveal = smootherstep(0.05, 0.72, reveal);
+
+    group.visible = reveal > 0.001;
+    group.position.set(
+      lerp(0.02, finalPosition[0], placement),
+      lerp(-0.04, finalPosition[1], placement),
+      lerp(-1.75, finalPosition[2], placement)
+    );
+    group.scale.setScalar(lerp(0.86, 1, placement) * sceneScale);
+    visual.update(time, contentReveal);
+    renderState.exposure += contentReveal * 0.006;
+    fps.update(delta);
+
+    if (window.__GEO_V4_STATUS__) {
+      Object.assign(window.__GEO_V4_STATUS__, {
+        localProgress: reveal,
+        fpsAverage: fps.average,
+        fpsOnePercentLow: fps.onePercentLow,
+        fpsMinimum: fps.minimum
+      });
+    }
+    diagnosticsFrame += 1;
+    if (diagnosticsFrame % 60 === 0) {
+      v4Status.canvasCount = document.querySelectorAll('canvas').length;
+      document.documentElement.dataset.geoV4Status = JSON.stringify(v4Status);
+    }
+  }
+
+  function dispose() {
+    visual.dispose();
+    resources.dispose();
+    group.clear();
+    delete document.documentElement.dataset.geoMode;
+    delete document.documentElement.dataset.geoV4Instances;
+    delete document.documentElement.dataset.geoV4Status;
+    delete document.documentElement.dataset.geoSceneStatus;
+    if (window.__GEO_V4_STATUS__ === v4Status) delete window.__GEO_V4_STATUS__;
+    if (window.__GEO_SCENE_STATUS__ === geoStatus) delete window.__GEO_SCENE_STATUS__;
+  }
+
+  return {
+    name: 'GeoScene',
+    group,
+    update,
+    dispose
+  };
+}
+
+function createLightweightFps() {
+  let elapsed = 0;
+  let frames = 0;
+  let average = 0;
+  let onePercentLow = 0;
+  let minimum = Infinity;
+  let sampleCount = 0;
+  const histogram = new Uint32Array(101);
+  return {
+    get average() {
+      return average;
+    },
+    get onePercentLow() {
+      return onePercentLow;
+    },
+    get minimum() {
+      return Number.isFinite(minimum) ? minimum : 0;
+    },
+    update(delta) {
+      elapsed += delta;
+      frames += 1;
+      if (delta > 0 && delta < 0.1) {
+        const frameTimeMs = Math.min(100, Math.max(1, Math.round(delta * 1000)));
+        histogram[frameTimeMs] += 1;
+        sampleCount += 1;
+        minimum = Math.min(minimum, 1 / delta);
+        if (sampleCount % 60 === 0) {
+          onePercentLow = calculateOnePercentLow(histogram, sampleCount);
+        }
+      }
+      if (elapsed >= 1) {
+        average = frames / elapsed;
+        elapsed = 0;
+        frames = 0;
+      }
+    }
   };
 }
 

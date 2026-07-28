@@ -122,6 +122,24 @@ export const GEO_VISUAL_V3_CINEMATIC = Object.freeze({
   })
 });
 
+export const GEO_VISUAL_V4_ORGANIC = Object.freeze({
+  ...GEO_VISUAL_V3_CINEMATIC,
+  id: 'v4-organic-neural-space',
+  backgroundMode: 'organic-neural-v4',
+  scene: Object.freeze({
+    ...GEO_VISUAL_V3_CINEMATIC.scene,
+    corePosition: [0, 0, 0],
+    desktopScale: 1.08,
+    mediumScale: 0.94,
+    compactScale: 0.68,
+    desktopPosition: [0, 0, -0.7],
+    mediumPosition: [0, 0, -0.74],
+    compactPosition: [-0.02, -0.01, -1.12],
+    foregroundParticles: 0,
+    backgroundStars: 0
+  })
+});
+
 const GEO_VERSION_CONFIGS = Object.freeze({
   v12: Object.freeze({
     activeVersion: 'v12',
@@ -146,6 +164,12 @@ const GEO_VERSION_CONFIGS = Object.freeze({
     visualProfile: GEO_VISUAL_V3_CINEMATIC,
     coreMode: 'cinematic-shell',
     coreType: 'cinematic-organic-shell'
+  }),
+  v4: Object.freeze({
+    activeVersion: 'v4',
+    visualProfile: GEO_VISUAL_V4_ORGANIC,
+    coreMode: 'organic-neural',
+    coreType: 'organic-neural-core'
   })
 });
 
@@ -163,7 +187,8 @@ const GEO_EXPLICIT_MODE_PARAMS = Object.freeze([
   'geoGradeLayer',
   'geoJourney',
   'geoJourneyProgress',
-  'geoDebugTime'
+  'geoDebugTime',
+  'geoV4Layer'
 ]);
 
 export function resolveGeoRuntimeMode(search = window.location.search) {
@@ -179,6 +204,7 @@ export function resolveGeoRuntimeMode(search = window.location.search) {
     explicitVisual,
     hasExplicitVersion: explicitVersion !== null,
     explicitV3: explicitVisual === 'v3-cinematic',
+    explicitV4: explicitVisual === 'v4-organic',
     isDefaultV363: !hasExplicitMode
   });
 }
@@ -208,6 +234,20 @@ export function resolveGeoVersionSelection(search = window.location.search) {
       requestedBackground: 'cinematic-organic-v3',
       activeBackground: 'cinematic-organic-v3',
       backgroundIsDefault: runtimeMode.isDefaultV363,
+      backgroundFallbackUsed: false
+    });
+  }
+
+  if (runtimeMode.explicitV4) {
+    return Object.freeze({
+      ...GEO_VERSION_CONFIGS.v4,
+      requestedVersion: 'v4',
+      isDefaultVersion: false,
+      fallbackUsed: false,
+      legacyQueryUsed: false,
+      requestedBackground: 'organic-neural-v4',
+      activeBackground: 'organic-neural-v4',
+      backgroundIsDefault: false,
       backgroundFallbackUsed: false
     });
   }
