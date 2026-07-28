@@ -1,506 +1,649 @@
 import * as THREE from 'three';
-import {
-  createSignalPointsMaterial,
-  seededRandom
-} from './geoSignalCore.js';
 
-export const GEO_V4_TISSUE_FIELD = Object.freeze({
-  center: Object.freeze([-0.02, -0.14, -0.34]),
-  answer: Object.freeze({
-    origin: Object.freeze([-1.58, 0.5, -0.28]),
-    branches: Object.freeze([
-      Object.freeze([[-2.78, 0.28, -0.62], [-2.38, 0.58, -0.48], [-1.92, 0.54, -0.3], [-1.52, 0.38, -0.22], [-1.16, 0.18, -0.24]]),
-      Object.freeze([[-2.62, 1.12, -0.72], [-2.24, 0.9, -0.52], [-1.92, 0.62, -0.3], [-1.58, 0.48, -0.2], [-1.22, 0.3, -0.23]]),
-      Object.freeze([[-2.72, -0.28, -0.6], [-2.32, -0.08, -0.42], [-1.96, 0.28, -0.25], [-1.58, 0.46, -0.18], [-1.18, 0.28, -0.22]]),
-      Object.freeze([[-2.32, 0.18, -0.54], [-2.02, 0.34, -0.34], [-1.72, 0.5, -0.2], [-1.48, 0.62, -0.22]]),
-      Object.freeze([[-2.26, 0.9, -0.58], [-2.08, 0.72, -0.38], [-1.82, 0.56, -0.2]]),
-      Object.freeze([[-1.72, 0.5, -0.2], [-1.38, 0.26, -0.2], [-1.02, 0.08, -0.26], [-0.7, -0.03, -0.28], [-0.38, -0.09, -0.31]])
-    ])
-  }),
-  citation: Object.freeze({
-    origin: Object.freeze([1.38, 0.62, -0.34]),
-    branches: Object.freeze([
-      Object.freeze([[2.5, 1.18, -0.74], [2.08, 1.06, -0.54], [1.76, 0.84, -0.34], [1.42, 0.62, -0.24], [1.08, 0.43, -0.28]]),
-      Object.freeze([[2.72, 0.7, -0.68], [2.28, 0.72, -0.5], [1.86, 0.62, -0.32], [1.46, 0.52, -0.22], [1.12, 0.36, -0.28]]),
-      Object.freeze([[2.42, 0.18, -0.64], [2.04, 0.28, -0.46], [1.72, 0.42, -0.3], [1.38, 0.5, -0.22], [1.08, 0.34, -0.28]]),
-      Object.freeze([[1.78, 1.28, -0.62], [1.64, 1.02, -0.44], [1.48, 0.76, -0.27], [1.3, 0.56, -0.22]]),
-      Object.freeze([[1.08, 0.4, -0.26], [0.82, 0.23, -0.26], [0.56, 0.08, -0.29], [0.3, -0.03, -0.31], [0.12, -0.1, -0.33]])
-    ])
-  }),
-  keyword: Object.freeze({
-    origin: Object.freeze([1.42, -0.65, -0.24]),
-    branches: Object.freeze([
-      Object.freeze([[2.86, -1.18, -0.62], [2.42, -1.04, -0.48], [2.04, -0.86, -0.32], [1.66, -0.66, -0.2], [1.26, -0.45, -0.22], [0.86, -0.28, -0.26]]),
-      Object.freeze([[2.78, -0.42, -0.58], [2.34, -0.5, -0.44], [1.98, -0.58, -0.28], [1.62, -0.58, -0.18], [1.22, -0.42, -0.21], [0.84, -0.26, -0.26]]),
-      Object.freeze([[2.34, -1.32, -0.54], [2.12, -1.06, -0.4], [1.84, -0.82, -0.24], [1.56, -0.66, -0.18]]),
-      Object.freeze([[2.28, -0.28, -0.52], [2.04, -0.46, -0.36], [1.78, -0.58, -0.2], [1.52, -0.58, -0.17]]),
-      Object.freeze([[0.9, -0.29, -0.25], [0.66, -0.22, -0.28], [0.43, -0.17, -0.3], [0.2, -0.13, -0.32]])
-    ])
-  })
-});
-
-export function createGeoV4TissueCurve(points) {
-  return new THREE.CatmullRomCurve3(
-    points.map((point) => new THREE.Vector3(...point)),
-    false,
-    'catmullrom',
-    0.42
-  );
-}
-
-const ORGANIC_SHEETS = Object.freeze([
+const MEMBRANE_PATCHES = Object.freeze([
   Object.freeze({
-    seed: 4401,
-    layer: 'mid',
-    width: 0.86,
-    depth: -0.54,
-    opacity: 0.145,
-    color: '#58caed',
-    coreAt: 'end',
-    points: [[-3.2, 0.18], [-2.78, 0.78], [-2.18, 1.02], [-1.64, 0.76], [-1.08, 0.5], [-0.54, 0.16]]
+    key: 'rear',
+    name: 'rear-left-canopy',
+    center: Object.freeze([-2.04, 0.88]),
+    scale: Object.freeze([2.25, 1.02]),
+    color: '#1d4d68',
+    opacity: 0.104,
+    seed: 0.73,
+    z: -0.78,
+    rotation: -0.11,
+    bend: 0.22,
+    cavity: 0.15,
+    parallax: 0.003
   }),
   Object.freeze({
-    seed: 4402,
-    layer: 'mid',
-    width: 0.8,
-    depth: -0.66,
-    opacity: 0.132,
-    color: '#8ecde8',
-    coreAt: 'start',
-    points: [[0.5, 0.2], [0.96, 0.72], [1.48, 1.12], [2.08, 1.18], [2.62, 0.86], [3.16, 0.3]]
+    key: 'rear',
+    name: 'rear-right-canopy',
+    center: Object.freeze([0.56, 0.44]),
+    scale: Object.freeze([2.55, 1.24]),
+    color: '#204c66',
+    opacity: 0.094,
+    seed: 1.91,
+    z: -0.86,
+    rotation: 0.14,
+    bend: 0.19,
+    cavity: 0.19,
+    parallax: 0.0035
   }),
   Object.freeze({
-    seed: 4403,
-    layer: 'foreground',
-    width: 0.86,
-    depth: 0.7,
-    opacity: 0.072,
-    color: '#4babc8',
-    coreAt: 'end',
-    points: [[-3.48, -1.54], [-2.8, -1.28], [-2.14, -1.02], [-1.5, -1.04], [-0.92, -0.72], [-0.42, -0.3]]
+    key: 'mid',
+    name: 'answer-tissue',
+    center: Object.freeze([-2.08, 0.42]),
+    scale: Object.freeze([1.66, 0.82]),
+    color: '#54c6e2',
+    opacity: 0.242,
+    seed: 2.47,
+    z: -0.12,
+    rotation: -0.23,
+    bend: 0.28,
+    cavity: 0.28,
+    parallax: 0.006
   }),
   Object.freeze({
-    seed: 4404,
-    layer: 'mid',
-    width: 0.76,
-    depth: -0.42,
-    opacity: 0.137,
-    color: '#31b9d2',
-    coreAt: 'end',
-    points: [[3.3, -1.02], [2.82, -0.58], [2.28, -0.5], [1.72, -0.62], [1.12, -0.46], [0.52, -0.16]]
+    key: 'mid',
+    name: 'citation-tissue',
+    center: Object.freeze([1.86, 0.66]),
+    scale: Object.freeze([1.44, 0.76]),
+    color: '#87a8c0',
+    opacity: 0.208,
+    seed: 3.38,
+    z: -0.25,
+    rotation: 0.2,
+    bend: 0.24,
+    cavity: 0.3,
+    parallax: 0.0065
   }),
   Object.freeze({
-    seed: 4405,
-    layer: 'rear',
-    width: 0.9,
-    depth: -1.34,
-    opacity: 0.086,
-    color: '#2d769b',
-    points: [[-3.45, 1.16], [-2.62, 1.48], [-1.66, 1.36], [-0.68, 1.52], [0.42, 1.44], [1.54, 1.34], [2.6, 1.48], [3.42, 1.04]]
-  })
-]);
-
-const ORGANIC_BRIDGES = Object.freeze([
-  Object.freeze({
-    seed: 4511,
-    layer: 'rear',
-    width: 0.72,
-    depth: -1.48,
-    opacity: 0.068,
-    color: '#245d7e',
-    nodeCount: 0,
-    tissueBridge: true,
-    points: [[-2.2, 1.02], [-1.38, 1.18], [-0.48, 1.08], [0.38, 1.16], [1.28, 1.05], [2.08, 0.9]]
+    key: 'mid',
+    name: 'keyword-tissue',
+    center: Object.freeze([1.88, -0.78]),
+    scale: Object.freeze([1.66, 0.7]),
+    color: '#3bb6c8',
+    opacity: 0.214,
+    seed: 4.41,
+    z: -0.08,
+    rotation: -0.12,
+    bend: 0.24,
+    cavity: 0.32,
+    parallax: 0.007
   }),
   Object.freeze({
-    seed: 4512,
-    layer: 'mid',
-    width: 0.68,
-    depth: -0.82,
-    opacity: 0.128,
-    color: '#397f9e',
-    nodeCount: 0,
-    tissueBridge: true,
-    points: [[-1.7, 0.54], [-1.14, 0.45], [-0.58, 0.28], [-0.04, 0.16], [0.54, 0.3], [1.18, 0.52]]
+    key: 'mid',
+    name: 'central-upper-bridge',
+    center: Object.freeze([-0.02, -0.02]),
+    scale: Object.freeze([1.32, 0.76]),
+    color: '#326b84',
+    opacity: 0.142,
+    seed: 5.63,
+    z: -1.08,
+    rotation: 0.05,
+    bend: 0.34,
+    cavity: 0.46,
+    parallax: 0.005
   }),
   Object.freeze({
-    seed: 4513,
-    layer: 'mid',
-    width: 0.62,
-    depth: -0.76,
-    opacity: 0.122,
-    color: '#28758e',
-    nodeCount: 0,
-    tissueBridge: true,
-    points: [[-1.62, -0.7], [-1.06, -0.5], [-0.54, -0.32], [-0.04, -0.23], [0.54, -0.38], [1.22, -0.64], [1.84, -0.7]]
+    key: 'mid',
+    name: 'central-lower-bridge',
+    center: Object.freeze([0.08, -0.72]),
+    scale: Object.freeze([1.52, 0.5]),
+    color: '#397d95',
+    opacity: 0.164,
+    seed: 6.74,
+    z: -0.42,
+    rotation: -0.06,
+    bend: 0.27,
+    cavity: 0.68,
+    parallax: 0.005
   }),
   Object.freeze({
-    seed: 4514,
-    layer: 'foreground',
-    width: 0.78,
-    depth: 0.82,
-    opacity: 0.052,
-    color: '#2e748b',
-    nodeCount: 0,
-    tissueBridge: true,
-    points: [[-2.84, -1.34], [-2.08, -1.16], [-1.26, -1.02], [-0.42, -0.88], [0.38, -0.94]]
+    key: 'foreground',
+    name: 'foreground-left-fold',
+    center: Object.freeze([-3.12, -1.04]),
+    scale: Object.freeze([1.58, 0.9]),
+    color: '#356e82',
+    opacity: 0.046,
+    seed: 7.82,
+    z: 0.72,
+    rotation: 0.28,
+    bend: 0.38,
+    cavity: 0.05,
+    parallax: 0.016
   }),
   Object.freeze({
-    seed: 4515,
-    layer: 'rear',
-    width: 0.64,
-    depth: -1.38,
-    opacity: 0.074,
-    color: '#23546f',
-    nodeCount: 0,
-    tissueBridge: true,
-    points: [[1.38, 0.78], [1.72, 0.42], [1.9, 0.02], [1.96, -0.42], [1.78, -0.82]]
+    key: 'foreground',
+    name: 'foreground-top-fold',
+    center: Object.freeze([0.55, 1.58]),
+    scale: Object.freeze([2.05, 0.56]),
+    color: '#315f71',
+    opacity: 0.044,
+    seed: 8.96,
+    z: 0.64,
+    rotation: -0.08,
+    bend: 0.34,
+    cavity: 0.1,
+    parallax: 0.014
   })
 ]);
 
-export function createGeoV4OrganicEnvironment(resources) {
+export function createGeoV4OrganicEnvironment(resources, sharedField) {
   const group = new THREE.Group();
-  const deepSpace = createDeepSpace();
-  const farSignals = createFarSignals(resources.pointTexture, 286);
-  const spatialGlows = createSpatialGlowFields(resources.hazeTexture);
-  const sheets = createOrganicSheets(resources.pointTexture);
+  const patchGeometry = createMembranePatchGeometry();
+  const patches = MEMBRANE_PATCHES.map((spec) => (
+    createMembranePatch(patchGeometry, spec, sharedField)
+  ));
+  const cells = createCellNetwork(sharedField);
+  const fibers = createSharedFibers(sharedField);
+  const nodes = createMembraneNodes(sharedField, resources.pointTexture);
 
-  group.name = 'GEO V4 Organic Neural Environment';
-  deepSpace.mesh.renderOrder = -30;
-  farSignals.points.renderOrder = -20;
-  group.add(
-    deepSpace.mesh,
-    farSignals.points,
-    spatialGlows.group,
-    sheets.group
-  );
+  group.name = 'GEO V4 Shared Organic Environment';
+  patches.forEach(({ mesh }) => group.add(mesh));
+  group.add(cells.patchMesh, cells.mesh, fibers.lines, nodes.points);
 
   let debugLayer = 'full';
   applyDebugLayer();
 
   return {
     group,
-    particleCount: farSignals.particleCount
-      + sheets.particleCount,
-    segmentCount: sheets.segmentCount,
-    foregroundParticleCount: sheets.foregroundParticleCount,
+    particleCount: nodes.particleCount,
+    segmentCount: cells.segmentCount + fibers.segmentCount,
+    foregroundParticleCount: nodes.foregroundParticleCount,
     setDebugLayer(layer = 'full') {
       debugLayer = layer;
       applyDebugLayer();
     },
-    update(time, reveal, pointer = null) {
-      const opacity = Math.max(0, Math.min(1, reveal));
-      deepSpace.update(time, opacity);
-      farSignals.material.uniforms.uOpacity.value = opacity * 0.23;
-      farSignals.points.rotation.y = time * 0.0017;
-      spatialGlows.update(opacity);
-      sheets.update(time, opacity, pointer);
+    update(time, reveal = 1, pointer = null) {
+      const opacity = THREE.MathUtils.clamp(reveal, 0, 1);
+      const px = pointer?.x ?? 0;
+      const py = pointer?.y ?? 0;
+
+      patches.forEach(({ mesh, material, spec, basePosition }) => {
+        material.uniforms.uTime.value = time;
+        material.uniforms.uOpacity.value = opacity * spec.opacity;
+        const targetX = basePosition.x + px * spec.parallax;
+        const targetY = basePosition.y - py * spec.parallax * 0.58;
+        mesh.position.x += (targetX - mesh.position.x) * 0.028;
+        mesh.position.y += (targetY - mesh.position.y) * 0.028;
+      });
+      cells.material.uniforms.uTime.value = time;
+      cells.material.uniforms.uOpacity.value = opacity * 0.092;
+      cells.patchMaterial.uniforms.uTime.value = time;
+      cells.patchMaterial.uniforms.uOpacity.value = opacity * 0.076;
+      fibers.material.uniforms.uTime.value = time;
+      fibers.material.uniforms.uOpacity.value = opacity * 0.19;
+      nodes.material.uniforms.uTime.value = time;
+      nodes.material.uniforms.uOpacity.value = opacity * 0.26;
+      const tissueX = px * 0.006;
+      const tissueY = -py * 0.0035;
+      [cells.patchMesh, cells.mesh, fibers.lines, nodes.points].forEach((object) => {
+        object.position.x += (tissueX - object.position.x) * 0.028;
+        object.position.y += (tissueY - object.position.y) * 0.028;
+      });
     },
     dispose() {
-      deepSpace.dispose();
-      farSignals.dispose();
-      spatialGlows.dispose();
-      sheets.dispose();
+      patchGeometry.dispose();
+      patches.forEach(({ material }) => material.dispose());
+      cells.dispose();
+      fibers.dispose();
+      nodes.dispose();
       group.clear();
     }
   };
 
   function applyDebugLayer() {
     const full = debugLayer === 'full';
-    const organism = debugLayer === 'organism';
-    deepSpace.mesh.visible = full
-      || organism
-      || debugLayer === 'environment'
-      || debugLayer === 'rear'
-      || debugLayer === 'mid'
-      || debugLayer === 'foreground'
-      || debugLayer === 'cavity'
-      || debugLayer === 'surface'
-      || debugLayer === 'cells'
-      || debugLayer === 'fibers';
-    farSignals.points.visible = full || organism || debugLayer === 'environment';
-    spatialGlows.group.visible = full || organism || debugLayer === 'environment';
-    sheets.group.visible = full
-      || organism
-      || debugLayer === 'environment'
-      || debugLayer === 'rear'
-      || debugLayer === 'mid'
-      || debugLayer === 'foreground'
-      || debugLayer === 'cavity'
-      || debugLayer === 'surface'
-      || debugLayer === 'cells'
-      || debugLayer === 'fibers';
-    sheets.setDebugLayer(debugLayer);
-  }
-}
-
-function createSpatialGlowFields(texture) {
-  const group = new THREE.Group();
-  const cyanMaterial = new THREE.SpriteMaterial({
-    map: texture,
-    color: '#147ca4',
-    transparent: true,
-    opacity: 0,
-    depthWrite: false,
-    depthTest: true,
-    blending: THREE.AdditiveBlending,
-    toneMapped: false
-  });
-  const violetMaterial = new THREE.SpriteMaterial({
-    map: texture,
-    color: '#5c69a8',
-    transparent: true,
-    opacity: 0,
-    depthWrite: false,
-    depthTest: true,
-    blending: THREE.AdditiveBlending,
-    toneMapped: false
-  });
-  const definitions = [
-    { position: [-1.55, 0.42, -0.82], scale: [2.9, 1.85], material: cyanMaterial },
-    { position: [-0.08, -0.08, -0.96], scale: [2.15, 1.3], material: cyanMaterial },
-    { position: [1.48, -0.52, -0.78], scale: [2.25, 1.35], material: cyanMaterial },
-    { position: [1.43, 0.62, -0.92], scale: [2.45, 1.55], material: violetMaterial }
-  ];
-  definitions.forEach((definition, index) => {
-    const sprite = new THREE.Sprite(definition.material);
-    sprite.name = `GEO V4 Local Organic Light Field ${index + 1}`;
-    sprite.position.set(...definition.position);
-    sprite.scale.set(definition.scale[0], definition.scale[1], 1);
-    sprite.renderOrder = -7;
-    group.add(sprite);
-  });
-  return {
-    group,
-    update(reveal) {
-      cyanMaterial.opacity = reveal * 0.105;
-      violetMaterial.opacity = reveal * 0.058;
-    },
-    dispose() {
-      cyanMaterial.dispose();
-      violetMaterial.dispose();
-      group.clear();
-    }
-  };
-}
-
-function createOrganicSheets(texture) {
-  const group = new THREE.Group();
-  const layerOrder = ['rear', 'mid', 'foreground'];
-  const builders = Object.fromEntries(layerOrder.map((layer) => [layer, createMembraneBuilder()]));
-  const layerGroups = Object.fromEntries(layerOrder.map((layer) => [layer, new THREE.Group()]));
-  const layerObjects = {};
-  const surfaceMaterials = Object.fromEntries(
-    layerOrder.map((layer) => [layer, createOrganicSurfaceMaterial(layer)])
-  );
-  const cellMaterials = Object.fromEntries(
-    layerOrder.map((layer) => [layer, createOrganicCellMaterial(layer)])
-  );
-  const fiberMaterial = createOrganicLineMaterial();
-  const nodeMaterial = createOrganicPointMaterial(texture);
-  const geometries = [];
-  const ice = new THREE.Color('#b8f4ff');
-  let segmentCount = 0;
-
-  [...ORGANIC_SHEETS, ...ORGANIC_BRIDGES].forEach((definition, sheetIndex) => {
-    const builder = builders[definition.layer];
-    const random = seededRandom(definition.seed);
-    const baseColor = new THREE.Color(definition.color);
-    const curve = new THREE.CatmullRomCurve3(
-      definition.points.map(([x, y], index) => new THREE.Vector3(
-        x,
-        y,
-        definition.depth + Math.sin(index * 1.53 + sheetIndex * 0.8) * 0.1
-      )),
-      false,
-      'catmullrom',
-      0.42
-    );
-    appendSoftVeil(builder.surface, curve, definition, sheetIndex, random, baseColor, ice);
-    const fibers = appendNeuralFibers(
-      builder.fibers,
-      curve,
-      definition,
-      sheetIndex,
-      random,
-      baseColor,
-      ice
-    );
-    segmentCount += fibers.segmentCount;
-    if (definition.nodeCount !== 0) {
-      appendMembraneNodes(
-        builder.nodes,
-        fibers.curves,
-        definition,
-        sheetIndex,
-        random,
-        baseColor,
-        ice
-      );
-    }
-  });
-
-  segmentCount += appendUnifiedTissueField(builders.mid, ice);
-  segmentCount += appendOrganismCellularLace(builders.mid, ice);
-  segmentCount += appendCoreCavityResponse(builders.mid, ice);
-
-  layerOrder.forEach((layer, layerIndex) => {
-    const builder = builders[layer];
-    const surfaceGeometry = buildSurfaceGeometry(builder.surface);
-    const fiberGeometry = buildFiberGeometry(builder.fibers);
-    const nodeGeometry = buildNodeGeometry(builder.nodes);
-    const surfaces = new THREE.Mesh(surfaceGeometry, surfaceMaterials[layer]);
-    const cells = new THREE.Mesh(surfaceGeometry, cellMaterials[layer]);
-    const fibers = new THREE.LineSegments(fiberGeometry, fiberMaterial);
-    const nodes = new THREE.Points(nodeGeometry, nodeMaterial);
-    const renderBase = layer === 'rear' ? -12 : layer === 'mid' ? -4 : 16;
-
-    surfaces.name = `GEO V4 ${layer} Soft Veil Surfaces`;
-    cells.name = `GEO V4 ${layer} Cellular Web Boundaries`;
-    fibers.name = `GEO V4 ${layer} Internal Neural Fibers`;
-    nodes.name = `GEO V4 ${layer} Membrane Nodes`;
-    surfaces.renderOrder = renderBase;
-    cells.renderOrder = renderBase + 1;
-    fibers.renderOrder = renderBase + 2;
-    nodes.renderOrder = renderBase + 3;
-    layerGroups[layer].name = `GEO V4 ${layer} Organic Membrane Depth Layer`;
-    layerGroups[layer].add(surfaces, cells, fibers, nodes);
-    layerObjects[layer] = { surfaces, cells, fibers, nodes };
-    group.add(layerGroups[layer]);
-    geometries.push(surfaceGeometry, fiberGeometry, nodeGeometry);
-  });
-
-  group.name = 'GEO V4 Soft Organic Membrane Depth Field';
-  let debugLayer = 'full';
-  let foregroundParticleCount = builders.foreground.nodes.positions.length / 3;
-
-  return {
-    group,
-    particleCount: layerOrder.reduce(
-      (total, layer) => total + builders[layer].nodes.positions.length / 3,
-      0
-    ),
-    segmentCount,
-    foregroundParticleCount,
-    setDebugLayer(layer = 'full') {
-      debugLayer = layer;
-      applyDebugLayer();
-    },
-    update(time, reveal, pointer) {
-      layerOrder.forEach((layer) => {
-        surfaceMaterials[layer].uniforms.uTime.value = time;
-        surfaceMaterials[layer].uniforms.uOpacity.value = reveal;
-        cellMaterials[layer].uniforms.uTime.value = time;
-        cellMaterials[layer].uniforms.uOpacity.value = reveal;
-      });
-      fiberMaterial.uniforms.uTime.value = time;
-      fiberMaterial.uniforms.uOpacity.value = reveal;
-      nodeMaterial.uniforms.uTime.value = time;
-      nodeMaterial.uniforms.uOpacity.value = reveal;
-      const px = pointer?.x ?? 0;
-      const py = pointer?.y ?? 0;
-      const parallax = { rear: 0.012, mid: 0.03, foreground: 0.062 };
-      layerOrder.forEach((layer) => {
-        const layerGroup = layerGroups[layer];
-        layerGroup.position.x += (px * parallax[layer] - layerGroup.position.x) * 0.028;
-        layerGroup.position.y += (-py * parallax[layer] * 0.68 - layerGroup.position.y) * 0.028;
-      });
-    },
-    dispose() {
-      geometries.forEach((geometry) => geometry.dispose());
-      Object.values(surfaceMaterials).forEach((material) => material.dispose());
-      Object.values(cellMaterials).forEach((material) => material.dispose());
-      fiberMaterial.dispose();
-      nodeMaterial.dispose();
-      group.clear();
-    }
-  };
-
-  function applyDebugLayer() {
-    const showAll = debugLayer === 'full'
-      || debugLayer === 'environment'
-      || debugLayer === 'organism';
-    const componentLayer = ['surface', 'cells', 'fibers'].includes(debugLayer);
-    layerOrder.forEach((layer) => {
-      const layerSelected = debugLayer === layer
-        || (debugLayer === 'cavity' && layer === 'mid');
-      layerGroups[layer].visible = showAll || componentLayer || layerSelected;
-      const objects = layerObjects[layer];
-      objects.surfaces.visible = showAll
-        || layerSelected
-        || debugLayer === 'surface';
-      objects.cells.visible = showAll
-        || layerSelected
-        || debugLayer === 'cells';
-      objects.fibers.visible = showAll
-        || layerSelected
-        || debugLayer === 'fibers';
-      objects.nodes.visible = showAll
-        || layerSelected
-        || debugLayer === 'fibers';
+    const environment = debugLayer === 'environment' || debugLayer === 'organism';
+    const field = debugLayer === 'field';
+    patches.forEach(({ mesh, spec }) => {
+      mesh.visible = full
+        || environment
+        || debugLayer === 'membrane'
+        || debugLayer === 'surface'
+        || (field && spec.key !== 'foreground')
+        || debugLayer === spec.key;
     });
+    cells.mesh.visible = full
+      || environment
+      || field
+      || debugLayer === 'membrane'
+      || debugLayer === 'cells'
+      || debugLayer === 'mid';
+    cells.patchMesh.visible = cells.mesh.visible;
+    fibers.lines.visible = full
+      || environment
+      || field
+      || debugLayer === 'membrane'
+      || debugLayer === 'fibers'
+      || debugLayer === 'cavity';
+    nodes.points.visible = full
+      || environment
+      || field
+      || debugLayer === 'membrane'
+      || debugLayer === 'cells'
+      || debugLayer === 'fibers';
   }
 }
 
-function createOrganicSurfaceMaterial(layer) {
-  const layerSettings = {
-    rear: { intensity: 1.02, motion: 0.34, cellDetail: 0.44 },
-    mid: { intensity: 1.34, motion: 0.68, cellDetail: 0.82 },
-    foreground: { intensity: 0.9, motion: 0.94, cellDetail: 0.24 }
-  }[layer];
+function createMembranePatchGeometry() {
+  const geometry = new THREE.PlaneGeometry(2, 2, 24, 14);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+function createMembranePatch(geometry, spec, field) {
+  const centerSample = field.sample(spec.center[0], spec.center[1], spec.z);
+  const material = createMembranePatchMaterial(spec, centerSample, field.core);
+  const mesh = new THREE.Mesh(geometry, material);
+  const basePosition = new THREE.Vector3(spec.center[0], spec.center[1], spec.z);
+  mesh.name = `GEO V4 ${spec.name} Volumetric Membrane`;
+  mesh.position.copy(basePosition);
+  mesh.scale.set(spec.scale[0], spec.scale[1], 1);
+  mesh.rotation.z = spec.rotation;
+  mesh.renderOrder = spec.key === 'rear' ? -4 : spec.key === 'foreground' ? 4 : -1;
+  return { mesh, material, spec, basePosition };
+}
+
+function createMembranePatchMaterial(spec, centerSample, core) {
+  const holes = createPatchHoles(spec.seed);
+  const detail = spec.key === 'mid' ? 1 : spec.key === 'rear' ? 0.34 : 0.035;
+  const porosity = spec.name === 'central-upper-bridge'
+    ? 0.2
+    : spec.name === 'central-lower-bridge'
+      ? 0.62
+      : 1;
+  const coreOffset = new THREE.Vector2(
+    core.x - spec.center[0],
+    core.y - spec.center[1]
+  ).rotateAround(new THREE.Vector2(), -spec.rotation);
+  coreOffset.set(
+    coreOffset.x / spec.scale[0],
+    coreOffset.y / spec.scale[1]
+  );
   return new THREE.ShaderMaterial({
     uniforms: {
       uTime: { value: 0 },
       uOpacity: { value: 0 },
-      uLayerIntensity: { value: layerSettings.intensity },
-      uMotionScale: { value: layerSettings.motion },
-      uCellDetail: { value: layerSettings.cellDetail }
+      uSeed: { value: spec.seed },
+      uColor: { value: new THREE.Color(spec.color) },
+      uBend: { value: spec.bend },
+      uCavity: { value: spec.cavity },
+      uDensity: { value: centerSample.density },
+      uAttraction: { value: centerSample.attraction },
+      uDetail: { value: detail },
+      uPorosity: { value: porosity },
+      uCavityCenter: { value: coreOffset },
+      uHoleA: { value: holes[0] },
+      uHoleB: { value: holes[1] },
+      uHoleC: { value: holes[2] },
+      uHoleD: { value: holes[3] }
     },
     vertexShader: `
-      attribute float aAcross;
-      attribute float aAlong;
-      attribute float aPhase;
-      attribute float aAlpha;
-      varying vec3 vColor;
-      varying vec3 vNormal;
-      varying vec3 vViewPosition;
-      varying float vAcross;
-      varying float vAlong;
-      varying float vPhase;
-      varying float vAlpha;
-      varying vec3 vLocalPosition;
       uniform float uTime;
-      uniform float uMotionScale;
+      uniform float uSeed;
+      uniform float uBend;
+      uniform float uCavity;
+      uniform float uAttraction;
+      uniform vec2 uCavityCenter;
+      varying vec2 vUv;
+      varying vec2 vLocal;
+      varying vec3 vPatchNormal;
+      varying float vFold;
+      varying float vCavity;
+
+      void main() {
+        vec2 local = position.xy;
+        float radial = length(local * vec2(0.86, 1.08));
+        float waveA = sin(local.x * 2.45 + local.y * 1.34 + uSeed);
+        float waveB = cos(local.y * 3.2 - local.x * 0.82 - uSeed * 0.61);
+        float waveC = sin((local.x + local.y) * 4.1 + uSeed * 1.73);
+        float fold = waveA * 0.54 + waveB * 0.31 + waveC * 0.15;
+        float livingDrift = sin(uTime * 0.052 + uSeed + local.x * 1.7) * 0.012;
+        float cavityDistance = length(
+          (local - uCavityCenter) * vec2(0.88, 1.16)
+        );
+        float cavityProfile = exp(-cavityDistance * cavityDistance * 4.4)
+          * uCavity;
+        vec3 displaced = position;
+        displaced.x += local.y * local.y * sin(uSeed * 1.13) * 0.055;
+        displaced.y += local.x * local.x * cos(uSeed * 0.79) * 0.04;
+        displaced.z += fold * uBend + livingDrift;
+        displaced.z -= cavityProfile * (0.22 + uAttraction * 0.28);
+
+        float dzdx = cos(local.x * 2.45 + local.y * 1.34 + uSeed)
+          * 2.45 * 0.54 * uBend;
+        dzdx += sin(local.y * 3.2 - local.x * 0.82 - uSeed * 0.61)
+          * 0.82 * 0.31 * uBend;
+        float dzdy = cos(local.x * 2.45 + local.y * 1.34 + uSeed)
+          * 1.34 * 0.54 * uBend;
+        dzdy -= sin(local.y * 3.2 - local.x * 0.82 - uSeed * 0.61)
+          * 3.2 * 0.31 * uBend;
+        vec3 patchNormal = normalize(vec3(-dzdx, -dzdy, 1.0));
+
+        vUv = uv;
+        vLocal = local;
+        vPatchNormal = normalize(normalMatrix * patchNormal);
+        vFold = fold * 0.5 + 0.5;
+        vCavity = cavityProfile;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float uTime;
+      uniform float uOpacity;
+      uniform float uSeed;
+      uniform float uDensity;
+      uniform float uDetail;
+      uniform float uPorosity;
+      uniform vec3 uColor;
+      uniform vec4 uHoleA;
+      uniform vec4 uHoleB;
+      uniform vec4 uHoleC;
+      uniform vec4 uHoleD;
+      varying vec2 vUv;
+      varying vec2 vLocal;
+      varying vec3 vPatchNormal;
+      varying float vFold;
+      varying float vCavity;
+
+      float hash(vec2 p) {
+        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+      }
+
+      float noise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(
+          mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+          mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x),
+          f.y
+        );
+      }
+
+      float fbm(vec2 p) {
+        float value = noise(p) * 0.58;
+        value += noise(p * 2.07 + 1.9) * 0.28;
+        value += noise(p * 4.13 - 3.1) * 0.14;
+        return value;
+      }
+
+      vec2 hash2(vec2 p) {
+        return fract(sin(vec2(
+          dot(p, vec2(127.1, 311.7)),
+          dot(p, vec2(269.5, 183.3))
+        )) * 43758.5453);
+      }
+
+      float cellularBorder(vec2 p) {
+        vec2 cell = floor(p);
+        vec2 local = fract(p);
+        float nearest = 8.0;
+        float second = 8.0;
+        for (int y = -1; y <= 1; y++) {
+          for (int x = -1; x <= 1; x++) {
+            vec2 offset = vec2(float(x), float(y));
+            vec2 site = offset + hash2(cell + offset);
+            vec2 delta = site - local;
+            float distanceSquared = dot(delta, delta);
+            if (distanceSquared < nearest) {
+              second = nearest;
+              nearest = distanceSquared;
+            } else if (distanceSquared < second) {
+              second = distanceSquared;
+            }
+          }
+        }
+        return sqrt(second) - sqrt(nearest);
+      }
+
+      float opening(vec2 q, vec4 hole, float phase) {
+        vec2 shifted = q - hole.xy;
+        float warp = fbm(shifted * 2.8 + uSeed + phase) - 0.5;
+        shifted.x += warp * 0.16;
+        shifted.y += (noise(shifted * 3.7 - phase) - 0.5) * 0.13;
+        float distanceField = length(shifted / max(hole.zw, vec2(0.05)));
+        return 1.0 - smoothstep(0.76 + warp * 0.08, 1.08 + warp * 0.1, distanceField);
+      }
+
+      void main() {
+        vec2 q = (vUv - 0.5) * 2.0;
+        float low = fbm(q * 0.72 + uSeed * 0.37);
+        float middle = fbm(q * 1.48 - uSeed * 0.23);
+        float fine = noise(q * 5.2 + uSeed * 1.9);
+        float boundaryNoise = (low - 0.5) * 0.28 + (middle - 0.5) * 0.11;
+        float boundaryRadius = length(q * vec2(0.86, 1.08));
+        float boundary = 1.0 - smoothstep(
+          0.72 + boundaryNoise,
+          1.03 + boundaryNoise,
+          boundaryRadius
+        );
+        float boundaryBreak = smoothstep(
+          0.18,
+          0.62,
+          fbm(q * 1.16 + uSeed * 0.57) + boundary * 0.24
+        );
+        boundary *= mix(0.26, 1.0, boundaryBreak);
+
+        float pores = max(
+          max(opening(q, uHoleA, 0.7), opening(q, uHoleB, 1.9)),
+          max(opening(q, uHoleC, 3.1), opening(q, uHoleD, 4.6))
+        );
+        float poreBreak = smoothstep(0.36, 0.74, fine * 0.45 + low * 0.55);
+        pores *= mix(0.72, 1.0, poreBreak) * uPorosity;
+
+        vec2 cellWarp = vec2(
+          fbm(q * 0.64 + uSeed),
+          fbm(q * 0.72 - uSeed)
+        ) - 0.5;
+        vec2 warpedCells = q + vec2(
+          sin(q.y * 2.4 + uSeed),
+          cos(q.x * 1.7 - uSeed)
+        ) * 0.24 + cellWarp * 0.76;
+        float cellDistance = cellularBorder(
+          vec2(warpedCells.x * 1.24, warpedCells.y * 0.72)
+          * (3.08 + uDensity * 1.18)
+          + uSeed
+        );
+        float cellular = 1.0 - smoothstep(0.006, 0.029, cellDistance);
+        float cellBreak = smoothstep(0.34, 0.62, low * 0.56 + fine * 0.44);
+        cellular *= cellBreak * (1.0 - pores * 0.86) * uDetail;
+        float poreRim = smoothstep(0.22, 0.66, pores)
+          * (1.0 - smoothstep(0.72, 0.96, pores));
+        poreRim *= smoothstep(0.34, 0.68, low * 0.55 + fine * 0.45);
+
+        float bodyVariation = smoothstep(
+          0.23,
+          0.78,
+          low * 0.42 + middle * 0.32 + vFold * 0.26
+        );
+        float translucentBody = 0.18 + bodyVariation * 0.82;
+        float foldLight = smoothstep(0.56, 0.86, vFold + middle * 0.18);
+        float viewFresnel = pow(
+          1.0 - abs(normalize(vPatchNormal).z),
+          2.25
+        );
+        float fresnelBreak = smoothstep(0.58, 0.79, low * 0.62 + fine * 0.38);
+        float localFresnel = viewFresnel * fresnelBreak
+          * mix(0.16, 1.0, uDetail);
+        float ridgeField = abs(
+          fbm(q * vec2(1.08, 1.62) + uSeed * 0.43)
+          - (0.48 + (middle - 0.5) * 0.12)
+        );
+        float tissueRidge = 1.0 - smoothstep(0.035, 0.11, ridgeField);
+        tissueRidge *= smoothstep(0.42, 0.7, fine * 0.48 + low * 0.52);
+        tissueRidge *= (1.0 - pores * 0.88);
+        tissueRidge *= mix(0.28, 1.0, uDetail);
+
+        float cavityThin = 1.0 - vCavity * 0.46;
+        float alpha = uOpacity * boundary * cavityThin
+          * (1.0 - pores * 0.94)
+          * (0.2 + translucentBody * 0.36);
+        alpha += uOpacity * boundary * cellular * (0.42 + uDensity * 0.2);
+        alpha += uOpacity * boundary * poreRim * 0.38 * mix(0.1, 1.0, uDetail);
+        alpha += uOpacity * boundary * localFresnel * 0.46;
+        alpha += uOpacity * boundary * foldLight * bodyVariation * 0.16;
+        alpha += uOpacity * boundary * tissueRidge * 0.1;
+        if (alpha < 0.0022) discard;
+
+        vec3 color = uColor * (
+          0.54
+          + bodyVariation * 0.22
+          + cellular * 1.08
+          + poreRim * 0.68
+          + localFresnel * 0.92
+          + foldLight * 0.24
+          + tissueRidge * 0.18
+        );
+        color += vec3(0.12, 0.26, 0.31) * cellular * 0.24;
+        gl_FragColor = vec4(color, min(alpha, 0.38));
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    depthTest: true,
+    side: THREE.DoubleSide,
+    blending: THREE.NormalBlending,
+    toneMapped: false
+  });
+}
+
+function createPatchHoles(seed) {
+  const angle = seed * 1.731;
+  return [
+    new THREE.Vector4(
+      Math.sin(angle) * 0.31,
+      Math.cos(angle * 1.17) * 0.22,
+      0.2 + Math.abs(Math.sin(angle * 0.73)) * 0.13,
+      0.12 + Math.abs(Math.cos(angle * 0.61)) * 0.12
+    ),
+    new THREE.Vector4(
+      -0.42 + Math.sin(angle * 0.83) * 0.12,
+      0.22 + Math.cos(angle * 1.29) * 0.2,
+      0.14 + Math.abs(Math.cos(angle * 0.47)) * 0.1,
+      0.1 + Math.abs(Math.sin(angle * 0.94)) * 0.09
+    ),
+    new THREE.Vector4(
+      0.38 + Math.cos(angle * 0.59) * 0.13,
+      -0.3 + Math.sin(angle * 1.07) * 0.14,
+      0.12 + Math.abs(Math.sin(angle * 0.41)) * 0.1,
+      0.1 + Math.abs(Math.cos(angle * 0.84)) * 0.08
+    ),
+    new THREE.Vector4(
+      Math.cos(angle * 1.31) * 0.28,
+      0.48 + Math.sin(angle * 0.52) * 0.1,
+      0.11 + Math.abs(Math.cos(angle * 0.36)) * 0.09,
+      0.08 + Math.abs(Math.sin(angle * 0.69)) * 0.08
+    )
+  ];
+}
+
+function createSurfaceGeometry(field) {
+  const columns = 48;
+  const rows = 26;
+  const positions = [];
+  const normals = [];
+  const uvs = [];
+  const densities = [];
+  const attractions = [];
+  const noises = [];
+  const indices = [];
+
+  for (let row = 0; row <= rows; row += 1) {
+    const v = row / rows;
+    const y = -1.72 + v * 3.44;
+    for (let column = 0; column <= columns; column += 1) {
+      const u = column / columns;
+      const x = -3.48 + u * 6.96;
+      const sample = field.sample(x, y, -0.58);
+      positions.push(sample.position.x, sample.position.y, sample.position.z);
+      normals.push(sample.normal.x, sample.normal.y, sample.normal.z);
+      uvs.push(u, v);
+      densities.push(sample.density);
+      attractions.push(sample.attraction);
+      noises.push(sample.localNoise);
+    }
+  }
+
+  for (let row = 0; row < rows; row += 1) {
+    for (let column = 0; column < columns; column += 1) {
+      const a = row * (columns + 1) + column;
+      const b = a + 1;
+      const c = a + columns + 1;
+      const d = c + 1;
+      indices.push(a, c, b, b, c, d);
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setAttribute('aDensity', new THREE.Float32BufferAttribute(densities, 1));
+  geometry.setAttribute('aAttraction', new THREE.Float32BufferAttribute(attractions, 1));
+  geometry.setAttribute('aLocalNoise', new THREE.Float32BufferAttribute(noises, 1));
+  geometry.setIndex(indices);
+  return geometry;
+}
+
+function createSurfaceLayer(geometry, layer) {
+  const material = createSurfaceMaterial(layer);
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = `GEO V4 Shared ${layer.key} Tissue Veil`;
+  mesh.scale.setScalar(layer.scale);
+  mesh.position.z = layer.z;
+  mesh.renderOrder = layer.key === 'rear' ? -3 : layer.key === 'foreground' ? 3 : -1;
+  return { mesh, material, layer };
+}
+
+function createSurfaceMaterial(layer) {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uOpacity: { value: 0 },
+      uLayerSeed: { value: layer.seed },
+      uColor: { value: new THREE.Color(layer.color) }
+    },
+    vertexShader: `
+      attribute float aDensity;
+      attribute float aAttraction;
+      attribute float aLocalNoise;
+      varying vec2 vUv;
+      varying vec3 vPosition;
+      varying vec3 vNormal;
+      varying float vDensity;
+      varying float vAttraction;
+      varying float vNoise;
+      uniform float uTime;
+      uniform float uLayerSeed;
       void main() {
         vec3 displaced = position;
-        float lowWave = sin(uTime * 0.016 * uMotionScale + aPhase + position.x * 0.31)
-          + cos(uTime * 0.012 * uMotionScale + aPhase * 0.7 + position.y * 0.39);
-        displaced.z += lowWave * 0.0065 * uMotionScale;
-        displaced.xy += normal.xy * lowWave * 0.0018 * uMotionScale;
+        float drift = sin(position.x * 0.72 + position.y * 0.54 + uLayerSeed);
+        drift += cos(position.x * 0.31 - position.y * 0.84 - uLayerSeed) * 0.55;
+        displaced.z += drift * 0.018 + sin(uTime * 0.035 + uLayerSeed) * 0.006;
         vec4 viewPosition = modelViewMatrix * vec4(displaced, 1.0);
-        vColor = color;
+        vUv = uv;
+        vPosition = displaced;
         vNormal = normalize(normalMatrix * normal);
-        vViewPosition = viewPosition.xyz;
-        vAcross = aAcross;
-        vAlong = aAlong;
-        vPhase = aPhase;
-        vAlpha = aAlpha;
-        vLocalPosition = displaced;
+        vDensity = aDensity;
+        vAttraction = aAttraction;
+        vNoise = aLocalNoise;
         gl_Position = projectionMatrix * viewPosition;
       }
     `,
     fragmentShader: `
+      uniform float uTime;
       uniform float uOpacity;
-      uniform float uLayerIntensity;
-      uniform float uCellDetail;
-      varying vec3 vColor;
+      uniform float uLayerSeed;
+      uniform vec3 uColor;
+      varying vec2 vUv;
+      varying vec3 vPosition;
       varying vec3 vNormal;
-      varying vec3 vViewPosition;
-      varying float vAcross;
-      varying float vAlong;
-      varying float vPhase;
-      varying float vAlpha;
-      varying vec3 vLocalPosition;
+      varying float vDensity;
+      varying float vAttraction;
+      varying float vNoise;
 
       float hash(vec2 p) {
         return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
@@ -515,752 +658,415 @@ function createOrganicSurfaceMaterial(layer) {
           f.y
         );
       }
-      vec2 hash22(vec2 p) {
-        float n = sin(dot(p, vec2(41.0, 289.0)));
-        return fract(vec2(262144.0, 32768.0) * n);
+      vec2 hash2(vec2 p) {
+        return fract(sin(vec2(
+          dot(p, vec2(127.1, 311.7)),
+          dot(p, vec2(269.5, 183.3))
+        )) * 43758.5453);
       }
-      vec3 cellular(vec2 p) {
+      float cellularBorder(vec2 p) {
         vec2 cell = floor(p);
         vec2 local = fract(p);
         float nearest = 8.0;
         float second = 8.0;
-        float cellId = 0.0;
         for (int y = -1; y <= 1; y++) {
           for (int x = -1; x <= 1; x++) {
             vec2 offset = vec2(float(x), float(y));
-            vec2 feature = offset + hash22(cell + offset);
-            feature += 0.16 * sin(vec2(1.7, 2.1) * vPhase + feature.yx * 4.6);
-            float distanceToFeature = length(feature - local);
-            if (distanceToFeature < nearest) {
+            vec2 site = offset + hash2(cell + offset);
+            vec2 delta = site - local;
+            float distanceSquared = dot(delta, delta);
+            if (distanceSquared < nearest) {
               second = nearest;
-              nearest = distanceToFeature;
-              cellId = hash(cell + offset);
-            } else if (distanceToFeature < second) {
-              second = distanceToFeature;
+              nearest = distanceSquared;
+            } else if (distanceSquared < second) {
+              second = distanceSquared;
             }
           }
         }
-        return vec3(nearest, second, cellId);
+        return sqrt(second) - sqrt(nearest);
       }
       void main() {
-        float sideFeather = 1.0 - smoothstep(0.76, 1.0, abs(vAcross));
-        float endFeather = smoothstep(0.0, 0.09, vAlong)
-          * (1.0 - smoothstep(0.9, 1.0, vAlong));
-        float broadNoise = noise(vec2(vAlong * 2.05 + vPhase, vAcross * 1.02 - vPhase * 0.23));
-        float warpedNoise = noise(vec2(
-          vAlong * 4.1 - vAcross * 0.68 + vPhase * 0.61,
-          vAcross * 1.78 + vAlong * 0.8 - vPhase
-        ));
-        float detailNoise = noise(vec2(
-          vAlong * 8.1 + warpedNoise * 1.55,
-          vAcross * 3.2 - broadNoise * 1.2 + vPhase * 0.18
-        ));
-        float attraction = 1.0 - smoothstep(
-          0.28,
-          2.15,
-          distance(vLocalPosition.xy, vec2(-0.02, -0.14))
+        vec2 p = vPosition.xy;
+        float low = noise(p * 0.62 + uLayerSeed);
+        float middle = noise(p * 1.38 - uLayerSeed * 0.37);
+        float fine = noise(p * 2.7 + vec2(uLayerSeed, -uLayerSeed));
+        float poreField = low * 0.5 + middle * 0.34 + fine * 0.16;
+        float pores = smoothstep(0.68, 0.82, poreField + vNoise * 0.12);
+        float patchField = low * 0.38 + middle * 0.27 + vNoise * 0.16 + vDensity * 0.3;
+        float patchMask = smoothstep(0.31, 0.58, patchField);
+        float edgeX = smoothstep(0.0, 0.08, vUv.x) * smoothstep(0.0, 0.08, 1.0 - vUv.x);
+        float edgeY = smoothstep(0.0, 0.11, vUv.y) * smoothstep(0.0, 0.11, 1.0 - vUv.y);
+        float densityPatch = smoothstep(0.1, 0.55, vDensity + (middle - 0.5) * 0.16);
+        float coverage = 0.018 + densityPatch * 0.982;
+        float cavityPull = smoothstep(
+          0.7,
+          0.998,
+          vAttraction + (low - 0.5) * 0.055 + (fine - 0.5) * 0.018
         );
-        float cellFrequency = mix(1.0, 1.28, attraction);
-        vec2 cellUv = vec2(
-          vAlong * 12.2 * cellFrequency,
-          (vAcross + warpedNoise * 0.12) * 4.5 * cellFrequency
+        float rearLayer = 1.0 - smoothstep(0.9, 1.3, uLayerSeed);
+        float cavity = 1.0 - cavityPull * mix(0.52, 0.18, rearLayer);
+        float viewEdge = pow(1.0 - abs(normalize(vNormal).z), 2.1);
+        float localFresnel = viewEdge * smoothstep(
+          0.58,
+          0.84,
+          middle * 0.65 + vDensity * 0.38
         );
+        float illumination = 0.42 + localFresnel * 0.72 + middle * 0.16;
+        float alpha = uOpacity * coverage * edgeX * edgeY * cavity
+          * (0.08 + patchMask * 0.92);
+        alpha *= (1.0 - pores * 0.84) * illumination;
+        alpha += uOpacity * rearLayer * cavityPull
+          * (0.08 + low * 0.12) * edgeX * edgeY;
         vec2 cellWarp = vec2(
-          noise(cellUv * 0.31 + vec2(vPhase, -vPhase * 0.4)),
-          noise(cellUv.yx * 0.37 + vec2(-vPhase * 0.5, vPhase))
+          noise(p * 0.42 + uLayerSeed),
+          noise(p * 0.47 - uLayerSeed)
         ) - 0.5;
-        vec2 organicCellUv = cellUv + vec2(
-          sin(cellUv.y * 0.72 + vPhase) * 0.52,
-          sin(cellUv.x * 0.48 - vPhase * 0.8) * 0.4
-        ) + cellWarp * 1.32;
-        vec3 cellData = cellular(
-          organicCellUv + vec2(vPhase * 0.37, -vPhase * 0.19)
+        vec2 cellularPoint = vec2(p.x, p.y * 1.18) * 3.15
+          + cellWarp * 0.82
+          + uLayerSeed * 0.13;
+        float cellDistance = cellularBorder(cellularPoint);
+        float cellEdge = 1.0 - smoothstep(0.012, 0.045, cellDistance);
+        float cellRegion = smoothstep(
+          0.14,
+          0.6,
+          vDensity + middle * 0.18 + vNoise * 0.1
         );
-        float cellDistance = cellData.y - cellData.x;
-        float cellEdge = 1.0 - smoothstep(0.035, 0.15, cellDistance);
-        float clusterA = 1.0 - smoothstep(
-          0.24,
-          0.5,
-          length(vec2(vAlong - (0.29 + 0.055 * sin(vPhase)), (vAcross + 0.26) * 0.56))
+        float edgeBreakup = smoothstep(0.3, 0.69, low * 0.58 + fine * 0.42);
+        float midLayer = 1.0 - smoothstep(0.35, 1.55, abs(uLayerSeed - 2.4));
+        float foregroundLayer = smoothstep(3.8, 4.4, uLayerSeed);
+        float detailDepth = (0.28 + midLayer * 0.72)
+          * (1.0 - foregroundLayer * 0.82);
+        float embeddedCell = cellEdge * cellRegion * edgeBreakup
+          * (1.0 - pores * 0.72) * detailDepth;
+        alpha += uOpacity * embeddedCell * 0.34 * edgeX * edgeY * cavity;
+        float organicDensity = smoothstep(
+          0.55,
+          0.88,
+          vDensity + vNoise * 0.16 + localFresnel * 0.08
         );
-        float clusterB = 1.0 - smoothstep(
-          0.22,
+        float foldField = middle + low * 0.14 + fine * 0.04;
+        float membraneBand = smoothstep(0.38, 0.54, foldField)
+          * (1.0 - smoothstep(0.71, 0.86, foldField));
+        float localSheet = membraneBand * organicDensity
+          * (0.3 + patchMask * 0.7)
+          * (1.0 - pores * 0.64);
+        alpha += uOpacity * localSheet * 0.52 * edgeX * edgeY * cavity;
+        float tissueFold = smoothstep(
           0.46,
-          length(vec2(vAlong - (0.62 + 0.045 * cos(vPhase)), (vAcross - 0.14) * 0.62))
+          0.82,
+          middle * 0.5 + fine * 0.12 + vDensity * 0.62 + localFresnel * 0.18
         );
-        float clusterC = 1.0 - smoothstep(
-          0.17,
-          0.36,
-          length(vec2(vAlong - 0.82, (vAcross + 0.38 * sin(vPhase * 0.7)) * 0.72))
+        alpha += uOpacity * coverage * tissueFold * 0.92 * edgeX * edgeY * cavity;
+        if (alpha < 0.0025) discard;
+        vec3 color = uColor * (
+          0.46
+          + middle * 0.2
+          + localFresnel * 0.54
+          + tissueFold * 0.46
+          + embeddedCell * 0.28
+          + localSheet * 0.54
         );
-        float cellRegion = max(max(clusterA, clusterB), clusterC)
-          * smoothstep(0.34, 0.56, broadNoise * 0.55 + warpedNoise * 0.45)
-          * uCellDetail;
-        float porousField = broadNoise * 0.58 + warpedNoise * 0.42;
-        float largeOpening = smoothstep(0.56, 0.7, porousField)
-          * smoothstep(0.3, 0.72, cellData.x);
-        float smallOpening = smoothstep(0.67, 0.8, detailNoise)
-          * smoothstep(0.34, 0.68, cellData.x)
-          * cellRegion;
-        float holeMask = clamp(max(largeOpening * 0.88, smallOpening * 0.72), 0.0, 0.94);
-        float softHoleMask = 1.0 - holeMask;
-        float openingRim = (1.0 - smoothstep(0.035, 0.13, abs(porousField - 0.625)))
-          * smoothstep(0.28, 0.76, detailNoise)
-          * (0.32 + cellRegion * 0.68);
-        float membraneVariation = 0.42
-          + smoothstep(0.2, 0.82, detailNoise) * 0.28
-          + smoothstep(0.36, 0.76, broadNoise) * 0.3;
-        float viewEdge = pow(
-          1.0 - abs(dot(normalize(vNormal), normalize(-vViewPosition))),
-          2.25
-        );
-        float geometricEdge = smoothstep(0.58, 0.84, abs(vAcross))
-          * (1.0 - smoothstep(0.9, 1.0, abs(vAcross)));
-        float edgeNoise = noise(vec2(vAlong * 9.6 + vPhase * 1.7, vAcross * 2.4));
-        float brokenEdge = geometricEdge * smoothstep(0.66, 0.82, edgeNoise);
-        float curvatureLight = viewEdge
-          * smoothstep(0.58, 0.8, noise(vec2(vAlong * 5.7 - vPhase, vAcross * 2.2)));
-        float localCell = cellEdge * cellRegion
-          * smoothstep(0.1, 0.88, vAlong)
-          * (1.0 - smoothstep(0.9, 1.0, vAlong));
-        float alpha = uOpacity
-          * vAlpha
-          * uLayerIntensity
-          * sideFeather
-          * endFeather
-          * softHoleMask
-          * membraneVariation;
-        alpha *= 0.62
-          + localCell * 1.05
-          + openingRim * 0.22
-          + curvatureLight * 0.18
-          + brokenEdge * 0.11;
-        if (alpha < 0.002) discard;
-        vec3 color = mix(
-          vColor,
-          vec3(0.62, 0.92, 1.0),
-          min(
-            0.58,
-            curvatureLight * 0.12
-              + localCell * 0.26
-              + openingRim * 0.13
-              + brokenEdge * 0.035
-          )
-        );
-        color *= 0.82 + membraneVariation * 0.2 + curvatureLight * 0.11;
         gl_FragColor = vec4(color, alpha);
       }
     `,
     transparent: true,
     depthWrite: false,
     depthTest: true,
-    vertexColors: true,
     side: THREE.DoubleSide,
     blending: THREE.NormalBlending,
     toneMapped: false
   });
 }
 
-function createMembraneBuilder() {
-  return {
-    surface: {
-      positions: [],
-      colors: [],
-      across: [],
-      along: [],
-      phases: [],
-      alphas: [],
-      indices: []
-    },
-    fibers: {
-      positions: [],
-      colors: [],
-      phases: [],
-      strengths: []
-    },
-    nodes: {
-      positions: [],
-      colors: [],
-      sizes: [],
-      phases: [],
-      strengths: []
-    }
+function createCellNetwork(field) {
+  const positions = [];
+  const colors = [];
+  const alphas = [];
+  const sides = [];
+  const alongs = [];
+  const patchPositions = [];
+  const patchColors = [];
+  const patchAlphas = [];
+  const patchRadials = [];
+  const palette = {
+    answer: new THREE.Color('#47a9bd'),
+    citation: new THREE.Color('#718aa4'),
+    keyword: new THREE.Color('#2b8494'),
+    shared: new THREE.Color('#2b6275')
   };
-}
-
-function appendSoftVeil(surface, curve, definition, sheetIndex, random, baseColor, ice) {
-  const columns = 44;
-  const rows = 8;
-  const baseIndex = surface.positions.length / 3;
-  const color = new THREE.Color();
-
-  for (let column = 0; column <= columns; column += 1) {
-    const t = column / columns;
-    const center = curve.getPoint(t);
-    const tangent = curve.getTangent(t);
-    const lateralAxis = new THREE.Vector3(-tangent.y, tangent.x, 0).normalize();
-    const taper = Math.pow(Math.sin(Math.PI * t), 0.62);
-    const width = definition.width
-      * (0.18 + taper * 0.82)
-      * (0.9 + Math.sin(t * 7.2 + sheetIndex * 0.9) * 0.1);
-
-    for (let row = 0; row <= rows; row += 1) {
-      const across = row / rows * 2 - 1;
-      const organicOffset = Math.sin(t * 10.1 + across * 2.4 + sheetIndex) * 0.055
-        + Math.sin(t * 4.7 - across * 3.1 + sheetIndex * 0.7) * 0.035;
-      const point = center.clone().addScaledVector(
-        lateralAxis,
-        across * width + organicOffset
-      );
-      point.z += Math.sin(across * Math.PI) * 0.055
-        + Math.cos(t * 8.4 + across + sheetIndex) * 0.025
-        + (random() - 0.5) * 0.012;
-      color.copy(baseColor).lerp(ice, 0.08 + (1 - Math.abs(across)) * 0.22);
-      surface.positions.push(point.x, point.y, point.z);
-      surface.colors.push(color.r, color.g, color.b);
-      surface.across.push(across);
-      surface.along.push(t);
-      surface.phases.push(sheetIndex * 1.37);
-      surface.alphas.push(definition.opacity * (0.84 + random() * 0.16));
-    }
-  }
-
-  for (let column = 0; column < columns; column += 1) {
-    for (let row = 0; row < rows; row += 1) {
-      const a = baseIndex + column * (rows + 1) + row;
-      const b = a + rows + 1;
-      const c = a + 1;
-      const d = b + 1;
-      surface.indices.push(a, b, c, b, d, c);
-    }
-  }
-}
-
-function appendNeuralFibers(fibers, curve, definition, sheetIndex, random, baseColor, ice) {
-  const mainCount = definition.tissueBridge
-    ? 1
-    : definition.layer === 'mid'
-      ? 3
-      : 1;
-  const layerStrength = definition.layer === 'rear'
-    ? 0.5
-    : definition.layer === 'foreground'
-      ? 0.34
-      : 1;
-  const bridgeStrength = definition.tissueBridge ? 0.48 : 1;
-  const curves = [];
   let segmentCount = 0;
 
-  const pointOnMembrane = (t, across, zLift = 0) => {
-    const center = curve.getPoint(THREE.MathUtils.clamp(t, 0.02, 0.98));
-    const tangent = curve.getTangent(THREE.MathUtils.clamp(t, 0.02, 0.98));
-    const lateralAxis = new THREE.Vector3(-tangent.y, tangent.x, 0).normalize();
-    const taper = Math.pow(Math.sin(Math.PI * t), 0.68);
-    const width = definition.width * (0.17 + taper * 0.83);
-    return center
-      .clone()
-      .addScaledVector(lateralAxis, THREE.MathUtils.clamp(across, -0.84, 0.84) * width)
-      .add(new THREE.Vector3(0, 0, zLift));
-  };
-
-  const appendCurve = (fiberCurve, tier, index, strengthScale = 1) => {
-    curves.push(fiberCurve);
-    const samples = tier === 'main' ? 34 : tier === 'branch' ? 16 : 8;
-    const baseStrength = tier === 'main' ? 0.21 : tier === 'branch' ? 0.083 : 0.024;
-    const color = baseColor.clone().lerp(
-      ice,
-      tier === 'main' ? 0.48 : tier === 'branch' ? 0.24 : 0.1
-    );
-    for (let sample = 0; sample < samples; sample += 1) {
-      const gapPeriod = tier === 'main' ? 15 : tier === 'branch' ? 8 : 5;
-      if ((sample + index * 3 + sheetIndex * 2) % gapPeriod === gapPeriod - 2) continue;
-      if (tier === 'micro' && (sample + index) % 3 === 1) continue;
-      appendFiberSegment(
-        fibers,
-        fiberCurve.getPoint(sample / samples),
-        fiberCurve.getPoint(Math.min(1, (sample + (tier === 'micro' ? 0.66 : 0.9)) / samples)),
-        color,
-        sheetIndex * 1.87 + index * 0.43 + sample * 0.037,
-        baseStrength
-          * layerStrength
-          * bridgeStrength
-          * strengthScale
-          * (0.86 + random() * 0.2)
-      );
-      segmentCount += 1;
-    }
-  };
-
-  for (let mainIndex = 0; mainIndex < mainCount; mainIndex += 1) {
-    const tStart = 0.035 + random() * 0.055;
-    const tEnd = 0.91 + random() * 0.045;
-    const sourceAcross = mainCount === 1
-      ? -0.16 + random() * 0.32
-      : -0.48 + mainIndex * (0.96 / Math.max(1, mainCount - 1)) + (random() - 0.5) * 0.1;
-    const targetAcross = definition.coreAt === 'start' || definition.coreAt === 'end'
-      ? sourceAcross * 0.16
-      : sourceAcross * 0.58;
-    const mainPoints = [];
-
-    for (let controlIndex = 0; controlIndex < 10; controlIndex += 1) {
-      const localT = controlIndex / 9;
-      const t = tStart + (tEnd - tStart) * localT;
-      const convergence = THREE.MathUtils.smoothstep(localT, 0.42, 1);
-      const across = THREE.MathUtils.lerp(sourceAcross, targetAcross, convergence)
-        + Math.sin(localT * 4.6 + mainIndex * 1.7 + sheetIndex) * 0.1
-        + Math.sin(localT * 9.2 + sheetIndex * 0.6) * 0.025;
-      const point = pointOnMembrane(t, across, 0.008);
-      point.z += Math.sin(localT * 5.2 + mainIndex) * 0.025;
-      mainPoints.push(point);
-    }
-
-    const mainCurve = new THREE.CatmullRomCurve3(mainPoints, false, 'catmullrom', 0.38);
-    appendCurve(mainCurve, 'main', mainIndex);
-
-    const branchCount = definition.tissueBridge ? 1 : definition.layer === 'mid' ? 2 : 1;
-    for (let branchIndex = 0; branchIndex < branchCount; branchIndex += 1) {
-      const branchOrigin = 0.24 + branchIndex * 0.25 + random() * 0.1;
-      const origin = mainCurve.getPoint(branchOrigin);
-      const direction = (branchIndex + mainIndex + sheetIndex) % 2 === 0 ? 1 : -1;
-      const branchSpan = 0.16 + random() * 0.14;
-      const branchAcross = sourceAcross + direction * (0.28 + random() * 0.24);
-      const branchT = THREE.MathUtils.clamp(
-        tStart + (tEnd - tStart) * (branchOrigin + branchSpan),
-        0.08,
-        0.94
-      );
-      const end = pointOnMembrane(branchT, branchAcross, 0.01);
-      const middleA = origin.clone().lerp(end, 0.36);
-      const middleB = origin.clone().lerp(end, 0.72);
-      middleA.y += direction * (0.055 + random() * 0.04);
-      middleA.z += 0.025;
-      middleB.x += direction * (0.035 + random() * 0.04);
-      middleB.z += 0.016;
-      const branchCurve = new THREE.CatmullRomCurve3(
-        [origin, middleA, middleB, end],
-        false,
-        'catmullrom',
-        0.36
-      );
-      appendCurve(branchCurve, 'branch', mainCount + mainIndex * 3 + branchIndex);
-
-      if (!definition.tissueBridge && definition.layer === 'mid') {
-        const twigOrigin = branchCurve.getPoint(0.58);
-        const twigEnd = pointOnMembrane(
-          Math.min(0.96, branchT + 0.08 + random() * 0.07),
-          branchAcross + direction * (0.12 + random() * 0.13),
-          0.006
-        );
-        const twigMiddle = twigOrigin.clone().lerp(twigEnd, 0.54);
-        twigMiddle.y -= direction * 0.035;
-        twigMiddle.z += 0.012;
-        appendCurve(
-          new THREE.CatmullRomCurve3(
-            [twigOrigin, twigMiddle, twigEnd],
-            false,
-            'catmullrom',
-            0.34
-          ),
-          'micro',
-          mainCount * 4 + mainIndex * 3 + branchIndex,
-          0.9
-        );
-      }
-    }
-  }
-
-  return { curves, segmentCount };
-}
-
-function appendMembraneNodes(nodes, curves, definition, sheetIndex, random, baseColor, ice) {
-  const count = definition.layer === 'rear' ? 18 : definition.layer === 'foreground' ? 14 : 27;
-  for (let index = 0; index < count; index += 1) {
-    const curve = curves[Math.floor(random() * curves.length)];
-    const cluster = index % 3 === 0 ? 0.28 : index % 3 === 1 ? 0.56 : 0.78;
-    const t = Math.max(0.06, Math.min(0.94, cluster + (random() - 0.5) * 0.22));
-    const point = curve.getPoint(t);
-    point.z += (random() - 0.5) * 0.028;
-    const highlight = index % 19 === 0;
-    const color = baseColor.clone().lerp(ice, highlight ? 0.64 : 0.16 + random() * 0.24);
-    const layerStrength = definition.layer === 'rear'
-      ? 0.54
-      : definition.layer === 'foreground'
-        ? 0.42
-        : 1;
-    nodes.positions.push(point.x, point.y, point.z);
-    nodes.colors.push(color.r, color.g, color.b);
-    nodes.sizes.push((highlight ? 1.62 : 0.68 + random() * 0.62) * layerStrength);
-    nodes.phases.push(sheetIndex * 1.7 + random() * Math.PI * 2);
-    nodes.strengths.push(
-      (highlight ? 0.3 : 0.12 + random() * 0.078) * layerStrength
-    );
-  }
-}
-
-function appendCoreCavityResponse(builder, ice) {
-  const colorA = new THREE.Color('#2aa9ca');
-  const center = new THREE.Vector3(-0.02, -0.14, -0.38);
-  const random = seededRandom(4477);
-  const sources = [
-    [-1.62, 0.66, -0.5],
-    [-1.24, 0.18, -0.44],
-    [-0.86, -0.58, -0.48],
-    [0.72, 0.66, -0.5],
-    [1.32, 0.3, -0.55],
-    [1.28, -0.66, -0.42],
-    [0.72, -0.82, -0.36],
-    [-0.56, 0.78, -0.62],
-    [0.44, 0.9, -0.64]
-  ];
-  let segmentCount = 0;
-
-  sources.forEach((source, sourceIndex) => {
-    const start = new THREE.Vector3(...source);
-    const endAngle = sourceIndex * 1.91 + 0.4;
-    const end = center.clone().add(new THREE.Vector3(
-      Math.cos(endAngle) * (0.18 + random() * 0.1),
-      Math.sin(endAngle) * (0.12 + random() * 0.08),
-      (random() - 0.5) * 0.1
-    ));
-    const middleA = start.clone().lerp(center, 0.42);
-    const middleB = start.clone().lerp(center, 0.72);
-    const bend = sourceIndex % 2 === 0 ? 1 : -1;
-    middleA.y += bend * (0.12 + random() * 0.08);
-    middleB.x += bend * (0.08 + random() * 0.06);
-    middleB.z += 0.06;
-    const curve = new THREE.CatmullRomCurve3(
-      [start, middleA, middleB, end],
-      false,
+  field.getCells().forEach((cell, cellIndex) => {
+    const color = palette[cell.businessRegion] || palette.shared;
+    const subdivisions = 4;
+    const smoothPoints = new THREE.CatmullRomCurve3(
+      cell.points.map((point) => point.clone()),
+      true,
       'catmullrom',
-      0.38
-    );
-    const color = colorA.clone().lerp(ice, 0.32 + random() * 0.3);
-    const samples = 18;
-    for (let sample = 0; sample < samples; sample += 1) {
-      if ((sample + sourceIndex * 3) % 13 === 7) continue;
-      appendFiberSegment(
-        builder.fibers,
-        curve.getPoint(sample / samples),
-        curve.getPoint((sample + 0.72) / samples),
-        color,
-        sourceIndex * 0.72 + sample * 0.08,
-        sample > 10 ? 0.17 : 0.075 + sample * 0.005
+      0.54
+    ).getPoints(cell.points.length * subdivisions);
+    for (let index = 0; index < smoothPoints.length - 1; index += 1) {
+      const sourceSegment = Math.min(
+        Math.floor(index / subdivisions),
+        cell.visibleSegments.length - 1
       );
+      if (!cell.visibleSegments[sourceSegment]) continue;
+      const a = smoothPoints[index];
+      const b = smoothPoints[index + 1];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const length = Math.max(Math.hypot(dx, dy), 0.0001);
+      const width = (
+        0.00135
+        + cell.density * 0.0017
+        + cell.attraction * 0.0007
+        + (cellIndex % 5) * 0.00014
+      );
+      const nx = -dy / length * width;
+      const ny = dx / length * width;
+      const alongA = index % subdivisions / subdivisions;
+      const alongB = (index % subdivisions + 1) / subdivisions;
+      const vertices = [
+        [a.x - nx, a.y - ny, a.z, -1, alongA],
+        [a.x + nx, a.y + ny, a.z, 1, alongA],
+        [b.x + nx, b.y + ny, b.z, 1, alongB],
+        [a.x - nx, a.y - ny, a.z, -1, alongA],
+        [b.x + nx, b.y + ny, b.z, 1, alongB],
+        [b.x - nx, b.y - ny, b.z, -1, alongB]
+      ];
+      const alpha = THREE.MathUtils.clamp(
+        0.16 + cell.density * 0.58 + cell.attraction * 0.16 + (cellIndex % 4) * 0.04,
+        0.14,
+        0.88
+      );
+      vertices.forEach(([x, y, z, side, along]) => {
+        positions.push(x, y, z);
+        colors.push(color.r, color.g, color.b);
+        alphas.push(alpha);
+        sides.push(side);
+        alongs.push(along);
+      });
       segmentCount += 1;
     }
-    if (sourceIndex % 2 === 0) {
-      const node = curve.getPoint(0.78 + random() * 0.12);
-      builder.nodes.positions.push(node.x, node.y, node.z);
-      builder.nodes.colors.push(color.r, color.g, color.b);
-      builder.nodes.sizes.push(0.72 + random() * 0.4);
-      builder.nodes.phases.push(sourceIndex * 0.8);
-      builder.nodes.strengths.push(0.1 + random() * 0.04);
+
+    if ((cellIndex * 7) % 13 > 3 || cell.density > 0.43) {
+      const centerAlpha = THREE.MathUtils.clamp(
+        0.08 + cell.density * 0.34 + cell.attraction * 0.08,
+        0.06,
+        0.42
+      );
+      for (let index = 0; index < cell.points.length; index += 1) {
+        const nextIndex = (index + 1) % cell.points.length;
+        const a = cell.points[index];
+        const b = cell.points[nextIndex];
+        [
+          [cell.center, 0],
+          [a, 1],
+          [b, 1]
+        ].forEach(([point, radial]) => {
+          patchPositions.push(point.x, point.y, point.z - 0.008);
+          patchColors.push(color.r, color.g, color.b);
+          patchAlphas.push(centerAlpha);
+          patchRadials.push(radial);
+        });
+      }
     }
   });
 
-  return segmentCount;
-}
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setAttribute('aAlpha', new THREE.Float32BufferAttribute(alphas, 1));
+  geometry.setAttribute('aSide', new THREE.Float32BufferAttribute(sides, 1));
+  geometry.setAttribute('aAlong', new THREE.Float32BufferAttribute(alongs, 1));
+  const material = createCellRibbonMaterial();
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = 'GEO V4 Embedded Soft Cellular Tissue';
+  mesh.renderOrder = 0;
 
-function appendUnifiedTissueField(builder, ice) {
-  const regionColors = {
-    answer: new THREE.Color('#4cbfe0'),
-    citation: new THREE.Color('#7faecf'),
-    keyword: new THREE.Color('#21a8c2')
+  const patchGeometry = new THREE.BufferGeometry();
+  patchGeometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(patchPositions, 3)
+  );
+  patchGeometry.setAttribute('color', new THREE.Float32BufferAttribute(patchColors, 3));
+  patchGeometry.setAttribute(
+    'aPatchAlpha',
+    new THREE.Float32BufferAttribute(patchAlphas, 1)
+  );
+  patchGeometry.setAttribute(
+    'aRadial',
+    new THREE.Float32BufferAttribute(patchRadials, 1)
+  );
+  const patchMaterial = createCellPatchMaterial();
+  const patchMesh = new THREE.Mesh(patchGeometry, patchMaterial);
+  patchMesh.name = 'GEO V4 Translucent Cellular Tissue Patches';
+  patchMesh.renderOrder = -0.5;
+  return {
+    mesh,
+    material,
+    patchMesh,
+    patchMaterial,
+    segmentCount,
+    dispose() {
+      geometry.dispose();
+      material.dispose();
+      patchGeometry.dispose();
+      patchMaterial.dispose();
+    }
   };
-  const random = seededRandom(4589);
-  let segmentCount = 0;
-
-  ['answer', 'citation', 'keyword'].forEach((key, regionIndex) => {
-    GEO_V4_TISSUE_FIELD[key].branches.forEach((points, branchIndex) => {
-      const curve = createGeoV4TissueCurve(points);
-      const samples = branchIndex === GEO_V4_TISSUE_FIELD[key].branches.length - 1 ? 22 : 16;
-      const color = regionColors[key].clone().lerp(
-        ice,
-        branchIndex === GEO_V4_TISSUE_FIELD[key].branches.length - 1 ? 0.38 : 0.16
-      );
-      for (let sample = 0; sample < samples; sample += 1) {
-        if ((sample + branchIndex * 3 + regionIndex * 5) % 11 === 7) continue;
-        const t0 = sample / samples;
-        const t1 = Math.min(1, (sample + 0.76) / samples);
-        const a = curve.getPoint(t0);
-        const b = curve.getPoint(t1);
-        const convergence = 1 - Math.min(1, a.distanceTo(
-          new THREE.Vector3(...GEO_V4_TISSUE_FIELD.center)
-        ) / 2.4);
-        appendFiberSegment(
-          builder.fibers,
-          a,
-          b,
-          color,
-          8.3 + regionIndex * 2.1 + branchIndex * 0.37 + sample * 0.04,
-          (0.028 + convergence * 0.035) * (0.88 + random() * 0.24)
-        );
-        segmentCount += 1;
-      }
-
-      const nodeCount = branchIndex < 3 ? 4 : 2;
-      for (let nodeIndex = 0; nodeIndex < nodeCount; nodeIndex += 1) {
-        const t = 0.16 + (nodeIndex + 0.5) / nodeCount * 0.68 + (random() - 0.5) * 0.07;
-        const point = curve.getPoint(THREE.MathUtils.clamp(t, 0.08, 0.94));
-        builder.nodes.positions.push(point.x, point.y, point.z + 0.006);
-        builder.nodes.colors.push(color.r, color.g, color.b);
-        builder.nodes.sizes.push(0.48 + random() * 0.42);
-        builder.nodes.phases.push(regionIndex * 2.4 + branchIndex * 0.51 + nodeIndex);
-        builder.nodes.strengths.push(0.055 + random() * 0.04);
-      }
-    });
-  });
-
-  return segmentCount;
 }
 
-function appendOrganismCellularLace(builder, ice) {
-  const random = seededRandom(4627);
-  const regions = [
-    {
-      color: new THREE.Color('#4db9d7'),
-      centers: [
-        [-2.34, 0.68, -0.5], [-2.08, 0.86, -0.46], [-1.84, 0.76, -0.36],
-        [-2.42, 0.34, -0.46], [-2.12, 0.42, -0.34], [-1.82, 0.48, -0.26],
-        [-2.22, 0.12, -0.4], [-1.94, 0.2, -0.31], [-1.66, 0.34, -0.24],
-        [-1.5, 0.58, -0.29], [-1.38, 0.16, -0.3]
-      ],
-      scale: 1.08,
-      phase: 0.4
-    },
-    {
-      color: new THREE.Color('#7398c0'),
-      centers: [
-        [2.34, 0.98, -0.51], [2.06, 1.04, -0.46], [1.78, 0.9, -0.36],
-        [2.4, 0.64, -0.48], [2.12, 0.62, -0.4], [1.84, 0.62, -0.31],
-        [2.1, 0.3, -0.4], [1.82, 0.34, -0.32], [1.56, 0.48, -0.27]
-      ],
-      scale: 0.92,
-      phase: 2.1
-    },
-    {
-      color: new THREE.Color('#238fa9'),
-      centers: [
-        [2.42, -0.92, -0.48], [2.12, -0.86, -0.39], [1.82, -0.72, -0.29],
-        [2.44, -0.52, -0.46], [2.12, -0.54, -0.35], [1.78, -0.54, -0.25],
-        [1.52, -0.48, -0.23], [1.28, -0.34, -0.27], [1.02, -0.3, -0.3]
-      ],
-      scale: 0.96,
-      phase: 4.2
-    },
-    {
-      color: new THREE.Color('#2b7994'),
-      centers: [
-        [-0.92, 0.2, -0.38], [-0.68, 0.08, -0.35], [-0.46, 0.02, -0.34],
-        [0.88, 0.24, -0.38], [0.64, 0.1, -0.35], [0.42, 0.01, -0.34],
-        [0.78, -0.36, -0.36], [0.54, -0.25, -0.34], [0.34, -0.18, -0.33]
-      ],
-      scale: 0.7,
-      phase: 6.4
-    }
-  ];
-  let segmentCount = 0;
-
-  regions.forEach((region, regionIndex) => {
-    region.centers.forEach((coords, cellIndex) => {
-      const center = new THREE.Vector3(...coords);
-      const radiusX = (0.11 + random() * 0.11) * region.scale;
-      const radiusY = (0.075 + random() * 0.09) * region.scale;
-      const rotation = (random() - 0.5) * 1.4;
-      const controlPoints = [];
-      const controlCount = 9;
-      for (let controlIndex = 0; controlIndex < controlCount; controlIndex += 1) {
-        const angle = controlIndex / controlCount * Math.PI * 2;
-        const irregularity = 0.74 + random() * 0.46;
-        const x = Math.cos(angle) * radiusX * irregularity;
-        const y = Math.sin(angle) * radiusY * (0.78 + random() * 0.42);
-        controlPoints.push(new THREE.Vector3(
-          center.x + x * Math.cos(rotation) - y * Math.sin(rotation),
-          center.y + x * Math.sin(rotation) + y * Math.cos(rotation),
-          center.z + Math.sin(angle * 2.3 + region.phase) * 0.025
-        ));
-      }
-      const curve = new THREE.CatmullRomCurve3(
-        controlPoints,
-        true,
-        'catmullrom',
-        0.34
-      );
-      const samples = 18;
-      const color = region.color.clone().lerp(ice, 0.08 + random() * 0.24);
-      for (let sample = 0; sample < samples; sample += 1) {
-        const gapSeed = (sample + cellIndex * 5 + regionIndex * 7) % 17;
-        if (gapSeed >= 11 || (sample + cellIndex) % 9 === 4) continue;
-        appendFiberSegment(
-          builder.fibers,
-          curve.getPoint(sample / samples),
-          curve.getPoint((sample + 0.74) / samples),
-          color,
-          11.4 + region.phase + cellIndex * 0.29 + sample * 0.031,
-          (0.075 + random() * 0.085) * (regionIndex === 3 ? 0.72 : 1)
-        );
-        segmentCount += 1;
-      }
-
-      if ((cellIndex + regionIndex) % 3 === 0) {
-        const point = curve.getPoint(0.16 + random() * 0.68);
-        builder.nodes.positions.push(point.x, point.y, point.z);
-        builder.nodes.colors.push(color.r, color.g, color.b);
-        builder.nodes.sizes.push(0.42 + random() * 0.5);
-        builder.nodes.phases.push(region.phase + cellIndex * 0.4);
-        builder.nodes.strengths.push(0.08 + random() * 0.055);
-      }
-    });
-  });
-
-  return segmentCount;
-}
-
-function appendFiberSegment(target, a, b, color, phase, strength) {
-  target.positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
-  target.colors.push(color.r, color.g, color.b, color.r, color.g, color.b);
-  target.phases.push(phase, phase + 0.09);
-  target.strengths.push(strength, strength);
-}
-
-function buildSurfaceGeometry(data) {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.positions, 3));
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(data.colors, 3));
-  geometry.setAttribute('aAcross', new THREE.Float32BufferAttribute(data.across, 1));
-  geometry.setAttribute('aAlong', new THREE.Float32BufferAttribute(data.along, 1));
-  geometry.setAttribute('aPhase', new THREE.Float32BufferAttribute(data.phases, 1));
-  geometry.setAttribute('aAlpha', new THREE.Float32BufferAttribute(data.alphas, 1));
-  geometry.setIndex(data.indices);
-  geometry.computeVertexNormals();
-  return geometry;
-}
-
-function buildFiberGeometry(data) {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.positions, 3));
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(data.colors, 3));
-  geometry.setAttribute('aPhase', new THREE.Float32BufferAttribute(data.phases, 1));
-  geometry.setAttribute('aStrength', new THREE.Float32BufferAttribute(data.strengths, 1));
-  return geometry;
-}
-
-function buildNodeGeometry(data) {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.positions, 3));
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(data.colors, 3));
-  geometry.setAttribute('aSize', new THREE.Float32BufferAttribute(data.sizes, 1));
-  geometry.setAttribute('aPhase', new THREE.Float32BufferAttribute(data.phases, 1));
-  geometry.setAttribute('aStrength', new THREE.Float32BufferAttribute(data.strengths, 1));
-  return geometry;
-}
-
-function createDeepSpace() {
-  const geometry = new THREE.SphereGeometry(18, 30, 20);
-  const material = new THREE.ShaderMaterial({
+function createCellPatchMaterial() {
+  return new THREE.ShaderMaterial({
     uniforms: {
       uTime: { value: 0 },
-      uOpacity: { value: 1 },
-      uDeep: { value: new THREE.Color('#010914') },
-      uNavy: { value: new THREE.Color('#03203a') },
-      uBlue: { value: new THREE.Color('#063f60') }
+      uOpacity: { value: 0 }
     },
     vertexShader: `
-      varying vec3 vDirection;
+      attribute float aPatchAlpha;
+      attribute float aRadial;
+      varying vec3 vColor;
+      varying float vPatchAlpha;
+      varying float vRadial;
       void main() {
-        vDirection = normalize(position);
+        vColor = color;
+        vPatchAlpha = aPatchAlpha;
+        vRadial = aRadial;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
     fragmentShader: `
       uniform float uTime;
       uniform float uOpacity;
-      uniform vec3 uDeep;
-      uniform vec3 uNavy;
-      uniform vec3 uBlue;
-      varying vec3 vDirection;
-
-      float hash(vec3 p) {
-        p = fract(p * 0.3183099 + 0.13);
-        p *= 17.0;
-        return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
-      }
-      float noise(vec3 p) {
-        vec3 i = floor(p);
-        vec3 f = fract(p);
-        f = f * f * (3.0 - 2.0 * f);
-        return mix(
-          mix(mix(hash(i), hash(i + vec3(1,0,0)), f.x), mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
-          mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x), mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y),
-          f.z
-        );
-      }
+      varying vec3 vColor;
+      varying float vPatchAlpha;
+      varying float vRadial;
       void main() {
-        vec3 direction = normalize(vDirection);
-        float broad = noise(direction * 2.1 + vec3(uTime * 0.001, 0.0, -uTime * 0.0007));
-        float detail = noise(direction * 5.2 - vec3(0.0, uTime * 0.0014, 0.0));
-        float field = smoothstep(0.4, 0.83, broad * 0.78 + detail * 0.22);
-        float centralAir = smoothstep(0.08, 0.88, length(direction.xy));
-        vec3 color = mix(uDeep, uNavy, field * 0.62);
-        color = mix(color, uBlue, field * field * 0.17);
-        color *= 0.76 + centralAir * 0.24;
-        gl_FragColor = vec4(color, uOpacity);
+        float body = (1.0 - smoothstep(0.5, 1.0, vRadial)) * 0.42;
+        float softEdge = smoothstep(0.64, 0.84, vRadial)
+          * (1.0 - smoothstep(0.86, 1.0, vRadial));
+        float bodyVariation = 0.84 + sin(
+          vRadial * 8.0 + uTime * 0.025 + vPatchAlpha * 9.0
+        ) * 0.16;
+        float alpha = uOpacity * vPatchAlpha * (body + softEdge * 0.16)
+          * bodyVariation;
+        if (alpha < 0.002) discard;
+        gl_FragColor = vec4(vColor * (0.46 + softEdge * 0.12), alpha);
       }
     `,
-    side: THREE.BackSide,
     transparent: true,
     depthWrite: false,
-    depthTest: false
+    depthTest: true,
+    side: THREE.DoubleSide,
+    vertexColors: true,
+    blending: THREE.NormalBlending,
+    toneMapped: false
   });
-  const mesh = new THREE.Mesh(geometry, material);
-
-  mesh.name = 'GEO V4 Deep Navy Organic Space';
-  return {
-    mesh,
-    update(time, opacity) {
-      material.uniforms.uTime.value = time;
-      material.uniforms.uOpacity.value = opacity;
-    },
-    dispose() {
-      geometry.dispose();
-      material.dispose();
-    }
-  };
 }
 
-function createFarSignals(texture, count) {
+function createCellRibbonMaterial() {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uOpacity: { value: 0 }
+    },
+    vertexShader: `
+      attribute float aAlpha;
+      attribute float aSide;
+      attribute float aAlong;
+      varying vec3 vColor;
+      varying float vAlpha;
+      varying float vSide;
+      varying float vAlong;
+      void main() {
+        vColor = color;
+        vAlpha = aAlpha;
+        vSide = aSide;
+        vAlong = aAlong;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float uTime;
+      uniform float uOpacity;
+      varying vec3 vColor;
+      varying float vAlpha;
+      varying float vSide;
+      varying float vAlong;
+      void main() {
+        float crossFeather = 1.0 - smoothstep(0.35, 1.0, abs(vSide));
+        float endFeather = smoothstep(0.0, 0.035, vAlong)
+          * smoothstep(0.0, 0.035, 1.0 - vAlong);
+        float shimmer = 0.92 + sin(uTime * 0.035 + vAlpha * 7.0) * 0.08;
+        float alpha = uOpacity * vAlpha * crossFeather * endFeather * shimmer;
+        if (alpha < 0.002) discard;
+        gl_FragColor = vec4(vColor * 1.12, alpha);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    depthTest: true,
+    side: THREE.DoubleSide,
+    vertexColors: true,
+    blending: THREE.NormalBlending,
+    toneMapped: false
+  });
+}
+
+function createSharedFibers(field) {
+  const positions = [];
+  const colors = [];
+  const alphas = [];
+  const paths = [
+    ...field.getFibers(),
+    ...field.getRegionPaths('answer'),
+    ...field.getRegionPaths('citation'),
+    ...field.getRegionPaths('keyword')
+  ];
+  const palette = {
+    answer: new THREE.Color('#50b3cc'),
+    citation: new THREE.Color('#7d9ab8'),
+    keyword: new THREE.Color('#2996a8'),
+    shared: new THREE.Color('#347e94')
+  };
+  let segmentCount = 0;
+
+  paths.forEach((path, pathIndex) => {
+    const color = palette[path.region] || palette.shared;
+    const pointCount = path.points.length;
+    for (let index = 0; index < pointCount - 1; index += 1) {
+      const visible = (index + pathIndex * 3) % (path.coreSeeking ? 9 : 12)
+        < (path.coreSeeking ? 4 : 5);
+      if (!visible) continue;
+      const a = path.points[index];
+      const b = path.points[index + 1];
+      const fieldSample = field.sample(a.x, a.y, a.z);
+      if (fieldSample.cavity > 0.82) continue;
+      positions.push(a.x, a.y, a.z + 0.012, b.x, b.y, b.z + 0.012);
+      colors.push(color.r, color.g, color.b, color.r, color.g, color.b);
+      const alpha = THREE.MathUtils.clamp(
+        0.22 + fieldSample.density * 0.52 + fieldSample.attraction * 0.18,
+        0.18,
+        0.84
+      );
+      alphas.push(alpha, alpha * 0.88);
+      segmentCount += 1;
+    }
+  });
+
   const geometry = new THREE.BufferGeometry();
-  const positions = new Float32Array(count * 3);
-  const colors = new Float32Array(count * 3);
-  const sizes = new Float32Array(count);
-  const random = seededRandom(4499);
-  const colorA = new THREE.Color('#214f78');
-  const colorB = new THREE.Color('#86dcff');
-  const color = new THREE.Color();
-
-  for (let index = 0; index < count; index += 1) {
-    const stride = index * 3;
-    positions[stride] = (random() - 0.5) * 9.4;
-    positions[stride + 1] = (random() - 0.5) * 5.2;
-    positions[stride + 2] = -2.2 - random() * 6.8;
-    color.copy(colorA).lerp(colorB, random() * 0.38);
-    colors[stride] = color.r;
-    colors[stride + 1] = color.g;
-    colors[stride + 2] = color.b;
-    sizes[index] = index % 53 === 0 ? 1.65 : 0.42 + random() * 0.68;
-  }
-
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
-  const material = createSignalPointsMaterial(texture, 0.23);
-  const points = new THREE.Points(geometry, material);
-
-  points.name = 'GEO V4 Sparse Deep Neural Signals';
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setAttribute('aAlpha', new THREE.Float32BufferAttribute(alphas, 1));
+  const material = createOrganicLineMaterial();
+  const lines = new THREE.LineSegments(geometry, material);
+  lines.name = 'GEO V4 Shared Curved Tissue Fibers';
+  lines.renderOrder = 1;
   return {
-    points,
+    lines,
     material,
-    particleCount: count,
+    segmentCount,
     dispose() {
       geometry.dispose();
       material.dispose();
@@ -1275,215 +1081,86 @@ function createOrganicLineMaterial() {
       uOpacity: { value: 0 }
     },
     vertexShader: `
-      attribute float aPhase;
-      attribute float aStrength;
-      varying vec3 vColor;
-      varying float vAlpha;
-      uniform float uTime;
-      void main() {
-        float drift = sin(uTime * 0.038 + aPhase + position.x * 0.31) * 0.007;
-        vec3 displaced = position + vec3(drift * 0.22, drift * 0.4, drift);
-        vColor = color;
-        vAlpha = aStrength * (0.86 + sin(aPhase * 1.7 + uTime * 0.075) * 0.14);
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform float uOpacity;
-      varying vec3 vColor;
-      varying float vAlpha;
-      void main() {
-        gl_FragColor = vec4(vColor, uOpacity * vAlpha);
-      }
-    `,
-    transparent: true,
-    depthWrite: false,
-    depthTest: true,
-    vertexColors: true,
-    blending: THREE.NormalBlending,
-    toneMapped: false
-  });
-}
-
-function createOrganicCellMaterial(layer) {
-  const layerSettings = {
-    rear: { intensity: 0.82, motion: 0.34, detail: 0.42 },
-    mid: { intensity: 1.5, motion: 0.68, detail: 0.92 },
-    foreground: { intensity: 0.28, motion: 0.94, detail: 0.25 }
-  }[layer];
-  return new THREE.ShaderMaterial({
-    uniforms: {
-      uTime: { value: 0 },
-      uOpacity: { value: 0 },
-      uLayerIntensity: { value: layerSettings.intensity },
-      uMotionScale: { value: layerSettings.motion },
-      uCellDetail: { value: layerSettings.detail }
-    },
-    vertexShader: `
-      attribute float aAcross;
-      attribute float aAlong;
-      attribute float aPhase;
       attribute float aAlpha;
       varying vec3 vColor;
-      varying float vAcross;
-      varying float vAlong;
-      varying float vPhase;
       varying float vAlpha;
-      varying vec3 vLocalPosition;
-      uniform float uTime;
-      uniform float uMotionScale;
       void main() {
-        vec3 displaced = position;
-        float lowWave = sin(uTime * 0.016 * uMotionScale + aPhase + position.x * 0.31)
-          + cos(uTime * 0.012 * uMotionScale + aPhase * 0.7 + position.y * 0.39);
-        displaced.z += lowWave * 0.0065 * uMotionScale;
-        displaced.xy += normal.xy * lowWave * 0.0018 * uMotionScale;
         vColor = color;
-        vAcross = aAcross;
-        vAlong = aAlong;
-        vPhase = aPhase;
         vAlpha = aAlpha;
-        vLocalPosition = displaced;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
     fragmentShader: `
+      uniform float uTime;
       uniform float uOpacity;
-      uniform float uLayerIntensity;
-      uniform float uCellDetail;
       varying vec3 vColor;
-      varying float vAcross;
-      varying float vAlong;
-      varying float vPhase;
       varying float vAlpha;
-      varying vec3 vLocalPosition;
-
-      float hash(vec2 p) {
-        return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
-      }
-      float noise(vec2 p) {
-        vec2 i = floor(p);
-        vec2 f = fract(p);
-        f = f * f * (3.0 - 2.0 * f);
-        return mix(
-          mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
-          mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x),
-          f.y
-        );
-      }
-      vec2 hash22(vec2 p) {
-        float n = sin(dot(p, vec2(41.0, 289.0)));
-        return fract(vec2(262144.0, 32768.0) * n);
-      }
-      vec3 cellular(vec2 p) {
-        vec2 cell = floor(p);
-        vec2 local = fract(p);
-        float nearest = 8.0;
-        float second = 8.0;
-        float cellId = 0.0;
-        for (int y = -1; y <= 1; y++) {
-          for (int x = -1; x <= 1; x++) {
-            vec2 offset = vec2(float(x), float(y));
-            vec2 feature = offset + hash22(cell + offset);
-            feature += 0.14 * sin(vec2(1.7, 2.1) * vPhase + feature.yx * 4.6);
-            float distanceToFeature = length(feature - local);
-            if (distanceToFeature < nearest) {
-              second = nearest;
-              nearest = distanceToFeature;
-              cellId = hash(cell + offset);
-            } else if (distanceToFeature < second) {
-              second = distanceToFeature;
-            }
-          }
-        }
-        return vec3(nearest, second, cellId);
-      }
       void main() {
-        float sideFeather = 1.0 - smoothstep(0.72, 0.98, abs(vAcross));
-        float endFeather = smoothstep(0.04, 0.13, vAlong)
-          * (1.0 - smoothstep(0.87, 0.97, vAlong));
-        float broadNoise = noise(vec2(vAlong * 2.05 + vPhase, vAcross * 1.02 - vPhase * 0.23));
-        float warpedNoise = noise(vec2(
-          vAlong * 4.1 - vAcross * 0.68 + vPhase * 0.61,
-          vAcross * 1.78 + vAlong * 0.8 - vPhase
-        ));
-        float attraction = 1.0 - smoothstep(
-          0.28,
-          2.15,
-          distance(vLocalPosition.xy, vec2(-0.02, -0.14))
-        );
-        float frequency = mix(1.0, 1.26, attraction);
-        vec2 cellUv = vec2(
-          vAlong * 13.2 * frequency,
-          (vAcross + warpedNoise * 0.12) * 4.85 * frequency
-        );
-        vec2 cellWarp = vec2(
-          noise(cellUv * 0.31 + vec2(vPhase, -vPhase * 0.4)),
-          noise(cellUv.yx * 0.37 + vec2(-vPhase * 0.5, vPhase))
-        ) - 0.5;
-        vec2 organicCellUv = cellUv + vec2(
-          sin(cellUv.y * 0.72 + vPhase) * 0.58,
-          sin(cellUv.x * 0.48 - vPhase * 0.8) * 0.44
-        ) + cellWarp * 1.42;
-        vec3 cellData = cellular(
-          organicCellUv + vec2(vPhase * 0.37, -vPhase * 0.19)
-        );
-        float cellEdge = 1.0 - smoothstep(0.018, 0.062, cellData.y - cellData.x);
-        float clusterA = 1.0 - smoothstep(
-          0.22,
-          0.49,
-          length(vec2(vAlong - (0.29 + 0.055 * sin(vPhase)), (vAcross + 0.26) * 0.56))
-        );
-        float clusterB = 1.0 - smoothstep(
-          0.2,
-          0.45,
-          length(vec2(vAlong - (0.62 + 0.045 * cos(vPhase)), (vAcross - 0.14) * 0.62))
-        );
-        float clusterC = 1.0 - smoothstep(
-          0.16,
-          0.35,
-          length(vec2(vAlong - 0.82, (vAcross + 0.38 * sin(vPhase * 0.7)) * 0.72))
-        );
-        float tissueCluster = max(max(clusterA, clusterB), clusterC) * uCellDetail;
-        float localContinuity = smoothstep(
-          0.28,
-          0.58,
-          broadNoise * 0.52 + warpedNoise * 0.48
-        );
-        float edgeBreakup = smoothstep(
-          0.54,
-          0.76,
-          noise(vec2(vAlong * 12.2 + vPhase * 1.8, vAcross * 4.2 - vPhase))
-        );
-        float partialBoundary = mix(0.01, 1.0, edgeBreakup);
-        float membraneBody = 0.34 + localContinuity * 0.66;
-        float alpha = uOpacity
-          * vAlpha
-          * uLayerIntensity
-          * sideFeather
-          * endFeather
-          * tissueCluster
-          * membraneBody
-          * cellEdge
-          * partialBoundary
-          * 1.65;
+        float pulse = 0.92 + sin(uTime * 0.055 + vAlpha * 8.0) * 0.08;
+        float alpha = uOpacity * vAlpha * pulse;
         if (alpha < 0.003) discard;
-        float coreTint = attraction * 0.2;
-        vec3 cellColor = mix(vColor, vec3(0.7, 0.94, 1.0), 0.26 + coreTint);
-        gl_FragColor = vec4(cellColor, alpha);
+        gl_FragColor = vec4(vColor, alpha);
       }
     `,
     transparent: true,
     depthWrite: false,
     depthTest: true,
     vertexColors: true,
-    side: THREE.DoubleSide,
     blending: THREE.NormalBlending,
     toneMapped: false
   });
 }
 
-function createOrganicPointMaterial(texture) {
+function createMembraneNodes(field, texture) {
+  const positions = [];
+  const colors = [];
+  const sizes = [];
+  const phases = [];
+  const palette = {
+    answer: new THREE.Color('#79d9ed'),
+    citation: new THREE.Color('#a3b4d8'),
+    keyword: new THREE.Color('#3db8c8'),
+    shared: new THREE.Color('#397d94')
+  };
+  let foregroundParticleCount = 0;
+  const samples = [
+    ...field.getCells().flatMap((cell) => cell.points.filter((_, index) => index % 4 === 0)),
+    ...field.getFibers().flatMap((path) => path.points.filter((_, index) => index % 5 === 0))
+  ];
+
+  samples.forEach((point, index) => {
+    const sample = field.sample(point.x, point.y, point.z);
+    if ((index * 7) % 11 > 6) return;
+    const color = palette[sample.businessRegion] || palette.shared;
+    positions.push(point.x, point.y, point.z + 0.018);
+    colors.push(color.r, color.g, color.b);
+    sizes.push(0.42 + sample.density * 0.78 + (index % 17 === 0 ? 0.62 : 0));
+    phases.push(index * 0.731);
+    if (point.z > 0.1) foregroundParticleCount += 1;
+  });
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setAttribute('aSize', new THREE.Float32BufferAttribute(sizes, 1));
+  geometry.setAttribute('aPhase', new THREE.Float32BufferAttribute(phases, 1));
+  const material = createNodeMaterial(texture);
+  const points = new THREE.Points(geometry, material);
+  points.name = 'GEO V4 Sparse Shared Membrane Nodes';
+  points.renderOrder = 3;
+  return {
+    points,
+    material,
+    particleCount: positions.length / 3,
+    foregroundParticleCount,
+    dispose() {
+      geometry.dispose();
+      material.dispose();
+    }
+  };
+}
+
+function createNodeMaterial(texture) {
   return new THREE.ShaderMaterial({
     uniforms: {
       uTime: { value: 0 },
@@ -1493,17 +1170,14 @@ function createOrganicPointMaterial(texture) {
     vertexShader: `
       attribute float aSize;
       attribute float aPhase;
-      attribute float aStrength;
       varying vec3 vColor;
-      varying float vAlpha;
+      varying float vPulse;
       uniform float uTime;
       void main() {
-        float drift = sin(uTime * 0.032 + aPhase + position.y * 0.28) * 0.006;
-        vec3 displaced = position + vec3(drift * 0.18, drift * 0.36, drift);
-        vec4 viewPosition = modelViewMatrix * vec4(displaced, 1.0);
+        vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
         vColor = color;
-        vAlpha = aStrength * (0.88 + sin(uTime * 0.12 + aPhase * 2.1) * 0.12);
-        gl_PointSize = aSize * (13.2 / max(-viewPosition.z, 1.0));
+        vPulse = 0.72 + sin(uTime * 0.16 + aPhase) * 0.28;
+        gl_PointSize = aSize * (15.0 / max(-viewPosition.z, 1.0));
         gl_Position = projectionMatrix * viewPosition;
       }
     `,
@@ -1511,10 +1185,10 @@ function createOrganicPointMaterial(texture) {
       uniform float uOpacity;
       uniform sampler2D uPointTexture;
       varying vec3 vColor;
-      varying float vAlpha;
+      varying float vPulse;
       void main() {
-        float alpha = texture2D(uPointTexture, gl_PointCoord).a * uOpacity * vAlpha;
-        if (alpha < 0.01) discard;
+        float alpha = texture2D(uPointTexture, gl_PointCoord).a * uOpacity * vPulse;
+        if (alpha < 0.008) discard;
         gl_FragColor = vec4(vColor, alpha);
       }
     `,
