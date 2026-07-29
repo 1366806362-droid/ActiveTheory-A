@@ -1,0 +1,308 @@
+{
+  "schemaVersion": 1,
+  "project": "GEO V4.1.9-B Candidate B Refinement",
+  "seed": 41902,
+  "paths": {
+    "sourceBlend": "art/geo-scene/v419-blender-master-lookdev/geo-v4-master-lookdev.blend",
+    "workingBlend": "art/geo-scene/v419-blender-master-lookdev/geo-v4-master-lookdev-b-working.blend",
+    "auditJson": "tools/blender/geo_v4_candidate_b_scene_audit.json",
+    "renderOutput": "art/geo-scene/v419-blender-master-lookdev/b-refine-renders"
+  },
+  "lockedSourceSha256": "23F876E145D6BECF7A4F96A216C4CF2CC26F6A62290580BEF4A56C764ABB7361",
+  "corePosition": [
+    0.0,
+    0.2,
+    -0.55
+  ],
+  "candidateBaselines": {
+    "A": {
+      "label": "Balanced",
+      "exposure": -0.54,
+      "worldStrength": 0.016,
+      "bodyVisibility": {
+        "rear": 0.012,
+        "mid": 0.03,
+        "foreground": 0.016
+      },
+      "edgeEmission": {
+        "rear": 0.05,
+        "mid": 0.14,
+        "foreground": 0.058
+      },
+      "glowMultiplier": 0.82,
+      "lightMultiplier": 0.2,
+      "denseDetail": false
+    },
+    "B": {
+      "label": "Darker Cinematic",
+      "exposure": -0.88,
+      "worldStrength": 0.008,
+      "bodyVisibility": {
+        "rear": 0.007,
+        "mid": 0.018,
+        "foreground": 0.01
+      },
+      "edgeEmission": {
+        "rear": 0.034,
+        "mid": 0.095,
+        "foreground": 0.04
+      },
+      "glowMultiplier": 0.68,
+      "lightMultiplier": 0.14,
+      "denseDetail": false
+    },
+    "C": {
+      "label": "Organic Dense",
+      "exposure": -0.42,
+      "worldStrength": 0.02,
+      "bodyVisibility": {
+        "rear": 0.018,
+        "mid": 0.043,
+        "foreground": 0.024
+      },
+      "edgeEmission": {
+        "rear": 0.07,
+        "mid": 0.18,
+        "foreground": 0.08
+      },
+      "glowMultiplier": 0.94,
+      "lightMultiplier": 0.24,
+      "denseDetail": true
+    }
+  },
+  "phasePlans": {
+    "b1": [
+      "b1"
+    ],
+    "b2": [
+      "b1",
+      "b2"
+    ],
+    "b3": [
+      "b1",
+      "b2",
+      "b3"
+    ]
+  },
+  "phases": {
+    "b1": {
+      "label": "Material & Lighting",
+      "description": "Replace blocky teal lookdev shading with layered thin-film transmission, restore deep navy negative space, and stratify signal-node brightness without changing the main topology.",
+      "worldStrength": 0.0065,
+      "exposure": -0.92,
+      "membrane": {
+        "rear": {
+          "baseColor": [
+            0.0025,
+            0.014,
+            0.034,
+            1.0
+          ],
+          "roughness": 0.48,
+          "transmission": 0.82,
+          "ior": 1.36,
+          "bodyVisibility": 0.008,
+          "edgeEmission": 0.026
+        },
+        "mid": {
+          "baseColor": [
+            0.004,
+            0.026,
+            0.058,
+            1.0
+          ],
+          "roughness": 0.36,
+          "transmission": 0.88,
+          "ior": 1.38,
+          "bodyVisibility": 0.022,
+          "edgeEmission": 0.08
+        },
+        "foreground": {
+          "baseColor": [
+            0.002,
+            0.012,
+            0.028,
+            1.0
+          ],
+          "roughness": 0.54,
+          "transmission": 0.76,
+          "ior": 1.34,
+          "bodyVisibility": 0.009,
+          "edgeEmission": 0.025
+        }
+      },
+      "fiberEmission": {
+        "Deep_Neural_Fiber": 0.12,
+        "Answer_Ice_Fiber": 0.56,
+        "Citation_Cold_Purple_Fiber": 0.42,
+        "Keyword_Cyan_Fiber": 0.44
+      },
+      "nodeEmission": {
+        "Ice_Node": 2.4,
+        "Purple_Node": 1.8,
+        "Cyan_Node": 2.0,
+        "White_Node": 2.65
+      },
+      "nodeScale": {
+        "answer": 0.82,
+        "citation": 0.72,
+        "keyword": 0.78,
+        "seed": 0.68,
+        "white": 0.72
+      },
+      "lightMultipliers": {
+        "Ambient_Top": 0.105,
+        "Answer_Ice_Key": 0.16,
+        "Citation_Purple_Key": 0.12,
+        "Cavity_Ice_Rim": 0.18,
+        "Foreground_Rim": 0.09
+      }
+    },
+    "b2": {
+      "label": "Cavity & Tissue Structure",
+      "description": "Deepen the non-circular Z-axis attraction cavity, tighten nearby cell scale and fiber direction, increase torn-edge tension, and strengthen only local foreground enclosure.",
+      "centralObjectDepthOffsets": {
+        "Mid_Convergence_Left": 0.42,
+        "Mid_Convergence_Right": 0.48,
+        "Mid_Lower_Bridge": 0.28
+      },
+      "centralWrinkle": {
+        "strength": 0.16,
+        "midLevel": 0.5,
+        "noiseScale": 0.42,
+        "noiseDepth": 2
+      },
+      "fiberConvergenceRadius": 4.2,
+      "fiberConvergenceStrength": 0.2,
+      "fiberDepthPull": 0.34,
+      "cellShrinkRadius": 3.7,
+      "cellMinimumScale": 0.62,
+      "foreground": {
+        "Foreground_Left_Veil": {
+          "locationOffset": [
+            -0.12,
+            -0.28,
+            -0.1
+          ],
+          "scaleMultiplier": 1.06
+        },
+        "Foreground_Top_Veil": {
+          "locationOffset": [
+            0.0,
+            -0.18,
+            0.08
+          ],
+          "scaleMultiplier": 1.03
+        },
+        "Foreground_Right_Veil": {
+          "locationOffset": [
+            0.12,
+            -0.22,
+            -0.04
+          ],
+          "scaleMultiplier": 1.04
+        }
+      }
+    },
+    "b3": {
+      "label": "Business Integration",
+      "description": "Embed ANSWER, CITATION and KEYWORD into the same membrane field while retaining central visual priority and avoiding Y-shaped highways, parallel keyword rails or complete rings.",
+      "regionDepthOffsets": {
+        "answer": 0.04,
+        "citation": 0.1,
+        "keyword": 0.07
+      },
+      "curveWidthMultipliers": {
+        "answer": 1.08,
+        "citation": 0.84,
+        "keyword": 0.9
+      },
+      "nodeScaleMultipliers": {
+        "answer": 0.92,
+        "citation": 0.78,
+        "keyword": 0.84
+      },
+      "materialEmission": {
+        "Answer_Ice_Fiber": 0.62,
+        "Citation_Cold_Purple_Fiber": 0.38,
+        "Keyword_Cyan_Fiber": 0.46,
+        "Ice_Node": 2.55,
+        "Purple_Node": 1.72,
+        "Cyan_Node": 1.92,
+        "White_Node": 2.7
+      },
+      "forbiddenStructures": [
+        "new complete circular or elliptical curves",
+        "three continuous business-to-core highways",
+        "parallel keyword rails",
+        "uniform full-path emission"
+      ]
+    }
+  },
+  "presets": {
+    "preview": {
+      "engine": "CYCLES",
+      "device": "OPTIX",
+      "width": 1920,
+      "height": 1080,
+      "resolutionPercentage": 50,
+      "effectiveWidth": 960,
+      "effectiveHeight": 540,
+      "samples": 64,
+      "useAdaptiveSampling": true,
+      "adaptiveThreshold": 0.03,
+      "denoiser": "OPTIX",
+      "transparentBounces": 6,
+      "volumeBounces": 1,
+      "volumeStepRate": 1.5,
+      "colorManagement": "AgX - Medium High Contrast",
+      "colorDepth": "8"
+    },
+    "review": {
+      "engine": "CYCLES",
+      "device": "OPTIX",
+      "width": 1920,
+      "height": 1080,
+      "resolutionPercentage": 100,
+      "effectiveWidth": 1920,
+      "effectiveHeight": 1080,
+      "samples": 256,
+      "useAdaptiveSampling": true,
+      "adaptiveThreshold": 0.015,
+      "denoiser": "OPTIX",
+      "transparentBounces": 12,
+      "volumeBounces": 2,
+      "volumeStepRate": 0.75,
+      "colorManagement": "AgX - Medium High Contrast",
+      "colorDepth": "16"
+    },
+    "final": {
+      "engine": "CYCLES",
+      "device": "OPTIX",
+      "width": 1920,
+      "height": 1080,
+      "resolutionPercentage": 100,
+      "effectiveWidth": 1920,
+      "effectiveHeight": 1080,
+      "samples": 512,
+      "useAdaptiveSampling": true,
+      "adaptiveThreshold": 0.008,
+      "denoiser": "OPTIX",
+      "transparentBounces": 16,
+      "volumeBounces": 4,
+      "volumeStepRate": 0.4,
+      "colorManagement": "AgX - Medium High Contrast",
+      "colorDepth": "16"
+    }
+  },
+  "visualRisks": [
+    "Candidate B currently inherits Candidate A geometry and depends mainly on exposure, world, edge and light multipliers.",
+    "Membrane body may still read as blocky teal patches until B1 transmission and thickness hierarchy is applied.",
+    "The center can read as a dark cutout unless B2 depth pull preserves visible rear depth.",
+    "Business nodes can float in front of membranes unless B3 depth offsets are reviewed from the locked camera.",
+    "Over-strengthening business curves can reintroduce the rejected Y-shaped routing diagram.",
+    "KEYWORD curve width or emission must not recreate two parallel rails.",
+    "White seed nodes can become a white hole if node scale and emission are not stratified.",
+    "Review and Final must stop when NVIDIA OptiX is unavailable; CPU fallback is prohibited."
+  ]
+}
