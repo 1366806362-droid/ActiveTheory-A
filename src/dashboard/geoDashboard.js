@@ -1,9 +1,8 @@
 import './geoDashboard.css';
 import {
-  geoDashboardMockData,
-  getGeoDashboardDataset,
-  getGeoDashboardTrend
-} from '../data/geoDashboardMockData.js';
+  createGeoDashboardDataDiagnostics,
+  loadGeoDashboardDataset
+} from '../data/geoDashboardDataSource.js';
 import {
   renderAnswerPath,
   renderCitationNetwork,
@@ -24,6 +23,7 @@ import {
 
 const DASHBOARD_INSTANCE_KEY = '__GEO_DASHBOARD_EXPERIENCE__';
 const DASHBOARD_STATUS_KEY = '__GEO_DASHBOARD_STATUS__';
+const DASHBOARD_DATA_STATUS_KEY = '__GEO_DASHBOARD_DATA_STATUS__';
 const VIEW_DEFINITIONS = Object.freeze([
   { id: 'overview', label: 'Overview' },
   { id: 'answer', label: 'AI Answer' },
@@ -41,6 +41,13 @@ export function initializeGeoDashboardExperience() {
   const dashboardRequested = params.get('geoDashboard') === 'v1';
   const entryMode = params.get('entry') === 'geo';
   const holographicDetails = params.get('geoDashboardVisual') === 'v12';
+  const dataMode = holographicDetails && params.get('geoDashboardData') === 'fixture'
+    ? 'fixture'
+    : 'mock';
+  const fixture = dataMode === 'fixture' ? (params.get('geoFixture') ?? 'valid') : null;
+  const dataSource = dashboardRequested
+    ? loadGeoDashboardDataset({ mode: dataMode, fixture })
+    : null;
   const state = {
     root: null,
     prompt: null,
@@ -49,6 +56,8 @@ export function initializeGeoDashboardExperience() {
     range: '30d',
     scoreExpanded: false,
     holographicDetails,
+    dataMode,
+    fixture,
     cancelViewTransition: null,
     cancelAnimations: [],
     openedFrom: entryMode ? 'geo' : 'direct'
@@ -59,6 +68,10 @@ export function initializeGeoDashboardExperience() {
     platform: state.platform,
     range: state.range,
     visual: state.holographicDetails ? 'v12' : 'v11',
+    dataMode,
+    fixture,
+    dataGate: dataSource?.gate.status ?? null,
+    dataFallbackUsed: dataSource?.fallbackUsed ?? false,
     openedFrom: state.openedFrom,
     renderCount: 0,
     canvasCount: document.querySelectorAll('canvas').length,
@@ -67,6 +80,9 @@ export function initializeGeoDashboardExperience() {
   };
 
   window[DASHBOARD_STATUS_KEY] = status;
+  if (dashboardRequested && import.meta.env.DEV && params.get('geoDashboardDebug') === 'data') {
+    window[DASHBOARD_DATA_STATUS_KEY] = createGeoDashboardDataDiagnostics(dataSource);
+  }
 
   document.addEventListener('keydown', handleKeyDown, { signal });
   document.addEventListener('pointerdown', handleCorePointer, { signal });
@@ -88,6 +104,7 @@ export function initializeGeoDashboardExperience() {
       state.root?.remove();
       state.prompt = null;
       state.root = null;
+      delete window[DASHBOARD_DATA_STATUS_KEY];
       delete window[DASHBOARD_STATUS_KEY];
       if (window[DASHBOARD_INSTANCE_KEY] === experience) {
         delete window[DASHBOARD_INSTANCE_KEY];
@@ -171,6 +188,7 @@ export function initializeGeoDashboardExperience() {
       cancelMetricAnimations();
       status.mounted = false;
       publishStatus();
+      delete window[DASHBOARD_DATA_STATUS_KEY];
       removeDashboardQuery();
     });
   }
@@ -179,6 +197,8 @@ export function initializeGeoDashboardExperience() {
     const root = document.createElement('main');
     root.className = `geo-dashboard geo-dashboard--entering${state.holographicDetails ? ' geo-dashboard--v12' : ''}`;
     root.dataset.currentView = state.view;
+    root.dataset.dataGate = dataSource.gate.status;
+    root.dataset.dataMode = dataSource.mode;
     root.setAttribute('aria-label', 'GEO Data Command Center');
     root.innerHTML = `
       <div class="geo-dashboard__ambient" aria-hidden="true">
@@ -217,7 +237,7 @@ export function initializeGeoDashboardExperience() {
   }
 
   function renderHeader() {
-    const metadata = geoDashboardMockData.metadata;
+    const metadata = dataSource.dashboard.metadata;
     const dateCells = [
       ['报告日期', metadata.reportDate],
       ['GEO数据', metadata.geoDataDate],
@@ -251,7 +271,7 @@ export function initializeGeoDashboardExperience() {
           <label class="geo-select-field">
             <span>Platform</span>
             <select data-platform-select aria-label="平台筛选">
-              ${geoDashboardMockData.platforms.map(({ id, label }) => (
+              ${dataSource.dashboard.platforms.map(({ id, label }) => (
                 `<option value="${id}">${label}</option>`
               )).join('')}
             </select>
@@ -641,8 +661,8 @@ export function initializeGeoDashboardExperience() {
   }
 
   function updateDashboard() {
-    const data = getGeoDashboardDataset(state.platform);
-    const trend = getGeoDashboardTrend(state.platform, state.range);
+    const data = dataSource.getDashboardData(state.platform);
+    const trend = dataSource.getDashboardTrend(state.platform, state.range);
 
     cancelMetricAnimations();
     updateOverview(data, trend);
@@ -758,7 +778,7 @@ export function initializeGeoDashboardExperience() {
       state.root.querySelector('[data-health-pipeline]'),
       data.dataHealth
     );
-    const metadata = geoDashboardMockData.metadata;
+    const metadata = dataSource.dashboard.metadata;
     state.root.querySelector('[data-date-lineage-v12]').innerHTML = [
       ['报告日期', metadata.reportDate],
       ['GEO数据日期', metadata.geoDataDate],
@@ -887,7 +907,7 @@ export function initializeGeoDashboardExperience() {
         </article>
       `).join('');
 
-    const metadata = geoDashboardMockData.metadata;
+    const metadata = dataSource.dashboard.metadata;
     state.root.querySelector('[data-date-lineage]').innerHTML = [
       `报告日期 · ${metadata.reportDate}`,
       `GEO数据日期 · ${metadata.geoDataDate}`,
@@ -910,11 +930,28 @@ export function initializeGeoDashboardExperience() {
   }
 
   function updateAlerts(alerts) {
-    state.root.querySelector('.geo-alert-rail').innerHTML = alerts.map((alert) => `
+    const dataStatusAlert = getDataStatusAlert();
+    const visibleAlerts = dataStatusAlert ? [dataStatusAlert, ...alerts] : alerts;
+    state.root.querySelector('.geo-alert-rail').innerHTML = visibleAlerts.map((alert) => `
       <span class="geo-alert geo-alert--${alert.tone}">
         <b>${alert.label}</b> · ${alert.detail}
       </span>
     `).join('');
+  }
+
+  function getDataStatusAlert() {
+    if (dataSource.mode !== 'fixture') return null;
+    if (dataSource.fallbackUsed) {
+      return {
+        tone: 'warning',
+        label: '数据状态',
+        detail: '当前数据异常，已使用安全演示数据'
+      };
+    }
+    if (dataSource.gate.status === 'warning') {
+      return { tone: 'warning', label: '数据状态', detail: '数据存在警告' };
+    }
+    return { tone: 'positive', label: '数据状态', detail: '数据正常' };
   }
 
   function updateMetric(key, value, suffix = '', digits = 1) {
