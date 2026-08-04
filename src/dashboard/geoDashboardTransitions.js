@@ -87,3 +87,28 @@ export function pulseCoreFeedback(element) {
   void element.offsetWidth;
   element.classList.add('geo-core-feedback');
 }
+
+export function transitionDashboardView(root, from, to) {
+  if (!root || from === to) return () => {};
+  root.dataset.viewFrom = from;
+  root.dataset.viewTo = to;
+  root.classList.remove('geo-dashboard--view-settled');
+  root.classList.add('geo-dashboard--view-changing');
+
+  let frame = requestAnimationFrame(() => {
+    frame = requestAnimationFrame(() => {
+      root.classList.add('geo-dashboard--view-settled');
+    });
+  });
+  const timer = window.setTimeout(() => {
+    root.classList.remove('geo-dashboard--view-changing', 'geo-dashboard--view-settled');
+    delete root.dataset.viewFrom;
+    delete root.dataset.viewTo;
+  }, reducedMotion.matches ? 20 : 460);
+
+  return () => {
+    cancelAnimationFrame(frame);
+    window.clearTimeout(timer);
+    root.classList.remove('geo-dashboard--view-changing', 'geo-dashboard--view-settled');
+  };
+}

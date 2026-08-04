@@ -5,6 +5,10 @@ import {
   getGeoDashboardTrend
 } from '../data/geoDashboardMockData.js';
 import {
+  renderAnswerPath,
+  renderCitationNetwork,
+  renderDataHealthPipeline,
+  renderKeywordOpportunityField,
   renderOpportunityMap,
   renderRingMeter,
   renderSegmentArc,
@@ -14,7 +18,8 @@ import {
   animateDashboardEntry,
   animateDashboardExit,
   animateMetric,
-  pulseCoreFeedback
+  pulseCoreFeedback,
+  transitionDashboardView
 } from './geoDashboardTransitions.js';
 
 const DASHBOARD_INSTANCE_KEY = '__GEO_DASHBOARD_EXPERIENCE__';
@@ -35,6 +40,7 @@ export function initializeGeoDashboardExperience() {
   const params = new URLSearchParams(window.location.search);
   const dashboardRequested = params.get('geoDashboard') === 'v1';
   const entryMode = params.get('entry') === 'geo';
+  const holographicDetails = params.get('geoDashboardVisual') === 'v12';
   const state = {
     root: null,
     prompt: null,
@@ -42,6 +48,8 @@ export function initializeGeoDashboardExperience() {
     platform: 'all',
     range: '30d',
     scoreExpanded: false,
+    holographicDetails,
+    cancelViewTransition: null,
     cancelAnimations: [],
     openedFrom: entryMode ? 'geo' : 'direct'
   };
@@ -50,6 +58,7 @@ export function initializeGeoDashboardExperience() {
     view: state.view,
     platform: state.platform,
     range: state.range,
+    visual: state.holographicDetails ? 'v12' : 'v11',
     openedFrom: state.openedFrom,
     renderCount: 0,
     canvasCount: document.querySelectorAll('canvas').length,
@@ -74,6 +83,7 @@ export function initializeGeoDashboardExperience() {
     dispose() {
       abortController.abort();
       cancelMetricAnimations();
+      state.cancelViewTransition?.();
       state.prompt?.remove();
       state.root?.remove();
       state.prompt = null;
@@ -167,7 +177,8 @@ export function initializeGeoDashboardExperience() {
 
   function buildDashboard() {
     const root = document.createElement('main');
-    root.className = 'geo-dashboard geo-dashboard--entering';
+    root.className = `geo-dashboard geo-dashboard--entering${state.holographicDetails ? ' geo-dashboard--v12' : ''}`;
+    root.dataset.currentView = state.view;
     root.setAttribute('aria-label', 'GEO Data Command Center');
     root.innerHTML = `
       <div class="geo-dashboard__ambient" aria-hidden="true">
@@ -194,10 +205,10 @@ export function initializeGeoDashboardExperience() {
         </nav>
         <div class="geo-dashboard__viewport">
           ${renderOverviewView()}
-          ${renderAnswerView()}
-          ${renderCitationView()}
-          ${renderKeywordView()}
-          ${renderDataHealthView()}
+          ${state.holographicDetails ? renderAnswerViewV12() : renderAnswerView()}
+          ${state.holographicDetails ? renderCitationViewV12() : renderCitationView()}
+          ${state.holographicDetails ? renderKeywordViewV12() : renderKeywordView()}
+          ${state.holographicDetails ? renderDataHealthViewV12() : renderDataHealthView()}
         </div>
       </div>
       <div class="geo-alert-rail" aria-live="polite"></div>
@@ -221,11 +232,21 @@ export function initializeGeoDashboardExperience() {
           <p class="geo-dashboard__eyebrow">Generative Engine Intelligence</p>
           <h1 class="geo-dashboard__title">GEO DATA COMMAND CENTER</h1>
         </div>
-        <div class="geo-dashboard__dates" aria-label="独立数据日期">
-          ${dateCells.map(([label, value]) => `
-            <div class="geo-date-cell"><span>${label}</span><strong>${value}</strong></div>
-          `).join('')}
-        </div>
+        ${state.holographicDetails ? `
+          <ol class="geo-dashboard__lineage" aria-label="数据日期血缘">
+            ${dateCells.map(([label, value], index) => `
+              <li class="geo-lineage-node${index === dateCells.length - 1 ? ' geo-lineage-node--lag' : ''}">
+                <span>${label}</span><strong>${value}</strong>
+              </li>
+            `).join('')}
+          </ol>
+        ` : `
+          <div class="geo-dashboard__dates" aria-label="独立数据日期">
+            ${dateCells.map(([label, value]) => `
+              <div class="geo-date-cell"><span>${label}</span><strong>${value}</strong></div>
+            `).join('')}
+          </div>
+        `}
         <div class="geo-dashboard__actions">
           <label class="geo-select-field">
             <span>Platform</span>
@@ -385,6 +406,125 @@ export function initializeGeoDashboardExperience() {
       `);
   }
 
+  function renderAnswerViewV12() {
+    return holographicViewMarkup(
+      'answer',
+      'Answer Intelligence',
+      'AI ANSWER',
+      '回答路径',
+      '追踪问题从语义理解到品牌露出的完整路径；暗部支路代表未提及或无效回答。',
+      `
+        <section class="geo-holo-stage geo-holo-stage--answer" aria-label="AI回答路径主结构">
+          <div class="geo-answer-path" data-answer-path></div>
+          <div class="geo-holo-metric-orbit" data-answer-orbit></div>
+        </section>
+        <aside class="geo-holo-aside geo-holo-aside--answer">
+          <div class="geo-holo-aside__section">
+            <p class="geo-holo-kicker">回答类型结构</p>
+            <div class="geo-holo-segments" data-answer-types-v12></div>
+          </div>
+          <div class="geo-holo-aside__section geo-holo-aside__section--trend">
+            <p class="geo-holo-kicker">同平台 × 同问题趋势</p>
+            <div class="geo-holo-trend" data-answer-trend-v12></div>
+          </div>
+        </aside>
+      `
+    );
+  }
+
+  function renderCitationViewV12() {
+    return holographicViewMarkup(
+      'citation',
+      'Source Intelligence',
+      'AI CITATION',
+      '来源网络',
+      '来源经过类型识别、验证与筛选后汇聚；异常来源保持低饱和警示。',
+      `
+        <section class="geo-holo-stage geo-holo-stage--citation" aria-label="AI引用来源网络主结构">
+          <div class="geo-citation-network" data-citation-network></div>
+          <div class="geo-holo-metric-orbit" data-citation-orbit></div>
+        </section>
+        <aside class="geo-holo-aside geo-holo-aside--citation">
+          <div class="geo-holo-aside__section">
+            <p class="geo-holo-kicker">来源域名分布</p>
+            <ul class="geo-holo-domain-list" data-source-domains-v12></ul>
+          </div>
+          <div class="geo-holo-aside__section geo-holo-aside__section--warning">
+            <p class="geo-holo-kicker">异常来源</p>
+            <ul class="geo-holo-warning-list" data-abnormal-sources-v12></ul>
+          </div>
+        </aside>
+      `
+    );
+  }
+
+  function renderKeywordViewV12() {
+    return holographicViewMarkup(
+      'keyword',
+      'Opportunity Intelligence',
+      'GEO KEYWORD',
+      '机会词场',
+      '以综合机会评分为中心，组织场景、商业价值、AI触发与品牌机会。',
+      `
+        <section class="geo-holo-stage geo-holo-stage--keyword" aria-label="GEO关键词机会场主结构">
+          <div class="geo-keyword-field" data-keyword-field></div>
+          <div class="geo-holo-metric-orbit" data-keyword-orbit></div>
+        </section>
+        <aside class="geo-holo-aside geo-holo-aside--keyword">
+          <div class="geo-holo-aside__section">
+            <p class="geo-holo-kicker">Top 10机会词</p>
+            <ol class="geo-holo-keyword-rank" data-keyword-rank-v12></ol>
+          </div>
+          <div class="geo-holo-aside__section geo-holo-aside__section--signals">
+            <p class="geo-holo-kicker">新增与下降</p>
+            <div class="geo-holo-signal-list" data-keyword-signals-v12></div>
+          </div>
+        </aside>
+      `
+    );
+  }
+
+  function renderDataHealthViewV12() {
+    return holographicViewMarkup(
+      'data-health',
+      'Data Integrity',
+      'DATA HEALTH',
+      '三段数据生命线',
+      '平台访问、问题采集、回答有效性保持独立分母；链路用于定位损失而非合并总完成率。',
+      `
+        <section class="geo-holo-stage geo-holo-stage--health" aria-label="数据健康三段生命线主结构">
+          <div class="geo-health-pipeline" data-health-pipeline></div>
+        </section>
+        <aside class="geo-holo-aside geo-holo-aside--health">
+          <div class="geo-holo-aside__section geo-holo-aside__section--lineage">
+            <p class="geo-holo-kicker">日期血缘</p>
+            <ol class="geo-holo-lineage-list" data-date-lineage-v12></ol>
+          </div>
+          <div class="geo-holo-aside__section geo-holo-aside__section--warning">
+            <p class="geo-holo-kicker">异常与受影响范围</p>
+            <ul class="geo-holo-warning-list" data-health-warnings-v12></ul>
+          </div>
+        </aside>
+      `
+    );
+  }
+
+  function holographicViewMarkup(id, eyebrow, title, structure, description, body) {
+    return `
+      <section class="geo-view geo-holo-view geo-holo-view--${id}" data-view="${id}" aria-label="${title}">
+        <div class="geo-holo-view__head">
+          <div>
+            <p class="geo-module__eyebrow">${eyebrow}</p>
+            <h2 class="geo-module__title">${title}</h2>
+          </div>
+          <div class="geo-holo-view__identity"><span>主数据结构</span><strong>${structure}</strong></div>
+          <p class="geo-module__description">${description}</p>
+        </div>
+        <div class="geo-holo-view__body">${body}</div>
+      </section>
+    `;
+  }
+
   function renderDataHealthView() {
     return `
       <section class="geo-view geo-module" data-view="data-health" aria-label="数据健康">
@@ -465,7 +605,14 @@ export function initializeGeoDashboardExperience() {
 
   function setView(view) {
     if (!VIEW_DEFINITIONS.some(({ id }) => id === view)) return;
+    const previousView = state.view;
+    if (previousView === view) return;
+    if (state.holographicDetails) {
+      state.cancelViewTransition?.();
+      state.cancelViewTransition = transitionDashboardView(state.root, previousView, view);
+    }
     state.view = view;
+    state.root.dataset.currentView = view;
     state.root.querySelectorAll('[data-view]').forEach((element) => {
       element.classList.toggle('geo-view--active', element.dataset.view === view);
     });
@@ -499,10 +646,17 @@ export function initializeGeoDashboardExperience() {
 
     cancelMetricAnimations();
     updateOverview(data, trend);
-    updateAnswer(data, trend);
-    updateCitation(data, trend);
-    updateKeyword(data);
-    updateDataHealth(data);
+    if (state.holographicDetails) {
+      updateAnswerV12(data, trend);
+      updateCitationV12(data);
+      updateKeywordV12(data);
+      updateDataHealthV12(data);
+    } else {
+      updateAnswer(data, trend);
+      updateCitation(data, trend);
+      updateKeyword(data);
+      updateDataHealth(data);
+    }
     updateAlerts(data.alerts);
     status.platform = state.platform;
     status.range = state.range;
@@ -540,6 +694,92 @@ export function initializeGeoDashboardExperience() {
     renderTrendChart(state.root.querySelector('[data-overview-trend]'), trend, {
       label: '相同平台与问题组合趋势'
     });
+  }
+
+  function updateAnswerV12(data, trend) {
+    renderAnswerPath(state.root.querySelector('[data-answer-path]'), data.answer);
+    renderHoloMetricNodes(state.root.querySelector('[data-answer-orbit]'), [
+      ['平台可访问率', data.answer.platformAccessibilityRate, '%', '可访问平台 / 预期平台'],
+      ['问题采集完整率', data.answer.questionCollectionCompleteness, '%', '采集问题 / 预期问题'],
+      ['回答有效率', data.answer.collectedAnswerValidity, '%', '有效回答 / 已采集回答'],
+      ['品牌提及率', data.answer.brandMentionRate, '%', '有效回答中的品牌提及'],
+      ['首位推荐率', data.answer.firstRecommendationRate, '%', '品牌位于第一推荐'],
+      ['平均品牌位置', data.answer.averageBrandPosition, '', '仅在品牌被提及时计算']
+    ]);
+    renderSegmentArc(state.root.querySelector('[data-answer-types-v12]'), data.answer.answerTypes, {
+      label: '回答类型结构'
+    });
+    renderTrendChart(state.root.querySelector('[data-answer-trend-v12]'), trend, {
+      label: 'AI Answer相同平台与问题组合趋势'
+    });
+  }
+
+  function updateCitationV12(data) {
+    renderCitationNetwork(state.root.querySelector('[data-citation-network]'), data.citation);
+    renderHoloMetricNodes(state.root.querySelector('[data-citation-orbit]'), [
+      ['总引用', data.citation.totalCitations, '', '去重后的有效引用'],
+      ['高质量引用率', data.citation.qualityRate, '%', '官方与高权威第三方来源'],
+      ['官方来源', data.citation.officialRate, '%', '来源结构保持独立'],
+      ['第三方来源', data.citation.thirdPartyRate, '%', '来源结构保持独立'],
+      ['社区来源', data.citation.communityRate, '%', '来源结构保持独立'],
+      ['权威来源占比', data.citation.authorityRate, '%', '按来源分级规则计算'],
+      ['榜单 / 测评', data.citation.rankingReviewRate, '%', '评测型来源比例'],
+      ['收录与索引', data.citation.indexedRate, '%', '可访问并被平台索引']
+    ]);
+    state.root.querySelector('[data-source-domains-v12]').innerHTML = data.citation.sourceDomains
+      .map((item) => `
+        <li><span class="geo-domain-node geo-domain-node--${item.tone}"></span><b>${item.domain}</b><strong>${item.value}</strong></li>
+      `).join('');
+    state.root.querySelector('[data-abnormal-sources-v12]').innerHTML = data.citation.abnormalSources
+      .map((item) => `<li><b>${item.source}</b><span>${item.count}条 · ${item.severity}</span></li>`)
+      .join('');
+  }
+
+  function updateKeywordV12(data) {
+    renderKeywordOpportunityField(state.root.querySelector('[data-keyword-field]'), data.keyword);
+    renderHoloMetricNodes(state.root.querySelector('[data-keyword-orbit]'), [
+      ['综合机会评分', data.keyword.opportunityScore, '', '需求、竞争与品牌能力综合'],
+      ['商业价值', data.keyword.commercialValue, '', '商业意图与转化潜力'],
+      ['新增机会词', data.keyword.newKeywords.length, '', '本周期首次进入机会池'],
+      ['下降词', data.keyword.decliningKeywords.length, '', '同口径趋势下降']
+    ]);
+    state.root.querySelector('[data-keyword-rank-v12]').innerHTML = data.keyword.topKeywords
+      .map((item, index) => `
+        <li><span>${String(index + 1).padStart(2, '0')}</span><b>${item.keyword}</b><strong>${item.score}</strong><em class="${item.trend < 0 ? 'is-declining' : ''}">${item.trend >= 0 ? '+' : ''}${item.trend}%</em></li>
+      `).join('');
+    state.root.querySelector('[data-keyword-signals-v12]').innerHTML = [
+      ...data.keyword.newKeywords.map((item) => ['新增', item, 'new']),
+      ...data.keyword.decliningKeywords.map((item) => ['下降', item, 'declining'])
+    ].map(([label, item, tone]) => `<span class="geo-holo-signal geo-holo-signal--${tone}"><i>${label}</i>${item}</span>`).join('');
+  }
+
+  function updateDataHealthV12(data) {
+    renderDataHealthPipeline(
+      state.root.querySelector('[data-health-pipeline]'),
+      data.dataHealth
+    );
+    const metadata = geoDashboardMockData.metadata;
+    state.root.querySelector('[data-date-lineage-v12]').innerHTML = [
+      ['报告日期', metadata.reportDate],
+      ['GEO数据日期', metadata.geoDataDate],
+      ['5A快照日期', metadata.fiveASnapshotDate],
+      ['品牌心智快照日期', metadata.brandMindSnapshotDate],
+      ['数据滞后', `${metadata.lagDays}天`]
+    ].map(([label, value], index) => `<li class="${index === 4 ? 'is-lag' : ''}"><span>${label}</span><strong>${value}</strong></li>`).join('');
+    state.root.querySelector('[data-health-warnings-v12]').innerHTML = data.dataHealth.warnings
+      .map((item) => `<li><b>需关注</b><span>${item}</span></li>`)
+      .join('');
+  }
+
+  function renderHoloMetricNodes(container, metrics) {
+    container.innerHTML = metrics.map(([label, value, suffix, note], index) => {
+      const digits = Number.isInteger(value) ? 0 : 1;
+      return `
+        <div class="geo-holo-metric geo-holo-metric--${index + 1}" tabindex="0" data-tooltip="${note}">
+          <span>${label}</span><strong>${Number(value).toFixed(digits)}${suffix}</strong>
+        </div>
+      `;
+    }).join('');
   }
 
   function updateAnswer(data, trend) {
