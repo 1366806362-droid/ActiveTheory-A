@@ -1,8 +1,10 @@
 import './geoDashboard.css';
 import {
+  activateGeoDashboardFileResult,
   createGeoDashboardDataDiagnostics,
   loadGeoDashboardDataset
 } from '../data/geoDashboardDataSource.js';
+import { createGeoDashboardFileImport } from './geoDashboardFileImport.js';
 import {
   renderAnswerPath,
   renderCitationNetwork,
@@ -41,11 +43,13 @@ export function initializeGeoDashboardExperience() {
   const dashboardRequested = params.get('geoDashboard') === 'v1';
   const entryMode = params.get('entry') === 'geo';
   const holographicDetails = params.get('geoDashboardVisual') === 'v12';
-  const dataMode = holographicDetails && params.get('geoDashboardData') === 'fixture'
-    ? 'fixture'
+  const requestedDataMode = params.get('geoDashboardData');
+  const dataMode = holographicDetails && ['fixture', 'json', 'file'].includes(requestedDataMode)
+    ? requestedDataMode
     : 'mock';
   const fixture = dataMode === 'fixture' ? (params.get('geoFixture') ?? 'valid') : null;
-  const dataSource = dashboardRequested
+  const datasetId = dataMode === 'json' ? (params.get('geoDataset') ?? 'sample-valid') : null;
+  let dataSource = dashboardRequested && dataMode !== 'json'
     ? loadGeoDashboardDataset({ mode: dataMode, fixture })
     : null;
   const state = {
@@ -58,6 +62,11 @@ export function initializeGeoDashboardExperience() {
     holographicDetails,
     dataMode,
     fixture,
+    datasetId,
+    loadingPrompt: null,
+    fileImport: null,
+    fileSnapshot: null,
+    fileLastResult: null,
     cancelViewTransition: null,
     cancelAnimations: [],
     openedFrom: entryMode ? 'geo' : 'direct'
@@ -70,8 +79,10 @@ export function initializeGeoDashboardExperience() {
     visual: state.holographicDetails ? 'v12' : 'v11',
     dataMode,
     fixture,
-    dataGate: dataSource?.gate.status ?? null,
+    dataGate: dataMode === 'json' && dashboardRequested ? 'loading' : dataSource?.gate.status ?? null,
     dataFallbackUsed: dataSource?.fallbackUsed ?? false,
+    datasetId,
+    fileState: dataMode === 'file' ? 'idle' : null,
     openedFrom: state.openedFrom,
     renderCount: 0,
     canvasCount: document.querySelectorAll('canvas').length,
@@ -80,14 +91,33 @@ export function initializeGeoDashboardExperience() {
   };
 
   window[DASHBOARD_STATUS_KEY] = status;
-  if (dashboardRequested && import.meta.env.DEV && params.get('geoDashboardDebug') === 'data') {
-    window[DASHBOARD_DATA_STATUS_KEY] = createGeoDashboardDataDiagnostics(dataSource);
-  }
+  publishDataDiagnostics();
 
   document.addEventListener('keydown', handleKeyDown, { signal });
   document.addEventListener('pointerdown', handleCorePointer, { signal });
 
-  if (dashboardRequested && entryMode) {
+  if (dashboardRequested && dataMode === 'json') {
+    showLoadingPrompt();
+    loadGeoDashboardDataset({ mode: 'json', datasetId, signal })
+      .then((result) => {
+        if (signal.aborted) return;
+        dataSource = result;
+        status.dataGate = result.gate.status;
+        status.dataFallbackUsed = result.fallbackUsed;
+        state.loadingPrompt?.remove();
+        state.loadingPrompt = null;
+        publishDataDiagnostics();
+        publishStatus();
+        if (entryMode) {
+          window.setTimeout(showEntryPrompt, 420);
+        } else {
+          requestAnimationFrame(() => openDashboard('direct'));
+        }
+      })
+      .catch((error) => {
+        if (error?.name !== 'AbortError') console.error('GEO Dashboard JSON load failed.', error);
+      });
+  } else if (dashboardRequested && entryMode) {
     window.setTimeout(showEntryPrompt, 420);
   } else if (dashboardRequested) {
     requestAnimationFrame(() => openDashboard('direct'));
@@ -100,9 +130,15 @@ export function initializeGeoDashboardExperience() {
       abortController.abort();
       cancelMetricAnimations();
       state.cancelViewTransition?.();
+      state.fileImport?.dispose();
       state.prompt?.remove();
+      state.loadingPrompt?.remove();
       state.root?.remove();
       state.prompt = null;
+      state.loadingPrompt = null;
+      state.fileImport = null;
+      state.fileSnapshot = null;
+      state.fileLastResult = null;
       state.root = null;
       delete window[DASHBOARD_DATA_STATUS_KEY];
       delete window[DASHBOARD_STATUS_KEY];
@@ -114,6 +150,48 @@ export function initializeGeoDashboardExperience() {
 
   window[DASHBOARD_INSTANCE_KEY] = experience;
   return experience;
+
+  function showLoadingPrompt() {
+    const prompt = document.createElement('div');
+    prompt.className = 'geo-core-entry-prompt';
+    prompt.setAttribute('role', 'status');
+    prompt.setAttribute('aria-live', 'polite');
+    prompt.innerHTML = '<span>正在加载数据包</span>';
+    document.body.append(prompt);
+    state.loadingPrompt = prompt;
+    publishStatus();
+  }
+
+  function publishDataDiagnostics() {
+    if (!dashboardRequested || !import.meta.env.DEV || params.get('geoDashboardDebug') !== 'data') return;
+    if (dataMode === 'file') {
+      const base = state.fileLastResult
+        ? createGeoDashboardDataDiagnostics(state.fileLastResult)
+        : createGeoDashboardDataDiagnostics(dataSource);
+      window[DASHBOARD_DATA_STATUS_KEY] = {
+        ...base,
+        ...(state.fileSnapshot ?? {
+          mode: 'file',
+          state: 'idle',
+          pendingUserConfirmation: false,
+          applied: false,
+          fileReferenceHeld: false,
+          readerActive: false
+        })
+      };
+      return;
+    }
+    window[DASHBOARD_DATA_STATUS_KEY] = dataSource
+      ? createGeoDashboardDataDiagnostics(dataSource)
+      : {
+        mode: dataMode,
+        datasetId,
+        gate: 'loading',
+        fallbackUsed: false,
+        fallbackReason: null,
+        loadedAt: null
+      };
+  }
 
   function showEntryPrompt() {
     if (state.root || state.prompt || !isGeoReady()) return;
@@ -155,7 +233,7 @@ export function initializeGeoDashboardExperience() {
   }
 
   function openDashboard(origin = 'direct') {
-    if (state.root) return;
+    if (state.root || !dataSource) return;
 
     state.openedFrom = origin;
     state.prompt?.remove();
@@ -166,6 +244,7 @@ export function initializeGeoDashboardExperience() {
     state.root = root;
     document.body.append(root);
     bindDashboardEvents(root);
+    if (dataMode === 'file') initializeFileImport(root);
     updateDashboard();
     animateDashboardEntry(root, origin);
     root.querySelector('.geo-action-button--return')?.focus({ preventScroll: true });
@@ -181,6 +260,11 @@ export function initializeGeoDashboardExperience() {
   function closeDashboard() {
     if (!state.root) return;
     const root = state.root;
+
+    state.fileImport?.dispose();
+    state.fileImport = null;
+    state.fileSnapshot = null;
+    state.fileLastResult = null;
 
     animateDashboardExit(root, () => {
       root.remove();
@@ -239,11 +323,11 @@ export function initializeGeoDashboardExperience() {
   function renderHeader() {
     const metadata = dataSource.dashboard.metadata;
     const dateCells = [
-      ['报告日期', metadata.reportDate],
-      ['GEO数据', metadata.geoDataDate],
-      ['5A快照', metadata.fiveASnapshotDate],
-      ['品牌心智', metadata.brandMindSnapshotDate],
-      ['滞后', `${metadata.lagDays} DAY`]
+      ['reportDate', '报告日期', metadata.reportDate],
+      ['geoDataDate', 'GEO数据', metadata.geoDataDate],
+      ['fiveASnapshotDate', '5A快照', metadata.fiveASnapshotDate],
+      ['brandMindSnapshotDate', '品牌心智', metadata.brandMindSnapshotDate],
+      ['lagDays', '滞后', `${metadata.lagDays} DAY`]
     ];
 
     return `
@@ -254,16 +338,16 @@ export function initializeGeoDashboardExperience() {
         </div>
         ${state.holographicDetails ? `
           <ol class="geo-dashboard__lineage" aria-label="数据日期血缘">
-            ${dateCells.map(([label, value], index) => `
+            ${dateCells.map(([key, label, value], index) => `
               <li class="geo-lineage-node${index === dateCells.length - 1 ? ' geo-lineage-node--lag' : ''}">
-                <span>${label}</span><strong>${value}</strong>
+                <span>${label}</span><strong data-lineage-value="${key}">${value}</strong>
               </li>
             `).join('')}
           </ol>
         ` : `
           <div class="geo-dashboard__dates" aria-label="独立数据日期">
-            ${dateCells.map(([label, value]) => `
-              <div class="geo-date-cell"><span>${label}</span><strong>${value}</strong></div>
+            ${dateCells.map(([key, label, value]) => `
+              <div class="geo-date-cell"><span>${label}</span><strong data-lineage-value="${key}">${value}</strong></div>
             `).join('')}
           </div>
         `}
@@ -284,6 +368,7 @@ export function initializeGeoDashboardExperience() {
               <option value="90d">近90天</option>
             </select>
           </label>
+          ${dataMode === 'file' ? '<button class="geo-action-button geo-action-button--import" type="button" data-file-import-open>导入数据包</button>' : ''}
           <button class="geo-action-button" type="button" data-fullscreen>全屏</button>
           <button class="geo-action-button geo-action-button--return" type="button">返回 GEO</button>
         </div>
@@ -589,6 +674,69 @@ export function initializeGeoDashboardExperience() {
         <span>${label}</span><strong data-metric="${key}">0.0</strong>
       </div>
     `;
+  }
+
+  function initializeFileImport(root) {
+    state.fileImport?.dispose();
+    state.fileImport = createGeoDashboardFileImport({
+      root,
+      signal,
+      loadFile(file, fileSignal) {
+        return loadGeoDashboardDataset({ mode: 'file', file, signal: fileSignal });
+      },
+      applyFile(result) {
+        const applied = activateGeoDashboardFileResult(result);
+        dataSource = applied;
+        state.fileLastResult = applied;
+        status.dataGate = applied.gate.status;
+        status.dataFallbackUsed = false;
+        status.fileState = 'applied';
+        syncDataSourceUI();
+        return applied;
+      },
+      revertToMock() {
+        dataSource = loadGeoDashboardDataset({ mode: 'file', state: 'reverted' });
+        state.fileLastResult = dataSource;
+        status.dataGate = dataSource.gate.status;
+        status.dataFallbackUsed = false;
+        status.fileState = 'reverted';
+        syncDataSourceUI();
+      },
+      onStateChange(snapshot, result) {
+        state.fileSnapshot = snapshot;
+        if (result) state.fileLastResult = result;
+        status.fileState = snapshot.state;
+        if (snapshot.gate) status.dataGate = snapshot.gate;
+        publishDataDiagnostics();
+        publishStatus();
+      }
+    });
+  }
+
+  function syncDataSourceUI() {
+    if (!state.root || !dataSource?.dashboard) return;
+    const metadata = dataSource.dashboard.metadata;
+    const lineage = {
+      reportDate: metadata.reportDate,
+      geoDataDate: metadata.geoDataDate,
+      fiveASnapshotDate: metadata.fiveASnapshotDate,
+      brandMindSnapshotDate: metadata.brandMindSnapshotDate,
+      lagDays: `${metadata.lagDays} DAY`
+    };
+    Object.entries(lineage).forEach(([key, value]) => {
+      const target = state.root.querySelector(`[data-lineage-value="${key}"]`);
+      if (target) target.textContent = value;
+    });
+
+    const platformSelect = state.root.querySelector('[data-platform-select]');
+    const platforms = dataSource.dashboard.platforms;
+    platformSelect.replaceChildren(...platforms.map(({ id, label }) => new Option(label, id)));
+    if (!platforms.some(({ id }) => id === state.platform)) state.platform = 'all';
+    platformSelect.value = state.platform;
+    state.root.dataset.dataGate = dataSource.gate.status;
+    state.root.dataset.dataMode = dataSource.mode;
+    updateDashboard();
+    publishDataDiagnostics();
   }
 
   function bindDashboardEvents(root) {
@@ -940,6 +1088,27 @@ export function initializeGeoDashboardExperience() {
   }
 
   function getDataStatusAlert() {
+    if (dataSource.mode === 'file') {
+      if (dataSource.applied && dataSource.gate.status === 'warning') {
+        return { tone: 'warning', label: '数据状态', detail: '本地数据已应用，数据包存在警告' };
+      }
+      if (dataSource.applied) {
+        return { tone: 'positive', label: '数据状态', detail: '本地数据已验证并应用' };
+      }
+      if (dataSource.fileState === 'reverted') {
+        return { tone: 'neutral', label: '数据状态', detail: '已恢复安全演示数据' };
+      }
+      return { tone: 'neutral', label: '数据状态', detail: '当前使用安全演示数据，可导入本地JSON' };
+    }
+    if (dataSource.mode === 'json') {
+      if (dataSource.fallbackUsed) {
+        return { tone: 'warning', label: '数据状态', detail: '数据包异常，已使用安全演示数据' };
+      }
+      if (dataSource.gate.status === 'warning') {
+        return { tone: 'warning', label: '数据状态', detail: '数据包存在警告' };
+      }
+      return { tone: 'positive', label: '数据状态', detail: '数据包已验证' };
+    }
     if (dataSource.mode !== 'fixture') return null;
     if (dataSource.fallbackUsed) {
       return {

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-08-04T09:00:00Z",
+  "datasets": [
+    {
+      "id": "sample-valid",
+      "label": "Valid Sample Dataset",
+      "file": "sample-valid.json",
+      "schemaVersion": "1.0.0",
+      "datasetVersion": "1.0.0",
+      "sha256": "68ec7201b2e30cab889d973e13fd5da1be0942a2ccb5babdaf9d9ce22a8b3c81",
+      "sizeBytes": 14287,
+      "enabled": true,
+      "notes": "完整轻量标准数据包，预期gate=pass。"
+    },
+    {
+      "id": "sample-warning",
+      "label": "Warning Sample Dataset",
+      "file": "sample-warning.json",
+      "schemaVersion": "1.0.0",
+      "datasetVersion": "1.0.0",
+      "sha256": "298cb545a8f5c5048addcfe2d1a20d0440f2bdd361f8d78d7ae05d130e0a1c2a",
+      "sizeBytes": 12551,
+      "enabled": true,
+      "notes": "包含日期滞后、未知平台、不可比较趋势和可选明细缺失。"
+    },
+    {
+      "id": "sample-invalid",
+      "label": "Invalid Contract Sample Dataset",
+      "file": "sample-invalid.json",
+      "schemaVersion": "1.0.0",
+      "datasetVersion": "1.0.0",
+      "sha256": "1b35cd1d8c2a0154fe78311d6cf1423eb179a24a1b6b31b2f0d72a7079481ff8",
+      "sizeBytes": 2855,
+      "enabled": true,
+      "notes": "JSON、大小和checksum有效，但业务数据契约无效。"
+    }
+  ]
+}

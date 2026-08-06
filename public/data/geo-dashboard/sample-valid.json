@@ -1,0 +1,125 @@
+{
+  "schemaVersion": "1.0.0",
+  "datasetId": "sample-valid",
+  "datasetVersion": "1.0.0",
+  "source": {
+    "type": "json",
+    "name": "Valid Sample Dataset",
+    "fileName": "sample-valid.json",
+    "generatedAt": "2026-08-04T09:00:00+08:00",
+    "importedAt": "2026-08-04T09:00:00+08:00",
+    "producer": "ActiveTheory GEO Dashboard V1.4",
+    "sourceVersion": "1.0.0",
+    "checksum": null,
+    "notes": ["同源静态JSON验证数据，不代表正式生产数据。"]
+  },
+  "metadata": {
+    "reportDate": "2026-08-04",
+    "geoDataDate": "2026-08-03",
+    "fiveASnapshotDate": "2026-08-02",
+    "brandMindSnapshotDate": "2026-08-01",
+    "lagDays": 1,
+    "timezone": "Asia/Shanghai",
+    "dateAlignmentStatus": "aligned",
+    "competitorSetVersion": "sample-competitors-v1",
+    "questionSetVersion": "sample-questions-v1",
+    "platformSetVersion": "sample-platforms-v1",
+    "dataWindowStart": "2026-07-28",
+    "dataWindowEnd": "2026-08-03"
+  },
+  "platforms": [
+    { "id": "all", "name": "全部", "displayName": "全部", "aliases": [], "enabled": true, "expectedQuestionCount": 80, "collectedQuestionCount": 76, "validAnswerCount": 72, "accessibilityRate": 97.5, "questionCollectionCompleteness": 95, "collectedAnswerValidity": 94.7, "weight": 1, "status": "healthy" },
+    { "id": "doubao", "name": "豆包", "displayName": "豆包", "aliases": [], "enabled": true, "expectedQuestionCount": 20, "collectedQuestionCount": 20, "validAnswerCount": 19, "accessibilityRate": 100, "questionCollectionCompleteness": 100, "collectedAnswerValidity": 95, "weight": 0.25, "status": "healthy" },
+    { "id": "deepseek", "name": "DeepSeek", "displayName": "DeepSeek", "aliases": [], "enabled": true, "expectedQuestionCount": 20, "collectedQuestionCount": 19, "validAnswerCount": 18, "accessibilityRate": 100, "questionCollectionCompleteness": 95, "collectedAnswerValidity": 94.7, "weight": 0.25, "status": "healthy" },
+    { "id": "kimi", "name": "Kimi", "displayName": "Kimi", "aliases": [], "enabled": true, "expectedQuestionCount": 20, "collectedQuestionCount": 18, "validAnswerCount": 17, "accessibilityRate": 95, "questionCollectionCompleteness": 90, "collectedAnswerValidity": 94.4, "weight": 0.25, "status": "healthy" },
+    { "id": "qwen", "name": "千问", "displayName": "千问", "aliases": [], "enabled": true, "expectedQuestionCount": 20, "collectedQuestionCount": 19, "validAnswerCount": 18, "accessibilityRate": 95, "questionCollectionCompleteness": 95, "collectedAnswerValidity": 94.7, "weight": 0.25, "status": "healthy" }
+  ],
+  "overview": {
+    "finalScore": 85.2,
+    "geoStructureScore": 87.5,
+    "geoSemanticScore": 82.4,
+    "brandVisibilityRate": 79.1,
+    "firstRecommendationRate": 62.3,
+    "averageBrandPosition": 2.0,
+    "qualityCitationRate": 75.1,
+    "keywordOpportunityScore": 86.8,
+    "dataHealthScore": 95.6,
+    "scoreChange": 2.8,
+    "scoreChangeDirection": "up",
+    "scoreComponents": [
+      { "id": "structure", "label": "结构", "value": 87.5, "weight": 0.3, "contribution": 26.25, "sourceMetric": "geoStructureScore", "status": "active" },
+      { "id": "semantic", "label": "语义", "value": 82.4, "weight": 0.25, "contribution": 20.6, "sourceMetric": "geoSemanticScore", "status": "active" },
+      { "id": "visibility", "label": "品牌可见", "value": 79.1, "weight": 0.25, "contribution": 19.775, "sourceMetric": "brandVisibilityRate", "status": "active" },
+      { "id": "citation", "label": "引用质量", "value": 75.1, "weight": 0.2, "contribution": 15.02, "sourceMetric": "qualityCitationRate", "status": "active" }
+    ]
+  },
+  "answer": {
+    "summary": { "totalQuestions": 80, "collectedAnswers": 76, "validAnswers": 72, "brandedAnswers": 57, "firstRecommendations": 45 },
+    "metrics": { "platformAccessibilityRate": 97.5, "questionCollectionCompleteness": 95, "collectedAnswerValidity": 94.7, "brandMentionRate": 79.1, "firstRecommendationRate": 62.3, "averageBrandPosition": 2.0 },
+    "answerTypes": [
+      { "id": "direct", "label": "直接推荐", "count": 30, "rate": 41.7 },
+      { "id": "comparison", "label": "对比提及", "count": 22, "rate": 30.6 },
+      { "id": "scenario", "label": "场景建议", "count": 13, "rate": 18.1 },
+      { "id": "unmentioned", "label": "未提及", "count": 7, "rate": 9.6 }
+    ],
+    "platformComparison": [
+      { "platformId": "doubao", "accessibilityRate": 100, "completenessRate": 100, "validityRate": 95, "brandMentionRate": 85, "firstRecommendationRate": 68, "averageBrandPosition": 1.8 },
+      { "platformId": "deepseek", "accessibilityRate": 100, "completenessRate": 95, "validityRate": 94.7, "brandMentionRate": 78, "firstRecommendationRate": 61, "averageBrandPosition": 2.1 },
+      { "platformId": "kimi", "accessibilityRate": 95, "completenessRate": 90, "validityRate": 94.4, "brandMentionRate": 76, "firstRecommendationRate": 60, "averageBrandPosition": 2.3 },
+      { "platformId": "qwen", "accessibilityRate": 95, "completenessRate": 95, "validityRate": 94.7, "brandMentionRate": 77, "firstRecommendationRate": 59, "averageBrandPosition": 2.2 }
+    ],
+    "brandPositions": [{ "position": 1, "count": 45, "rate": 62.3 }, { "position": 2, "count": 18, "rate": 25 }, { "position": 3, "count": 9, "rate": 12.7 }],
+    "recommendationLevels": { "primary": 45, "secondary": 18, "weak": 5, "softPlacement": 4, "noRecommendation": 0 },
+    "records": [{ "recordId": "JSON-A-001", "date": "2026-08-03", "platformId": "deepseek", "questionId": "Q-001", "question": "品牌推荐问题", "answerType": "direct", "isValid": true, "brandMentioned": true, "brandPosition": 1, "isFirstRecommendation": true, "recommendationLevel": "primary", "mentionedBrands": ["示例品牌"], "mentionedProducts": [], "rawReference": "json://answer/JSON-A-001" }]
+  },
+  "citation": {
+    "summary": { "totalCitations": 468, "validCitations": 447, "qualityCitations": 336, "uniqueDomains": 39 },
+    "metrics": { "qualityRate": 75.1, "officialRate": 37, "thirdPartyRate": 44, "communityRate": 19, "rankingReviewRate": 30, "indexedRate": 91 },
+    "sourceTypes": [{ "id": "official", "count": 173, "rate": 37 }, { "id": "thirdParty", "count": 206, "rate": 44 }, { "id": "community", "count": 89, "rate": 19 }, { "id": "unknown", "count": 0, "rate": 0 }],
+    "contentTypes": [{ "id": "ranking", "count": 70 }, { "id": "review", "count": 70 }, { "id": "report", "count": 84 }, { "id": "media", "count": 90 }, { "id": "officialArticle", "count": 112 }, { "id": "communityPost", "count": 42 }, { "id": "other", "count": 0 }],
+    "sourceDomains": [
+      { "domain": "brand.com", "count": 108, "rate": 23.1, "sourceType": "official", "qualityLevel": "high", "indexed": true, "status": "active" },
+      { "domain": "36kr.com", "count": 75, "rate": 16, "sourceType": "thirdParty", "qualityLevel": "high", "indexed": true, "status": "active" },
+      { "domain": "zhihu.com", "count": 62, "rate": 13.2, "sourceType": "community", "qualityLevel": "medium", "indexed": true, "status": "active" },
+      { "domain": "sspai.com", "count": 49, "rate": 10.5, "sourceType": "thirdParty", "qualityLevel": "high", "indexed": true, "status": "active" },
+      { "domain": "weixin.qq.com", "count": 41, "rate": 8.8, "sourceType": "thirdParty", "qualityLevel": "medium", "indexed": true, "status": "active" }
+    ],
+    "indexStatus": { "indexed": 426, "pending": 11, "missing": 24, "inaccessible": 7 },
+    "abnormalSources": [{ "domain": "stale-source.example", "count": 3, "severity": "medium", "abnormalReason": "内容过期" }],
+    "records": [{ "citationId": "JSON-C-001", "date": "2026-08-03", "platformId": "deepseek", "questionId": "Q-001", "url": "https://brand.com/example", "domain": "brand.com", "title": "官方资料", "sourceType": "official", "contentType": "officialArticle", "isRanking": false, "isReview": false, "isOfficial": true, "isIndexed": true, "qualityLevel": "high", "abnormalReason": null }]
+  },
+  "keyword": {
+    "summary": { "totalKeywords": 128, "opportunityKeywords": 45, "newKeywordCount": 4, "decliningKeywordCount": 2 },
+    "metrics": { "opportunityScore": 86.8, "averageCommercialValue": 81.1, "averageBrandOpportunity": 79.4, "highPriorityCount": 4 },
+    "topKeywords": [
+      { "keywordId": "K-001", "keyword": "AI品牌推荐", "normalizedKeyword": "AI品牌推荐", "sourceKeyword": "品牌推荐", "candidateKeyword": "AI品牌推荐", "platformId": "all", "date": "2026-08-03", "commercialValue": 95, "aiTriggerType": "directAnswer", "brandOpportunity": 92, "optimizationDirection": "构建可引用证据", "sceneType": "comparison", "trend": "up", "trendValue": 8.5, "priority": "high", "status": "active" },
+      { "keywordId": "K-002", "keyword": "智能营销平台对比", "normalizedKeyword": "智能营销平台对比", "sourceKeyword": "营销平台", "candidateKeyword": "智能营销平台对比", "platformId": "all", "date": "2026-08-03", "commercialValue": 92, "aiTriggerType": "comparisonTriggered", "brandOpportunity": 88, "optimizationDirection": "补强对比事实", "sceneType": "comparison", "trend": "up", "trendValue": 6.1, "priority": "high", "status": "active" },
+      { "keywordId": "K-003", "keyword": "GEO优化服务", "normalizedKeyword": "GEO优化服务", "sourceKeyword": "GEO服务", "candidateKeyword": "GEO优化服务", "platformId": "all", "date": "2026-08-03", "commercialValue": 89, "aiTriggerType": "recommendationTriggered", "brandOpportunity": 85, "optimizationDirection": "增强品牌入口", "sceneType": "service", "trend": "up", "trendValue": 10.8, "priority": "high", "status": "active" },
+      { "keywordId": "K-004", "keyword": "品牌AI可见率", "normalizedKeyword": "品牌AI可见率", "sourceKeyword": "AI可见率", "candidateKeyword": "品牌AI可见率", "platformId": "all", "date": "2026-08-03", "commercialValue": 85, "aiTriggerType": "citationTriggered", "brandOpportunity": 80, "optimizationDirection": "提高权威引用", "sceneType": "measurement", "trend": "up", "trendValue": 5.1, "priority": "medium", "status": "active" },
+      { "keywordId": "K-005", "keyword": "生成式搜索排名", "normalizedKeyword": "生成式搜索排名", "sourceKeyword": "搜索排名", "candidateKeyword": "生成式搜索排名", "platformId": "all", "date": "2026-08-03", "commercialValue": 82, "aiTriggerType": "scenarioTriggered", "brandOpportunity": 77, "optimizationDirection": "扩充场景问答", "sceneType": "scenario", "trend": "up", "trendValue": 3.4, "priority": "medium", "status": "active" }
+    ],
+    "newKeywords": ["AI品牌证据链", "生成式搜索监测", "多平台首位推荐", "AI引用质量"],
+    "decliningKeywords": ["传统SEO排名工具", "关键词密度检测"],
+    "triggerTypes": [{ "id": "directAnswer", "label": "直接回答", "value": 30 }, { "id": "citationTriggered", "label": "引用触发", "value": 25 }, { "id": "recommendationTriggered", "label": "推荐触发", "value": 25 }, { "id": "scenarioTriggered", "label": "场景触发", "value": 20 }],
+    "sceneTypes": [{ "id": "comparison", "count": 46 }, { "id": "service", "count": 39 }, { "id": "scenario", "count": 43 }],
+    "opportunityGroups": [{ "id": "high", "count": 4 }, { "id": "medium", "count": 19 }, { "id": "low", "count": 22 }],
+    "records": [{ "keywordId": "JSON-KR-001", "keyword": "AI品牌推荐", "normalizedKeyword": "AI品牌推荐", "sourceKeyword": "品牌推荐", "candidateKeyword": "AI品牌推荐", "platformId": "deepseek", "date": "2026-08-03", "commercialValue": 95, "aiTriggerType": "directAnswer", "brandOpportunity": 92, "optimizationDirection": "构建可引用证据", "sceneType": "comparison", "trend": "up", "trendValue": 8.5, "priority": "high", "status": "active" }]
+  },
+  "dataHealth": {
+    "platformAccessibility": { "numerator": 4, "denominator": 4, "rate": 100, "previousRate": 100, "change": 0, "status": "healthy", "affectedPlatforms": [], "affectedQuestions": [], "reason": "全部目标平台可访问", "recommendation": null },
+    "questionCollectionCompleteness": { "numerator": 76, "denominator": 80, "rate": 95, "previousRate": 93.8, "change": 1.2, "status": "healthy", "affectedPlatforms": ["kimi"], "affectedQuestions": ["Q-019", "Q-020"], "reason": "少量问题超时", "recommendation": "复核超时问题" },
+    "collectedAnswerValidity": { "numerator": 72, "denominator": 76, "rate": 94.7, "previousRate": 94.1, "change": 0.6, "status": "healthy", "affectedPlatforms": [], "affectedQuestions": [], "reason": "有效回答稳定", "recommendation": null },
+    "overallStatus": "healthy"
+  },
+  "trends": [
+    { "seriesId": "doubao-Q-001", "metricId": "finalScore", "platformId": "doubao", "questionId": "Q-001", "question": "品牌推荐问题", "date": "2026-08-01", "value": 82.8 },
+    { "seriesId": "doubao-Q-001", "metricId": "finalScore", "platformId": "doubao", "questionId": "Q-001", "question": "品牌推荐问题", "date": "2026-08-02", "value": 84.1 },
+    { "seriesId": "doubao-Q-001", "metricId": "finalScore", "platformId": "doubao", "questionId": "Q-001", "question": "品牌推荐问题", "date": "2026-08-03", "value": 85.2 },
+    { "seriesId": "deepseek-Q-001", "metricId": "finalScore", "platformId": "deepseek", "questionId": "Q-001", "question": "品牌推荐问题", "date": "2026-08-01", "value": 80.1 },
+    { "seriesId": "deepseek-Q-001", "metricId": "finalScore", "platformId": "deepseek", "questionId": "Q-001", "question": "品牌推荐问题", "date": "2026-08-02", "value": 81.2 },
+    { "seriesId": "deepseek-Q-001", "metricId": "finalScore", "platformId": "deepseek", "questionId": "Q-001", "question": "品牌推荐问题", "date": "2026-08-03", "value": 82.4 }
+  ],
+  "alerts": [{ "id": "json-valid", "level": "info", "category": "data-quality", "title": "JSON数据包", "message": "同源静态数据包已通过验证。", "metricId": null, "platformId": null, "questionId": null, "date": "2026-08-04", "status": "active" }],
+  "recommendations": [{ "id": "json-valid-rec", "priority": "low", "category": "data-quality", "title": "保持日期对齐", "rationale": "数据日期滞后1天", "action": "继续监控日期血缘", "relatedMetric": "metadata.lagDays", "relatedKeywords": [], "relatedPlatforms": [], "status": "active" }],
+  "diagnostics": { "sample": "valid" }
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "9.9.9",
+  "datasetId": "sample-invalid",
+  "datasetVersion": "1.0.0",
+  "source": { "type": "json", "name": "Invalid Contract Sample Dataset", "fileName": "sample-invalid.json", "generatedAt": "2026-08-04T09:00:00+08:00", "importedAt": "2026-08-04T09:00:00+08:00", "producer": "ActiveTheory GEO Dashboard V1.4", "sourceVersion": "1.0.0", "checksum": null, "notes": ["JSON与checksum有效，但业务契约无效。"] },
+  "metadata": { "reportDate": "not-a-date", "geoDataDate": "2026-08-03", "fiveASnapshotDate": "2026-08-02", "brandMindSnapshotDate": "2026-08-01", "lagDays": null, "timezone": "Asia/Shanghai", "dateAlignmentStatus": "missing", "competitorSetVersion": "invalid", "questionSetVersion": "invalid", "platformSetVersion": "invalid", "dataWindowStart": "2026-07-28", "dataWindowEnd": "2026-08-03" },
+  "platforms": [{ "id": "all", "name": "全部", "displayName": "全部", "aliases": [], "enabled": true, "expectedQuestionCount": -1, "collectedQuestionCount": 0, "validAnswerCount": 0, "accessibilityRate": 0, "questionCollectionCompleteness": 0, "collectedAnswerValidity": 0, "weight": 1, "status": "critical" }],
+  "overview": { "finalScore": 0, "geoStructureScore": 0, "geoSemanticScore": 0, "brandVisibilityRate": 0, "firstRecommendationRate": 0, "averageBrandPosition": null, "qualityCitationRate": 0, "keywordOpportunityScore": 0, "dataHealthScore": 0, "scoreChange": 0, "scoreChangeDirection": "flat", "scoreComponents": [] },
+  "answer": { "summary": {}, "metrics": {}, "answerTypes": [], "platformComparison": [], "brandPositions": [], "recommendationLevels": {}, "records": [] },
+  "citation": { "summary": {}, "metrics": {}, "sourceTypes": [], "contentTypes": [], "sourceDomains": [], "indexStatus": {}, "abnormalSources": [], "records": [] },
+  "keyword": { "summary": {}, "metrics": {}, "topKeywords": [], "newKeywords": [], "decliningKeywords": [], "triggerTypes": [], "sceneTypes": [], "opportunityGroups": [], "records": [] },
+  "dataHealth": { "platformAccessibility": { "numerator": 0, "denominator": -1, "rate": 0, "previousRate": null, "change": null, "status": "critical", "affectedPlatforms": [], "affectedQuestions": [], "reason": "非法分母", "recommendation": null }, "questionCollectionCompleteness": { "numerator": 0, "denominator": -1, "rate": 0, "previousRate": null, "change": null, "status": "critical", "affectedPlatforms": [], "affectedQuestions": [], "reason": "非法分母", "recommendation": null }, "collectedAnswerValidity": { "numerator": 0, "denominator": -1, "rate": 0, "previousRate": null, "change": null, "status": "critical", "affectedPlatforms": [], "affectedQuestions": [], "reason": "非法分母", "recommendation": null }, "overallStatus": "critical" },
+  "trends": [],
+  "alerts": [],
+  "recommendations": [],
+  "diagnostics": { "sample": "invalid-contract" }
+}
