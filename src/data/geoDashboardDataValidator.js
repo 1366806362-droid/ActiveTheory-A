@@ -41,6 +41,15 @@ function checkHealthMetric(errors, warnings, metric, path) {
     warnings.push(issue('warning', 'NUMERATOR_EXCEEDS_DENOMINATOR', path, '分子大于分母，保留原值但需复核。', { numerator, denominator }));
   }
   checkRate(warnings, rate, `${path}.rate`);
+  if (['warning', 'critical', 'missing'].includes(metric.status)) {
+    warnings.push(issue(
+      'warning',
+      'HEALTH_METRIC_STATUS',
+      `${path}.status`,
+      `${path} 数据状态为 ${metric.status}。`,
+      { reason: metric.reason ?? null }
+    ));
+  }
 }
 
 export function validateGeoDashboardData(dataset, options = {}) {
@@ -124,9 +133,14 @@ export function validateGeoDashboardData(dataset, options = {}) {
     'dataHealthScore'
   ].forEach((field) => checkRate(warnings, overview[field], `overview.${field}`));
   if (Array.isArray(overview.scoreComponents) && overview.scoreComponents.length) {
-    const weightTotal = overview.scoreComponents.reduce((total, component) => total + (Number(component.weight) || 0), 0);
-    if (Math.abs(weightTotal - 1) > 0.01) {
+    const suppliedWeights = overview.scoreComponents
+      .map((component) => component.weight)
+      .filter((weight) => Number.isFinite(weight));
+    const weightTotal = suppliedWeights.reduce((total, weight) => total + weight, 0);
+    if (suppliedWeights.length && Math.abs(weightTotal - 1) > 0.01) {
       warnings.push(issue('warning', 'WEIGHT_SUM_MISMATCH', 'overview.scoreComponents', '组件权重总和不等于1，Adapter不会擅自改权重。', weightTotal));
+    } else if (!suppliedWeights.length) {
+      info.push(issue('info', 'SCORE_COMPONENT_WEIGHTS_MISSING', 'overview.scoreComponents', '评分组件未提供正式权重；保留原始评分，不进行权重反推。'));
     }
   } else {
     info.push(issue('info', 'OPTIONAL_SCORE_COMPONENTS_MISSING', 'overview.scoreComponents', '未提供可选评分组件明细。'));

@@ -1,0 +1,188 @@
+{
+  "schemaVersion": "1.0.0",
+  "datasetVersion": "2026.07.29-v1",
+  "targetDate": "2026-07-29",
+  "businessRules": {
+    "analysisRuleVersion": "GEO_FUSION_V1_RULE_FIX_2026-07",
+    "qualityRuleVersion": "GEO_DQ_V2_DRAFT_2026-08",
+    "dataContractVersion": "1.0.0",
+    "presentationVersion": "GEO_DASHBOARD_V1.6.2",
+    "ruleDocumentVersion": "GEO_Codex分析规则总表_V1",
+    "rulesExtractedAt": "2026-08-06",
+    "confidenceLevel": "low",
+    "formalTrendEligible": false,
+    "qualityStatus": "low_confidence",
+    "fiveASnapshotDate": "2026-07-22",
+    "brandMindSnapshotDate": "2026-07-22",
+    "expectedQuestionCountPerPlatform": 18
+  },
+  "platformAliases": {
+    "DeepSeek": "deepseek",
+    "deep seek": "deepseek",
+    "Kimi": "kimi",
+    "千问": "qwen",
+    "通义千问": "qwen",
+    "Qwen": "qwen",
+    "豆包": "doubao",
+    "Doubao": "doubao"
+  },
+  "expected": {
+    "rawAnswerRows": 7779,
+    "targetAnswerRows": 49,
+    "validAnswerRows": 48,
+    "invalidAnswerRows": 1,
+    "theoreticalPlatformQuestionCombinations": 72,
+    "actualPlatformQuestionCombinations": 49,
+    "missingPlatformQuestionCombinations": 23,
+    "excludedAnswerRows": 7730,
+    "rawCitationRows": 241,
+    "targetCitationRows": 241,
+    "rawKeywordRows": 172,
+    "targetKeywordRows": 13,
+    "excludedKeywordRows": 159,
+    "expandedKeywordRows": 39,
+    "a5AssetRows": 1,
+    "a5FlowRows": 1,
+    "audienceRows": 8,
+    "brandMindRows": 50,
+    "industryOpportunityRows": 73,
+    "platformAnswerRows": {
+      "deepseek": 18,
+      "kimi": 11,
+      "qwen": 3,
+      "doubao": 17
+    },
+    "platformCitationRows": {
+      "deepseek": 52,
+      "kimi": 0,
+      "qwen": 66,
+      "doubao": 123
+    },
+    "scores": {
+      "final_score": 53.6,
+      "geo_structural_quality_score": 33.83,
+      "geo_semantic_score": 8.67,
+      "geo_score": 23.77,
+      "a5_score": 71.16,
+      "industry_opportunity_driver_score": 70.71,
+      "keyword_test_coverage_score": 100.0,
+      "keyword_citation_trigger_score": 0.0,
+      "keyword_effectiveness_score": 30.0
+    },
+    "citationSourceTypeCounts": {
+      "official": 0,
+      "thirdParty": 107,
+      "community": 134
+    },
+    "industryTop10": [
+      "清爽",
+      "劲道",
+      "浓郁",
+      "过瘾",
+      "果香",
+      "口感好",
+      "酸甜",
+      "清凉",
+      "酸度体验",
+      "好喝"
+    ]
+  },
+  "sheetSignatures": {
+    "aiAnswer": [
+      "日期",
+      "分类",
+      "AI模型",
+      "核心词根",
+      "AI平台",
+      "关键词提问",
+      "是否存在其他品牌",
+      "竞品产品",
+      "自有产品",
+      "品牌是否被推荐",
+      "对话分享链接",
+      "AI回答",
+      "用户意图",
+      "引用来源"
+    ],
+    "aiCitation": [
+      "日期",
+      "来源网址",
+      "AI对话链接",
+      "AI平台",
+      "关键词提问",
+      "来源平台",
+      "来源标题",
+      "是否出现竞品",
+      "是否出现自有品牌",
+      "是否高频被引用",
+      "分类",
+      "自有产品",
+      "AI模型",
+      "用户意图",
+      "产品露出",
+      "机会等级",
+      "核心词根"
+    ],
+    "geoKeyword": [
+      "用户意图",
+      "来源关键词",
+      "分类",
+      "核心词根",
+      "关键词",
+      "AI对话链接",
+      "拓展方式",
+      "备注",
+      "是否触发AI引用",
+      "AI引用次数",
+      "是否已测试",
+      "优先级",
+      "日期"
+    ],
+    "a5Asset": [
+      "A1了解人数",
+      "A2吸引人数",
+      "A3问询人数",
+      "A4行动人数",
+      "A5拥护人数",
+      "总资产人数",
+      "竞品总资产人数"
+    ],
+    "a5Flow": [
+      "拉新O→5A人数",
+      "蓄水O→A1/A2人数",
+      "种草O/A1/A2→A3人数",
+      "直接转化O→A4/A5人数",
+      "种草转化A3→A4/A5人数",
+      "复购A4→A5人数"
+    ],
+    "audience": [
+      "人群名称",
+      "人群资产规模",
+      "竞品资产规模",
+      "人群流转率",
+      "竞品流转率",
+      "流转规模",
+      "竞品流转规模"
+    ],
+    "brandMind": [
+      "心智词",
+      "所属维度",
+      "热度值",
+      "排名",
+      "是否TOP50",
+      "是否品牌词",
+      "来源榜单",
+      "品牌覆盖情况"
+    ],
+    "industryOpportunity": [
+      "心智词",
+      "所属维度",
+      "行业热门榜排名",
+      "行业飙升榜排名",
+      "增长率",
+      "品牌是否覆盖",
+      "机会等级",
+      "机会方向"
+    ]
+  }
+}

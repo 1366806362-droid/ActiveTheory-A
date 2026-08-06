@@ -75,7 +75,11 @@ const staticData = await loadStaticFiles();
 
 await test('Manifest is readable and uses the supported schema', async () => {
   assert.equal(staticData.manifest.schemaVersion, '1.0.0');
-  assert.equal(staticData.manifest.datasets.length, 3);
+  assert.ok(staticData.manifest.datasets.length >= 3);
+  assert.deepEqual(
+    ['sample-valid', 'sample-warning', 'sample-invalid'].filter((id) => !staticData.manifest.datasets.some((dataset) => dataset.id === id)),
+    []
+  );
 });
 
 await test('Manifest dataset ids are unique', async () => {

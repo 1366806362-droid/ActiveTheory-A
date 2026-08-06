@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "generatedAt": "2026-08-04T09:00:00Z",
+  "generatedAt": "2026-07-29T13:25:11+08:00",
   "datasets": [
     {
       "id": "sample-valid",
@@ -34,6 +34,17 @@
       "sizeBytes": 2855,
       "enabled": true,
       "notes": "JSON、大小和checksum有效，但业务数据契约无效。"
+    },
+    {
+      "id": "yangzhanggui-2026-07-29",
+      "label": "杨掌柜 GEO真实数据 2026-07-29",
+      "file": "yangzhanggui-2026-07-29.json",
+      "schemaVersion": "1.0.0",
+      "datasetVersion": "2026.07.29-v1",
+      "sha256": "b93e3f3ced70461d370273cd2109a66c7072bf76aecc0dca50afc78862f95a03",
+      "sizeBytes": 378670,
+      "enabled": true,
+      "notes": "2026-07-29真实清洗与融合分析数据；49/72组合、48/49有效回答；低置信观察批次，不进入正式趋势"
     }
   ]
 }

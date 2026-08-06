@@ -31,6 +31,11 @@ function integer(value, path, transformations, fallback = 0) {
   return Number.isFinite(parsed) ? Math.round(parsed) : fallback;
 }
 
+function nullableInteger(value, path, transformations) {
+  if (value == null || value === '') return null;
+  return integer(value, path, transformations, null);
+}
+
 function isoDate(value, path, transformations) {
   if (value == null || value === '') return null;
   const source = String(value).trim();
@@ -76,7 +81,7 @@ function normalizePlatformEntry(platform, index, transformations) {
     displayName: platform?.displayName ?? platform?.label ?? normalized.displayName,
     aliases: array(platform?.aliases),
     enabled: platform?.enabled !== false,
-    expectedQuestionCount: integer(platform?.expectedQuestionCount, `platforms[${index}].expectedQuestionCount`, transformations),
+    expectedQuestionCount: nullableInteger(platform?.expectedQuestionCount, `platforms[${index}].expectedQuestionCount`, transformations),
     collectedQuestionCount: integer(platform?.collectedQuestionCount, `platforms[${index}].collectedQuestionCount`, transformations),
     validAnswerCount: integer(platform?.validAnswerCount, `platforms[${index}].validAnswerCount`, transformations),
     accessibilityRate: finiteNumber(platform?.accessibilityRate, `platforms[${index}].accessibilityRate`, transformations, { percent: true }),
@@ -134,6 +139,7 @@ function legacyMockToContract(raw, options, transformations) {
       notes: ['V1.2 locked mock presentation data']
     },
     metadata: {
+      ...metadata,
       reportDate,
       geoDataDate,
       fiveASnapshotDate: isoDate(metadata.fiveASnapshotDate, 'metadata.fiveASnapshotDate', transformations),
@@ -361,6 +367,7 @@ function normalizeContractData(raw, options, transformations) {
       notes: array(raw.source?.notes)
     },
     metadata: {
+      ...metadataRaw,
       reportDate,
       geoDataDate,
       fiveASnapshotDate: isoDate(readAliasedField(metadataRaw, 'fiveASnapshotDate'), 'metadata.fiveASnapshotDate', transformations),
@@ -423,8 +430,10 @@ function normalizeContractData(raw, options, transformations) {
 function normalizeOverview(raw, transformations) {
   const result = normalizeMetricObject(raw, [
     'finalScore', 'geoStructureScore', 'geoSemanticScore', 'brandVisibilityRate',
-    'firstRecommendationRate', 'averageBrandPosition', 'qualityCitationRate',
-    'keywordOpportunityScore', 'dataHealthScore', 'scoreChange'
+    'firstRecommendationRate', 'primaryRecommendationRate', 'secondaryRecommendationRate',
+    'brandRecommendationRate', 'softPlacementRate', 'averageBrandPosition', 'qualityCitationRate',
+    'keywordOpportunityScore', 'dataHealthScore', 'scoreChange', 'geoScore',
+    'fiveAScore', 'industryOpportunityScore', 'keywordEffectivenessScore'
   ], 'overview', transformations);
   return {
     ...result,
@@ -444,9 +453,35 @@ function normalizeOverview(raw, transformations) {
 function normalizeAnswer(raw, transformations) {
   const summary = raw.summary ?? {};
   const metrics = raw.metrics ?? raw;
+  const validated = raw.metricsValidated && typeof raw.metricsValidated === 'object'
+    ? {
+        ...raw.metricsValidated,
+        ...Object.fromEntries([
+          'validAnswerCount', 'brandMentionCount', 'primaryRecommendationCount',
+          'secondaryRecommendationCount', 'brandRecommendationCount',
+          'softPlacementCount', 'unmentionedCount', 'denominator', 'roleCountTotal'
+        ].map((field) => [field, nullableInteger(raw.metricsValidated[field], `answer.metricsValidated.${field}`, transformations)])),
+        ...normalizeMetricObject(raw.metricsValidated, [
+          'brandMentionRate', 'primaryRecommendationRate', 'secondaryRecommendationRate',
+          'brandRecommendationRate', 'softPlacementRate', 'unmentionedRate'
+        ], 'answer.metricsValidated', transformations),
+        ruleBasis: raw.metricsValidated.ruleBasis ?? null,
+        rolesMutuallyExclusive: raw.metricsValidated.rolesMutuallyExclusive === true,
+        roleDistribution: { ...(raw.metricsValidated.roleDistribution ?? {}) }
+      }
+    : null;
   return {
-    summary: Object.fromEntries(['totalQuestions', 'collectedAnswers', 'validAnswers', 'brandedAnswers', 'firstRecommendations'].map((field) => [field, integer(summary[field], `answer.summary.${field}`, transformations, 0)])),
-    metrics: normalizeMetricObject(metrics, ['platformAccessibilityRate', 'questionCollectionCompleteness', 'collectedAnswerValidity', 'brandMentionRate', 'firstRecommendationRate', 'averageBrandPosition'], 'answer.metrics', transformations),
+    summary: {
+      ...Object.fromEntries(['totalQuestions', 'collectedAnswers', 'validAnswers', 'brandedAnswers'].map((field) => [field, integer(summary[field], `answer.summary.${field}`, transformations, 0)])),
+      invalidAnswers: nullableInteger(summary.invalidAnswers, 'answer.summary.invalidAnswers', transformations),
+      firstRecommendations: nullableInteger(summary.firstRecommendations, 'answer.summary.firstRecommendations', transformations)
+    },
+    metrics: {
+      ...normalizeMetricObject(metrics, ['platformAccessibilityRate', 'questionCollectionCompleteness', 'collectedAnswerValidity', 'brandMentionRate', 'firstRecommendationRate', 'primaryRecommendationRate', 'secondaryRecommendationRate', 'brandRecommendationRate', 'softPlacementRate', 'unmentionedRate', 'averageBrandPosition'], 'answer.metrics', transformations),
+      firstRecommendationDefinitionStatus: metrics.firstRecommendationDefinitionStatus ?? null
+    },
+    ...(validated ? { metricsValidated: validated } : {}),
+    correctedMetrics: { ...(raw.correctedMetrics ?? {}) },
     answerTypes: array(raw.answerTypes).map((item, index) => ({ id: item.id ?? `answer-type-${index + 1}`, label: item.label ?? item.id, count: integer(item.count, `answer.answerTypes[${index}].count`, transformations), rate: finiteNumber(item.rate ?? item.value, `answer.answerTypes[${index}].rate`, transformations, { percent: true }) })),
     platformComparison: array(raw.platformComparison).map((item, index) => {
       const normalized = normalizeGeoDashboardPlatform(readAliasedField(item, 'platformId') ?? item.platformId);
@@ -457,6 +492,9 @@ function normalizeAnswer(raw, transformations) {
         validityRate: finiteNumber(item.validityRate, `answer.platformComparison[${index}].validityRate`, transformations, { percent: true }),
         brandMentionRate: finiteNumber(readAliasedField(item, 'brandMentionRate'), `answer.platformComparison[${index}].brandMentionRate`, transformations, { percent: true }),
         firstRecommendationRate: finiteNumber(readAliasedField(item, 'firstRecommendationRate'), `answer.platformComparison[${index}].firstRecommendationRate`, transformations, { percent: true }),
+        primaryRecommendationRate: finiteNumber(readAliasedField(item, 'primaryRecommendationRate'), `answer.platformComparison[${index}].primaryRecommendationRate`, transformations, { percent: true }),
+        secondaryRecommendationRate: finiteNumber(readAliasedField(item, 'secondaryRecommendationRate'), `answer.platformComparison[${index}].secondaryRecommendationRate`, transformations, { percent: true }),
+        brandRecommendationRate: finiteNumber(readAliasedField(item, 'brandRecommendationRate'), `answer.platformComparison[${index}].brandRecommendationRate`, transformations, { percent: true }),
         averageBrandPosition: finiteNumber(readAliasedField(item, 'averageBrandPosition'), `answer.platformComparison[${index}].averageBrandPosition`, transformations)
       };
     }),
@@ -470,7 +508,12 @@ function normalizeCitation(raw, transformations) {
   const summary = raw.summary ?? {};
   const metrics = raw.metrics ?? raw;
   return {
-    summary: Object.fromEntries(['totalCitations', 'validCitations', 'qualityCitations', 'uniqueDomains'].map((field) => [field, integer(readAliasedField(summary, field), `citation.summary.${field}`, transformations, 0)])),
+    summary: {
+      totalCitations: integer(readAliasedField(summary, 'totalCitations'), 'citation.summary.totalCitations', transformations, 0),
+      validCitations: integer(readAliasedField(summary, 'validCitations'), 'citation.summary.validCitations', transformations, 0),
+      qualityCitations: nullableInteger(readAliasedField(summary, 'qualityCitations'), 'citation.summary.qualityCitations', transformations),
+      uniqueDomains: integer(readAliasedField(summary, 'uniqueDomains'), 'citation.summary.uniqueDomains', transformations, 0)
+    },
     metrics: normalizeMetricObject(metrics, ['qualityRate', 'officialRate', 'thirdPartyRate', 'communityRate', 'rankingReviewRate', 'indexedRate'], 'citation.metrics', transformations),
     sourceTypes: array(raw.sourceTypes),
     contentTypes: array(raw.contentTypes),
@@ -504,9 +547,23 @@ function normalizeKeyword(raw, reportDate, transformations) {
     status: item.status ?? 'active'
   });
   return {
-    summary: Object.fromEntries(['totalKeywords', 'opportunityKeywords', 'newKeywordCount', 'decliningKeywordCount'].map((field) => [field, integer(summary[field], `keyword.summary.${field}`, transformations, 0)])),
+    summary: {
+      totalKeywords: integer(summary.totalKeywords, 'keyword.summary.totalKeywords', transformations, 0),
+      opportunityKeywords: integer(summary.opportunityKeywords, 'keyword.summary.opportunityKeywords', transformations, 0),
+      sourceKeywordCount: nullableInteger(summary.sourceKeywordCount, 'keyword.summary.sourceKeywordCount', transformations),
+      candidateKeywordCount: nullableInteger(summary.candidateKeywordCount, 'keyword.summary.candidateKeywordCount', transformations),
+      testedCandidateCount: nullableInteger(summary.testedCandidateCount, 'keyword.summary.testedCandidateCount', transformations),
+      triggeredCandidateCount: nullableInteger(summary.triggeredCandidateCount, 'keyword.summary.triggeredCandidateCount', transformations),
+      opportunityCrossMatchCount: nullableInteger(summary.opportunityCrossMatchCount, 'keyword.summary.opportunityCrossMatchCount', transformations),
+      newKeywordCount: nullableInteger(summary.newKeywordCount, 'keyword.summary.newKeywordCount', transformations),
+      decliningKeywordCount: nullableInteger(summary.decliningKeywordCount, 'keyword.summary.decliningKeywordCount', transformations)
+    },
     metrics: {
       opportunityScore: finiteNumber(metrics.opportunityScore, 'keyword.metrics.opportunityScore', transformations),
+      industryOpportunityDriverScore: finiteNumber(metrics.industryOpportunityDriverScore, 'keyword.metrics.industryOpportunityDriverScore', transformations),
+      candidateTestRate: finiteNumber(metrics.candidateTestRate, 'keyword.metrics.candidateTestRate', transformations, { percent: true }),
+      candidateCitationTriggerRate: finiteNumber(metrics.candidateCitationTriggerRate, 'keyword.metrics.candidateCitationTriggerRate', transformations, { percent: true }),
+      keywordEffectivenessScore: finiteNumber(metrics.keywordEffectivenessScore, 'keyword.metrics.keywordEffectivenessScore', transformations),
       averageCommercialValue: finiteNumber(metrics.averageCommercialValue ?? readAliasedField(metrics, 'commercialValue'), 'keyword.metrics.averageCommercialValue', transformations),
       averageBrandOpportunity: finiteNumber(metrics.averageBrandOpportunity, 'keyword.metrics.averageBrandOpportunity', transformations),
       highPriorityCount: integer(metrics.highPriorityCount, 'keyword.metrics.highPriorityCount', transformations)
@@ -541,7 +598,17 @@ function normalizeDataHealth(raw, transformations) {
   const overallStatus = statuses.includes('critical') || statuses.includes('missing')
     ? 'critical'
     : statuses.includes('warning') ? 'warning' : 'healthy';
-  return { platformAccessibility, questionCollectionCompleteness, collectedAnswerValidity, overallStatus: raw.overallStatus ?? overallStatus };
+  const theoreticalValidCompleteness = raw.theoreticalValidCompleteness
+    ? normalize(raw.theoreticalValidCompleteness, 'dataHealth.theoreticalValidCompleteness')
+    : null;
+  return {
+    ...raw,
+    platformAccessibility,
+    questionCollectionCompleteness,
+    collectedAnswerValidity,
+    ...(theoreticalValidCompleteness ? { theoreticalValidCompleteness } : {}),
+    overallStatus: raw.overallStatus ?? overallStatus
+  };
 }
 
 function normalizeTrendPoint(item, path, transformations) {

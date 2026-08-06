@@ -42,7 +42,11 @@ function displayPlatform(platform) {
 }
 
 function dashboardProjection(dataset, validation) {
-  const answerMetrics = dataset.answer.metrics;
+  const answerMetrics = {
+    ...dataset.answer.metrics,
+    ...(dataset.answer.metricsValidated ?? {})
+  };
+  const validatedAnswerMetrics = dataset.answer.metricsValidated ?? null;
   const citationMetrics = dataset.citation.metrics;
   const keywordMetrics = dataset.keyword.metrics;
   const health = dataset.dataHealth;
@@ -50,28 +54,48 @@ function dashboardProjection(dataset, validation) {
   const base = {
     overview: {
       finalScore: dataset.overview.finalScore,
+      geoScore: dataset.overview.geoScore,
       geoStructureScore: dataset.overview.geoStructureScore,
       geoSemanticScore: dataset.overview.geoSemanticScore,
-      brandVisibilityRate: dataset.overview.brandVisibilityRate,
+      fiveAScore: dataset.overview.fiveAScore,
+      industryOpportunityScore: dataset.overview.industryOpportunityScore,
+      keywordEffectivenessScore: dataset.overview.keywordEffectivenessScore,
+      brandVisibilityRate: validatedAnswerMetrics?.brandMentionRate ?? dataset.overview.brandVisibilityRate,
       firstRecommendationRate: dataset.overview.firstRecommendationRate,
+      firstRecommendationDefinitionStatus: dataset.overview.firstRecommendationDefinitionStatus,
+      primaryRecommendationRate: validatedAnswerMetrics?.primaryRecommendationRate ?? dataset.overview.primaryRecommendationRate,
+      secondaryRecommendationRate: validatedAnswerMetrics?.secondaryRecommendationRate ?? dataset.overview.secondaryRecommendationRate,
+      brandRecommendationRate: validatedAnswerMetrics?.brandRecommendationRate ?? dataset.overview.brandRecommendationRate,
+      softPlacementRate: validatedAnswerMetrics?.softPlacementRate ?? dataset.overview.softPlacementRate,
       averageBrandPosition: dataset.overview.averageBrandPosition,
       qualityCitationRate: dataset.overview.qualityCitationRate,
       dailyDelta: dataset.overview.scoreChange ?? 0
     },
     answer: {
       ...answerMetrics,
+      ...dataset.answer.summary,
+      metricBasis: validatedAnswerMetrics?.ruleBasis ?? 'dataset_default',
+      recommendationLevels: dataset.answer.recommendationLevels,
       answerTypes: dataset.answer.answerTypes.map((item) => ({ label: safeDisplayText(item.label), value: item.rate ?? 0 })),
       platformComparison: dataset.answer.platformComparison.map((item) => ({
         id: item.platformId,
         label: safeDisplayText(dataset.platforms.find((platform) => platform.id === item.platformId)?.displayName ?? item.platformId),
-        mention: item.brandMentionRate ?? 0,
-        first: item.firstRecommendationRate ?? 0
+        mention: item.brandMentionRate,
+        first: item.firstRecommendationRate,
+        primary: item.primaryRecommendationRate,
+        secondary: item.secondaryRecommendationRate,
+        brandRecommendation: item.brandRecommendationRate,
+        collectedAnswers: dataset.platforms.find((platform) => platform.id === item.platformId)?.collectedQuestionCount ?? null,
+        validAnswers: dataset.platforms.find((platform) => platform.id === item.platformId)?.validAnswerCount ?? null
       }))
     },
     citation: {
       totalCitations: dataset.citation.summary.totalCitations,
+      validCitations: dataset.citation.summary.validCitations,
+      qualityCitations: dataset.citation.summary.qualityCitations,
+      uniqueDomains: dataset.citation.summary.uniqueDomains,
       ...citationMetrics,
-      authorityRate: citationMetrics.qualityRate,
+      authorityRate: null,
       sourceDomains: dataset.citation.sourceDomains.map((item, index) => ({
         domain: safeDisplayText(item.domain),
         value: item.count ?? item.rate ?? 0,
@@ -80,34 +104,62 @@ function dashboardProjection(dataset, validation) {
       abnormalSources: dataset.citation.abnormalSources.map((item) => ({
         source: safeDisplayText(item.source ?? item.domain ?? 'unknown'),
         count: item.count ?? 0,
-        severity: item.severity ?? 'medium'
+        severity: item.severity ?? 'medium',
+        reason: safeDisplayText(item.reason ?? ''),
+        citationEvidenceStatus: item.citationEvidenceStatus ?? null
       }))
     },
     keyword: {
       opportunityScore: keywordMetrics.opportunityScore,
       commercialValue: keywordMetrics.averageCommercialValue,
-      brandOpportunity: `${Number(keywordMetrics.averageBrandOpportunity ?? 0).toFixed(1)} / 100`,
+      brandOpportunity: Number.isFinite(keywordMetrics.averageBrandOpportunity)
+        ? `${keywordMetrics.averageBrandOpportunity.toFixed(1)} / 100`
+        : '未提供',
       optimizationDirection: safeDisplayText(dataset.keyword.topKeywords[0]?.optimizationDirection ?? '当前Fixture未提供优化方向。'),
       triggerTypes: dataset.keyword.triggerTypes.map((item) => ({ label: safeDisplayText(item.label ?? item.id), value: item.value ?? item.rate ?? item.count ?? 0 })),
       topKeywords: dataset.keyword.topKeywords.map((item) => ({
         keyword: safeDisplayText(item.keyword),
-        score: item.brandOpportunity ?? item.commercialValue ?? 0,
-        value: (item.commercialValue ?? 0) >= 80 ? '高' : '中',
-        trend: item.trendValue ?? 0
+        score: item.opportunityScore ?? item.brandOpportunity ?? item.commercialValue ?? null,
+        value: Number.isFinite(item.commercialValue) ? (item.commercialValue >= 80 ? '高' : '中') : '未提供',
+        trend: item.trendValue ?? null
       })),
       newKeywords: dataset.keyword.newKeywords.map((item) => safeDisplayText(typeof item === 'string' ? item : item.keyword)),
-      decliningKeywords: dataset.keyword.decliningKeywords.map((item) => safeDisplayText(typeof item === 'string' ? item : item.keyword))
+      decliningKeywords: dataset.keyword.decliningKeywords.map((item) => safeDisplayText(typeof item === 'string' ? item : item.keyword)),
+      totalKeywords: dataset.keyword.summary.totalKeywords,
+      opportunityKeywords: dataset.keyword.summary.opportunityKeywords,
+      sourceKeywordCount: dataset.keyword.summary.sourceKeywordCount,
+      candidateKeywordCount: dataset.keyword.summary.candidateKeywordCount,
+      testedCandidateCount: dataset.keyword.summary.testedCandidateCount,
+      triggeredCandidateCount: dataset.keyword.summary.triggeredCandidateCount,
+      opportunityCrossMatchCount: dataset.keyword.summary.opportunityCrossMatchCount,
+      candidateTestRate: keywordMetrics.candidateTestRate,
+      candidateCitationTriggerRate: keywordMetrics.candidateCitationTriggerRate,
+      industryOpportunityDriverScore: keywordMetrics.industryOpportunityDriverScore,
+      newKeywordCount: dataset.keyword.summary.newKeywordCount,
+      decliningKeywordCount: dataset.keyword.summary.decliningKeywordCount,
+      opportunityGroups: dataset.keyword.opportunityGroups,
+      sceneTypes: dataset.keyword.sceneTypes
     },
     dataHealth: {
-      availablePlatformCount: health.platformAccessibility.numerator ?? 0,
-      expectedPlatformCount: health.platformAccessibility.denominator ?? 0,
-      platformAccessibilityRate: health.platformAccessibility.rate ?? 0,
-      collectedQuestions: health.questionCollectionCompleteness.numerator ?? 0,
-      expectedQuestions: health.questionCollectionCompleteness.denominator ?? 0,
-      questionCollectionCompleteness: health.questionCollectionCompleteness.rate ?? 0,
-      validAnswers: health.collectedAnswerValidity.numerator ?? 0,
-      collectedAnswers: health.collectedAnswerValidity.denominator ?? 0,
-      collectedAnswerValidity: health.collectedAnswerValidity.rate ?? 0,
+      availablePlatformCount: health.platformAccessibility.numerator,
+      expectedPlatformCount: health.platformAccessibility.denominator,
+      platformAccessibilityRate: health.platformAccessibility.rate,
+      collectedQuestions: health.questionCollectionCompleteness.numerator,
+      expectedQuestions: health.questionCollectionCompleteness.denominator,
+      questionCollectionCompleteness: health.questionCollectionCompleteness.rate,
+      validAnswers: health.collectedAnswerValidity.numerator,
+      collectedAnswers: health.collectedAnswerValidity.denominator,
+      collectedAnswerValidity: health.collectedAnswerValidity.rate,
+      platformAccessibilityStatus: health.platformAccessibility.status,
+      platformAccessibilityReason: health.platformAccessibility.reason,
+      questionCollectionStatus: health.questionCollectionCompleteness.status,
+      questionCollectionReason: health.questionCollectionCompleteness.reason,
+      missingCombinationCount: health.questionCollectionCompleteness.affectedQuestions?.length ?? null,
+      answerValidityStatus: health.collectedAnswerValidity.status,
+      answerValidityReason: health.collectedAnswerValidity.reason,
+      theoreticalValidCompleteness: health.theoreticalValidCompleteness?.rate ?? null,
+      theoreticalValidNumerator: health.theoreticalValidCompleteness?.numerator ?? null,
+      theoreticalValidDenominator: health.theoreticalValidCompleteness?.denominator ?? null,
       status: health.overallStatus,
       warnings
     },
@@ -159,12 +211,18 @@ function createDatasetAccessors(dataset, validation) {
         collectedAnswerValidity: comparison.validityRate ?? projection.base.answer.collectedAnswerValidity,
         brandMentionRate: comparison.brandMentionRate ?? projection.base.answer.brandMentionRate,
         firstRecommendationRate: comparison.firstRecommendationRate ?? projection.base.answer.firstRecommendationRate,
+        primaryRecommendationRate: comparison.primaryRecommendationRate ?? projection.base.answer.primaryRecommendationRate,
+        secondaryRecommendationRate: comparison.secondaryRecommendationRate ?? projection.base.answer.secondaryRecommendationRate,
+        brandRecommendationRate: comparison.brandRecommendationRate ?? projection.base.answer.brandRecommendationRate,
         averageBrandPosition: comparison.averageBrandPosition ?? projection.base.answer.averageBrandPosition
       },
       overview: {
         ...projection.base.overview,
         brandVisibilityRate: comparison.brandMentionRate ?? projection.base.overview.brandVisibilityRate,
         firstRecommendationRate: comparison.firstRecommendationRate ?? projection.base.overview.firstRecommendationRate,
+        primaryRecommendationRate: comparison.primaryRecommendationRate ?? projection.base.overview.primaryRecommendationRate,
+        secondaryRecommendationRate: comparison.secondaryRecommendationRate ?? projection.base.overview.secondaryRecommendationRate,
+        brandRecommendationRate: comparison.brandRecommendationRate ?? projection.base.overview.brandRecommendationRate,
         averageBrandPosition: comparison.averageBrandPosition ?? projection.base.overview.averageBrandPosition
       }
     };

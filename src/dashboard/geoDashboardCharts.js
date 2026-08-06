@@ -9,6 +9,14 @@ function createSvgElement(name, attributes = {}) {
   return element;
 }
 
+function finiteOrNull(value) {
+  return Number.isFinite(value) ? value : null;
+}
+
+function metricText(value, digits = 1, suffix = '') {
+  return Number.isFinite(value) ? `${value.toFixed(digits)}${suffix}` : '未提供';
+}
+
 function extent(values) {
   return {
     min: Math.min(...values),
@@ -142,7 +150,7 @@ export function renderRingMeter(container, metrics) {
   arcs.forEach(({ radius, value, className, start, coverage }) => {
     const circumference = Math.PI * 2 * radius;
     const trackLength = circumference * coverage;
-    const valueLength = trackLength * value / 100;
+    const valueLength = trackLength * (finiteOrNull(value) ?? 0) / 100;
     const track = createSvgElement('circle', {
       cx: center,
       cy: center,
@@ -254,7 +262,7 @@ export function renderOpportunityMap(container, keywords) {
       transform: `translate(${x} ${y})`
     });
     group.append(
-      createSvgElement('circle', { r: 5 + item.score / 24 }),
+      createSvgElement('circle', { r: 5 + (finiteOrNull(item.score) ?? 0) / 24 }),
       createSvgElement('circle', { r: 2.2, class: 'geo-opportunity-node__core' })
     );
     const label = createSvgElement('text', { x: 12, y: 4 });
@@ -282,25 +290,32 @@ function appendSvgTitle(parent, text) {
 export function renderAnswerPath(container, answer) {
   const width = 820;
   const height = 420;
+  const usePrimaryRecommendation = Number.isFinite(answer.primaryRecommendationRate);
   const svg = createSvgElement('svg', {
     viewBox: `0 0 ${width} ${height}`,
     role: 'img',
-    'aria-label': '用户问题经过语义理解、回答生成、品牌提及、首位推荐和品牌露出位置的回答路径'
+    'aria-label': `用户问题经过语义理解、回答生成、品牌提及、${usePrimaryRecommendation ? '主推荐' : '首位推荐'}和品牌露出位置的回答路径`
   });
   const stages = [
     ['用户问题', 72],
     ['语义理解', 206],
     ['回答生成', 340],
     ['品牌提及', 474],
-    ['首位推荐', 608],
+    [usePrimaryRecommendation ? '主推荐' : '首位推荐', 608],
     ['露出位置', 742]
   ];
   const lanes = [
-    { label: '豆包', y: 122, tone: 1, outcome: 'first' },
-    { label: 'DeepSeek', y: 178, tone: 2, outcome: 'mention' },
-    { label: 'Kimi', y: 234, tone: 3, outcome: 'first' },
-    { label: '千问', y: 290, tone: 4, outcome: 'dim' }
-  ];
+    { id: 'doubao', label: '豆包', y: 122, tone: 1 },
+    { id: 'deepseek', label: 'DeepSeek', y: 178, tone: 2 },
+    { id: 'kimi', label: 'Kimi', y: 234, tone: 3 },
+    { id: 'qwen', label: '千问', y: 290, tone: 4 }
+  ].map((lane) => {
+    const comparison = answer.platformComparison?.find((item) => item.id === lane.id);
+    const recommendationRate = usePrimaryRecommendation ? comparison?.primary : comparison?.first;
+    const outcome = (recommendationRate ?? 0) > 0 ? 'first' : (comparison?.mention ?? 0) > 0 ? 'mention' : 'dim';
+    const count = answer.platformCounts?.[lane.id];
+    return { ...lane, outcome, displayLabel: Number.isFinite(count) ? `${lane.label} · ${count}` : lane.label };
+  });
 
   stages.forEach(([label, x], index) => {
     svg.append(createSvgElement('line', {
@@ -330,7 +345,7 @@ export function renderAnswerPath(container, answer) {
       d,
       class: `geo-answer-route geo-answer-route--${lane.tone} geo-answer-route--${lane.outcome}`
     }));
-    appendSvgText(svg, lane.label, {
+    appendSvgText(svg, lane.displayLabel, {
       x: 22,
       y: lane.y + 4,
       class: `geo-answer-platform geo-answer-platform--${lane.tone}`
@@ -355,19 +370,33 @@ export function renderAnswerPath(container, answer) {
     y: 388,
     class: 'geo-answer-discard-label'
   });
-  appendSvgText(svg, `平均品牌位置 ${answer.averageBrandPosition}`, {
+  appendSvgText(svg, `平均品牌位置 ${answer.averageBrandPosition ?? '未提供'}`, {
     x: 742,
     y: 342,
     'text-anchor': 'end',
     class: 'geo-answer-position-label'
   });
-  appendSvgText(svg, `品牌提及 ${answer.brandMentionRate.toFixed(1)}%`, {
+  appendSvgText(svg, `有效回答 ${answer.validAnswers ?? '未提供'} / ${answer.collectedAnswers ?? '未提供'}`, {
+    x: 742,
+    y: 320,
+    'text-anchor': 'end',
+    class: 'geo-answer-position-label'
+  });
+  appendSvgText(svg, `次推荐 ${metricText(answer.secondaryRecommendationRate, 2, '%')} · 未提及 ${metricText(answer.unmentionedRate, 2, '%')}`, {
+    x: 742,
+    y: 364,
+    'text-anchor': 'end',
+    class: 'geo-answer-position-label'
+  });
+  appendSvgText(svg, `品牌提及 ${metricText(answer.brandMentionRate, 1, '%')}`, {
     x: 474,
     y: 88,
     'text-anchor': 'middle',
     class: 'geo-answer-value-label'
   });
-  appendSvgText(svg, `首位推荐 ${answer.firstRecommendationRate.toFixed(1)}%`, {
+  const recommendationLabel = Number.isFinite(answer.primaryRecommendationRate) ? '主推荐' : '首位推荐';
+  const recommendationValue = Number.isFinite(answer.primaryRecommendationRate) ? answer.primaryRecommendationRate : answer.firstRecommendationRate;
+  appendSvgText(svg, `${recommendationLabel} ${metricText(recommendationValue, 1, '%')}`, {
     x: 608,
     y: 88,
     'text-anchor': 'middle',
@@ -385,12 +414,19 @@ export function renderCitationNetwork(container, citation) {
     'aria-label': '官方、第三方和社区来源经验证筛选形成高质量引用网络'
   });
   const sources = [
-    { x: 82, y: 92, item: citation.sourceDomains[0], group: 'official' },
-    { x: 72, y: 210, item: citation.sourceDomains[1], group: 'third' },
-    { x: 128, y: 338, item: citation.sourceDomains[2], group: 'community' },
-    { x: 254, y: 86, item: citation.sourceDomains[3], group: 'third' },
-    { x: 246, y: 326, item: citation.sourceDomains[4], group: 'community' }
-  ];
+    { x: 82, y: 92, item: citation.sourceDomains[0] },
+    { x: 72, y: 210, item: citation.sourceDomains[1] },
+    { x: 128, y: 338, item: citation.sourceDomains[2] },
+    { x: 254, y: 86, item: citation.sourceDomains[3] },
+    { x: 246, y: 326, item: citation.sourceDomains[4] }
+  ].filter((source) => source.item).map((source) => ({
+    ...source,
+    group: source.item.sourceType === 'official'
+      ? 'official'
+      : source.item.sourceType === 'community'
+        ? 'community'
+        : 'third'
+  }));
   const filters = [
     { x: 382, y: 92, label: '行业报告' },
     { x: 360, y: 186, label: '媒体报道' },
@@ -398,9 +434,11 @@ export function renderCitationNetwork(container, citation) {
     { x: 472, y: 350, label: '验证筛选' }
   ];
   const cores = [
-    { x: 648, y: 132, label: '权威来源', value: citation.authorityRate },
-    { x: 706, y: 228, label: '高质量引用', value: citation.qualityRate },
-    { x: 628, y: 320, label: '收录索引', value: citation.indexedRate }
+    Number.isFinite(citation.contentSourceQualityScore)
+      ? { x: 648, y: 132, label: '内容来源质量分', value: citation.contentSourceQualityScore, suffix: '', digits: 2 }
+      : { x: 648, y: 132, label: '权威来源', value: citation.authorityRate, suffix: '%', digits: 1 },
+    { x: 706, y: 228, label: '优质引用率', value: citation.qualityRate, suffix: '%', digits: 1 },
+    { x: 628, y: 320, label: '收录率', value: citation.indexedRate, suffix: '%', digits: 1 }
   ];
 
   sources.forEach((source, index) => {
@@ -420,7 +458,7 @@ export function renderCitationNetwork(container, citation) {
 
   sources.forEach(({ x, y, item, group }) => {
     const node = createSvgElement('g', { class: `geo-citation-source geo-citation-source--${group}` });
-    node.append(createSvgElement('circle', { cx: x, cy: y, r: 5 + item.value / 24 }));
+    node.append(createSvgElement('circle', { cx: x, cy: y, r: 5 + (finiteOrNull(item.value) ?? 0) / 24 }));
     node.append(createSvgElement('circle', { cx: x, cy: y, r: 2.4, class: 'geo-citation-source__core' }));
     appendSvgText(node, item.domain, { x: x + 18, y: y + 4, class: 'geo-citation-source__label' });
     appendSvgText(node, String(item.value), { x: x + 18, y: y + 19, class: 'geo-citation-source__value' });
@@ -430,14 +468,14 @@ export function renderCitationNetwork(container, citation) {
     svg.append(createSvgElement('circle', { cx: x, cy: y, r: 7, class: 'geo-citation-filter-node' }));
     appendSvgText(svg, label, { x: x + 14, y: y + 4, class: 'geo-citation-filter-label' });
   });
-  cores.forEach(({ x, y, label, value }, index) => {
+  cores.forEach(({ x, y, label, value, suffix, digits }, index) => {
     svg.append(createSvgElement('path', {
       d: `M${x - 22},${y - 12} A26,26 0 0 1 ${x + 18},${y + 18}`,
       class: `geo-citation-core-arc geo-citation-core-arc--${index + 1}`
     }));
     svg.append(createSvgElement('circle', { cx: x, cy: y, r: 5.5, class: 'geo-citation-core-node' }));
     appendSvgText(svg, label, { x: x + 16, y: y - 1, class: 'geo-citation-core-label' });
-    appendSvgText(svg, `${value.toFixed(1)}%`, { x: x + 16, y: y + 17, class: 'geo-citation-core-value' });
+    appendSvgText(svg, metricText(value, digits, suffix), { x: x + 16, y: y + 17, class: 'geo-citation-core-value' });
   });
   appendSvgText(svg, `总引用 ${citation.totalCitations}`, { x: 654, y: 66, class: 'geo-citation-total' });
   appendSvgText(svg, `异常 ${citation.abnormalSources.reduce((sum, item) => sum + item.count, 0)}条`, {
@@ -457,13 +495,20 @@ export function renderKeywordOpportunityField(container, keyword) {
     'aria-label': '以关键词综合机会评分为中心的五类机会词场'
   });
   const center = { x: 410, y: 218 };
-  const categories = [
-    { label: '信息查询', x: 166, y: 92, angle: -154 },
-    { label: '解决方案', x: 408, y: 64, angle: -92 },
-    { label: '产品比较', x: 658, y: 108, angle: -28 },
-    { label: '购买决策', x: 670, y: 334, angle: 30 },
-    { label: '场景需求', x: 174, y: 338, angle: 152 }
-  ];
+  const fallbackLabels = ['信息查询', '解决方案', '产品比较', '购买决策', '场景需求'];
+  const groupLabels = [...new Set((keyword.opportunityGroups ?? [])
+    .map((group) => group.dimension ?? group.opportunityType ?? group.marketSignalType)
+    .filter(Boolean))];
+  const labels = groupLabels.length ? groupLabels : fallbackLabels;
+  const categories = labels.map((label, index) => {
+    const angle = -Math.PI * 0.86 + (index / Math.max(labels.length - 1, 1)) * Math.PI * 1.72;
+    return {
+      label,
+      x: center.x + Math.cos(angle) * 270,
+      y: center.y + Math.sin(angle) * 154,
+      angle: angle * 180 / Math.PI
+    };
+  });
 
   categories.forEach((category, index) => {
     svg.append(createSvgElement('path', {
@@ -488,11 +533,13 @@ export function renderKeywordOpportunityField(container, keyword) {
     const x = category.x + (offsetIndex ? 48 : -34) + ((index % 2) * 12);
     const y = category.y + (offsetIndex ? 32 : 15);
     const group = createSvgElement('g', {
-      class: `geo-keyword-field-node${item.trend < 0 ? ' is-declining' : ''}`,
+      class: `geo-keyword-field-node${Number.isFinite(item.trend) && item.trend < 0 ? ' is-declining' : ''}`,
       transform: `translate(${x} ${y})`
     });
-    appendSvgTitle(group, `${item.keyword}：机会评分${item.score}，趋势${item.trend >= 0 ? '+' : ''}${item.trend}%`);
-    group.append(createSvgElement('circle', { r: 4 + (item.score - 60) / 10, class: 'geo-keyword-field-node__halo' }));
+    const score = finiteOrNull(item.score);
+    const trend = finiteOrNull(item.trend);
+    appendSvgTitle(group, `${item.keyword}：机会评分${score ?? '未提供'}，趋势${trend == null ? '未提供' : `${trend >= 0 ? '+' : ''}${trend}%`}`);
+    group.append(createSvgElement('circle', { r: 4 + Math.max(0, ((score ?? 60) - 60) / 10), class: 'geo-keyword-field-node__halo' }));
     group.append(createSvgElement('circle', { r: 2.8, class: 'geo-keyword-field-node__core' }));
     appendSvgText(group, item.keyword, { x: 12, y: 4, class: 'geo-keyword-field-node__label' });
     svg.append(group);
@@ -505,19 +552,19 @@ export function renderKeywordOpportunityField(container, keyword) {
     d: 'M469 223 A60 48 0 0 1 389 269',
     class: 'geo-keyword-center-arc geo-keyword-center-arc--secondary'
   }));
-  appendSvgText(svg, keyword.opportunityScore.toFixed(1), {
+  appendSvgText(svg, metricText(keyword.opportunityScore), {
     x: center.x,
     y: center.y + 8,
     'text-anchor': 'middle',
     class: 'geo-keyword-center-score'
   });
-  appendSvgText(svg, '综合机会评分', {
+  appendSvgText(svg, Number.isFinite(keyword.industryOpportunityDriverScore) ? '行业机会驱动分' : '综合机会评分', {
     x: center.x,
     y: center.y + 30,
     'text-anchor': 'middle',
     class: 'geo-keyword-center-label'
   });
-  appendSvgText(svg, keyword.brandOpportunity, {
+  appendSvgText(svg, `品牌机会 ${keyword.brandOpportunity ?? '未提供'}`, {
     x: center.x,
     y: 398,
     'text-anchor': 'middle',
@@ -541,6 +588,8 @@ export function renderDataHealthPipeline(container, health) {
       value: health.platformAccessibilityRate,
       numerator: health.availablePlatformCount,
       denominator: health.expectedPlatformCount,
+      status: health.platformAccessibilityStatus,
+      reason: health.platformAccessibilityReason,
       unit: '个平台',
       x: 150,
       y: 212
@@ -551,6 +600,8 @@ export function renderDataHealthPipeline(container, health) {
       value: health.questionCollectionCompleteness,
       numerator: health.collectedQuestions,
       denominator: health.expectedQuestions,
+      status: health.questionCollectionStatus,
+      reason: health.questionCollectionReason,
       unit: '个问题',
       x: 450,
       y: 212
@@ -561,6 +612,8 @@ export function renderDataHealthPipeline(container, health) {
       value: health.collectedAnswerValidity,
       numerator: health.validAnswers,
       denominator: health.collectedAnswers,
+      status: health.answerValidityStatus,
+      reason: health.answerValidityReason,
       unit: '条回答',
       x: 750,
       y: 212
@@ -581,22 +634,23 @@ export function renderDataHealthPipeline(container, health) {
     const radius = 54;
     const circumference = 2 * Math.PI * radius;
     group.append(createSvgElement('circle', { cx: stage.x, cy: stage.y, r: radius, class: 'geo-health-stage__track' }));
+    const value = finiteOrNull(stage.value);
     group.append(createSvgElement('circle', {
       cx: stage.x,
       cy: stage.y,
       r: radius,
       class: 'geo-health-stage__value',
-      'stroke-dasharray': `${(circumference * stage.value / 100).toFixed(2)} ${circumference.toFixed(2)}`,
+      'stroke-dasharray': `${(circumference * (value ?? 0) / 100).toFixed(2)} ${circumference.toFixed(2)}`,
       transform: `rotate(-112 ${stage.x} ${stage.y})`
     }));
     group.append(createSvgElement('circle', { cx: stage.x, cy: stage.y, r: 7, class: 'geo-health-stage__core' }));
     appendSvgText(group, stage.label, { x: stage.x, y: 94, 'text-anchor': 'middle', class: 'geo-health-stage__label' });
     appendSvgText(group, stage.metric, { x: stage.x, y: 122, 'text-anchor': 'middle', class: 'geo-health-stage__metric' });
-    appendSvgText(group, `${stage.value.toFixed(1)}%`, { x: stage.x, y: stage.y - 8, 'text-anchor': 'middle', class: 'geo-health-stage__score' });
-    appendSvgText(group, `${stage.numerator} / ${stage.denominator}${stage.unit}`, { x: stage.x, y: stage.y + 24, 'text-anchor': 'middle', class: 'geo-health-stage__fraction' });
-    appendSvgText(group, `损失 ${(100 - stage.value).toFixed(1)}%`, { x: stage.x, y: 328, 'text-anchor': 'middle', class: 'geo-health-stage__loss' });
-    appendSvgText(group, index === 1 ? '受影响：问题采集' : index === 2 ? '受影响：有效回答' : '状态：可访问', { x: stage.x, y: 354, 'text-anchor': 'middle', class: 'geo-health-stage__status' });
-    appendSvgText(group, '较昨日：当前数据未提供同口径昨值', { x: stage.x, y: 376, 'text-anchor': 'middle', class: 'geo-health-stage__delta' });
+    appendSvgText(group, metricText(value, 1, '%'), { x: stage.x, y: stage.y - 8, 'text-anchor': 'middle', class: 'geo-health-stage__score' });
+    appendSvgText(group, `${stage.numerator ?? '未提供'} / ${stage.denominator ?? '未提供'}${stage.unit}`, { x: stage.x, y: stage.y + 24, 'text-anchor': 'middle', class: 'geo-health-stage__fraction' });
+    appendSvgText(group, value == null ? '计划分母未提供' : `损失 ${(100 - value).toFixed(1)}%`, { x: stage.x, y: 328, 'text-anchor': 'middle', class: 'geo-health-stage__loss' });
+    appendSvgText(group, `状态：${String(stage.status ?? (value == null ? 'missing' : 'healthy')).toUpperCase()}`, { x: stage.x, y: 354, 'text-anchor': 'middle', class: 'geo-health-stage__status' });
+    appendSvgText(group, stage.reason ?? '当前数据未提供同口径昨值', { x: stage.x, y: 376, 'text-anchor': 'middle', class: 'geo-health-stage__delta' });
     svg.append(group);
   });
   appendSvgText(svg, '三段指标独立计算 · 不合并为总完成率', {

@@ -59,6 +59,7 @@ export function initializeGeoDashboardExperience() {
     platform: 'all',
     range: '30d',
     scoreExpanded: false,
+    currentOverview: null,
     holographicDetails,
     dataMode,
     fixture,
@@ -387,21 +388,35 @@ export function initializeGeoDashboardExperience() {
           </div>
           <div class="geo-metric-grid">
             ${metricMarkup('answer-access', '平台可访问率', '三者独立，不合并为完成率')}
-            ${metricMarkup('answer-complete', '问题采集完整率', '实际采集问题 / 预期问题')}
+            ${metricMarkup('answer-validity', '回答有效性', '有效回答 / 已采集回答')}
             ${metricMarkup('answer-mention', '品牌提及率', '有效回答中的品牌提及比例')}
-            ${metricMarkup('answer-first', '首位推荐率', '品牌作为第一推荐出现的比例')}
+            ${metricMarkup('answer-first', '<span data-answer-recommendation-label>首位推荐率</span>', '推荐指标按数据契约中的正式定义展示')}
           </div>
-          <p class="geo-panel__microcopy">有效回答率、品牌露出位置及平台差异已按相同口径拆分。</p>
+          <p class="geo-panel__microcopy geo-overview__answer-note">
+            <span data-answer-completeness-note>问题采集完整率：未提供</span>
+            <span data-answer-valid-count>有效回答：未提供</span>
+            <span data-answer-basis-note></span>
+          </p>
         </button>
         <button class="geo-core geo-overview__core" type="button" data-core-explain
           aria-label="查看GEO综合评分说明" aria-pressed="false">
           <div class="geo-core__meter" data-core-meter></div>
+          <div class="geo-core__dataset-status" data-dataset-status aria-label="当前数据集状态">
+            <span data-dataset-kind>演示数据</span>
+            <b data-dataset-gate>PASS</b>
+            <em data-dataset-date>--</em>
+            <i data-dataset-version>--</i>
+            <small data-dataset-history></small>
+            <small data-dataset-confidence></small>
+            <small data-dataset-trend-status></small>
+            <small data-dataset-rule></small>
+          </div>
           <div class="geo-core__satellites" aria-hidden="true">
             <span class="geo-core__satellite geo-core__satellite--visibility">
               <em>品牌可见</em><b data-metric="core-visibility">0.0%</b>
             </span>
             <span class="geo-core__satellite geo-core__satellite--first">
-              <em>首位推荐</em><b data-metric="core-first">0.0%</b>
+              <em data-core-recommendation-label>首位推荐</em><b data-metric="core-first">0.0%</b>
             </span>
             <span class="geo-core__satellite geo-core__satellite--quality">
               <em>高质引用</em><b data-metric="core-quality">0.0%</b>
@@ -424,12 +439,15 @@ export function initializeGeoDashboardExperience() {
           </div>
           <div class="geo-metric-grid">
             ${metricMarkup('citation-total', '引用数量', '已采集有效回答中的去重引用')}
-            ${metricMarkup('citation-quality', '高质量引用率', '官方与高权威第三方来源占比')}
-            ${metricMarkup('citation-authority', '权威来源占比', '按来源分级规则计算')}
-            ${metricMarkup('citation-indexed', '收录与索引状态', '可访问并被平台引用的来源比例')}
+            ${metricMarkup('citation-official-count', '官方来源', '来源分类中的官方来源数量')}
+            ${metricMarkup('citation-third-count', '第三方来源', '来源分类中的第三方来源数量')}
+            ${metricMarkup('citation-community-count', '社区来源', '来源分类中的社区来源数量')}
           </div>
           <div class="geo-segment-chart" data-citation-segment></div>
-          <p class="geo-panel__microcopy">官方 / 第三方 / 社区来源保持独立口径。</p>
+          <p class="geo-panel__microcopy geo-overview__citation-note">
+            <strong data-citation-source-quality>内容来源质量分：未提供</strong>
+            <span data-citation-missing-note>优质引用率 / 收录率：未提供</span>
+          </p>
         </button>
         <button class="geo-panel geo-overview__keyword" type="button" data-open-view="keyword">
           <div class="geo-panel__head">
@@ -441,8 +459,14 @@ export function initializeGeoDashboardExperience() {
               <strong data-metric="keyword-score">0.0</strong>
               <p><b data-keyword-opportunity></b><br><span data-keyword-direction></span></p>
             </div>
-            <div class="geo-opportunity-mini" aria-hidden="true">${'<span></span>'.repeat(5)}</div>
+            <div class="geo-keyword-facts" aria-label="关键词数据摘要">
+              <span><em>来源关键词</em><b data-keyword-source>未提供</b></span>
+              <span><em>AI拓展候选</em><b data-keyword-total>未提供</b></span>
+              <span><em>实际测试</em><b data-keyword-tested>未提供</b></span>
+              <span><em>候选引用触发</em><b data-keyword-triggered>未提供</b></span>
+            </div>
           </div>
+          <p class="geo-panel__microcopy" data-keyword-cross-match>行业机会交叉匹配：未提供</p>
         </button>
         <section class="geo-panel geo-overview__trend" tabindex="0"
           data-tooltip="趋势仅比较相同平台 × 相同问题组合，缺失样本不会按0处理。">
@@ -450,7 +474,12 @@ export function initializeGeoDashboardExperience() {
             <div><p class="geo-panel__eyebrow">Comparable Signals</p><h2 class="geo-panel__title">趋势与异常</h2></div>
             <i class="geo-panel__signal" aria-hidden="true"></i>
           </div>
-          <div class="geo-trend-chart" data-overview-trend></div>
+          <div class="geo-overview-signals" data-overview-signals>
+            <div class="geo-overview-signals__trends" data-overview-aggregate-trends></div>
+            <div class="geo-overview-signals__alerts" data-overview-alerts></div>
+            <p data-overview-more></p>
+            <small data-overview-window-note></small>
+          </div>
         </section>
       </section>
     `;
@@ -522,6 +551,7 @@ export function initializeGeoDashboardExperience() {
         <section class="geo-holo-stage geo-holo-stage--answer" aria-label="AI回答路径主结构">
           <div class="geo-answer-path" data-answer-path></div>
           <div class="geo-holo-metric-orbit" data-answer-orbit></div>
+          <p class="geo-answer-basis-note" data-answer-basis-v12></p>
         </section>
         <aside class="geo-holo-aside geo-holo-aside--answer">
           <div class="geo-holo-aside__section">
@@ -598,6 +628,8 @@ export function initializeGeoDashboardExperience() {
       '平台访问、问题采集、回答有效性保持独立分母；链路用于定位损失而非合并总完成率。',
       `
         <section class="geo-holo-stage geo-holo-stage--health" aria-label="数据健康三段生命线主结构">
+          <div class="geo-health-overall" data-health-overall>OVERALL · 未提供</div>
+          <p class="geo-health-aux" data-health-aux></p>
           <div class="geo-health-pipeline" data-health-pipeline></div>
         </section>
         <aside class="geo-holo-aside geo-holo-aside--health">
@@ -794,10 +826,221 @@ export function initializeGeoDashboardExperience() {
   function toggleCoreExplanation(core) {
     state.scoreExpanded = !state.scoreExpanded;
     core.setAttribute('aria-pressed', String(state.scoreExpanded));
-    core.querySelector('[data-core-caption]').textContent = state.scoreExpanded
-      ? '综合评分 = 结构 30% + 语义 25% + 品牌可见 25% + 高质量引用 20%。'
-      : '结构、语义、品牌可见与引用质量的综合信号。';
+    core.querySelector('[data-core-caption]').textContent = coreCaption(state.scoreExpanded);
     pulseCoreFeedback(core);
+  }
+
+  function coreCaption(expanded) {
+    const overview = state.currentOverview;
+    if (!expanded || !overview) return '结构、语义、品牌可见与引用质量的综合信号。';
+    const parts = [
+      ['GEO', overview.geoScore],
+      ['结构', overview.geoStructureScore],
+      ['语义', overview.geoSemanticScore],
+      ['5A', overview.fiveAScore],
+      ['行业机会', overview.industryOpportunityScore]
+    ].filter(([, value]) => Number.isFinite(value));
+    return parts.length
+      ? `${parts.map(([label, value]) => `${label} ${value.toFixed(2)}`).join(' · ')}。评分来自当前数据集既有融合分析，Dashboard未反推权重。`
+      : '当前数据集未提供评分组件权重；Dashboard保留源数据评分，不重新计算。';
+  }
+
+  function currentDataset() {
+    return dataSource?.dataset ?? null;
+  }
+
+  function escapeMarkup(value) {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  function datasetPresentation() {
+    const dataset = currentDataset();
+    const sourceType = dataset?.source?.type ?? dataSource?.mode ?? 'mock';
+    const sourceDescription = [dataset?.source?.name, dataset?.source?.producer, ...(dataset?.source?.notes ?? [])]
+      .filter(Boolean)
+      .join(' ');
+    const declaredTestData = /fixture|sample|测试|样例|验证数据|不代表正式/i.test(sourceDescription);
+    const demoMode = dataSource?.mode === 'mock' || (dataSource?.mode === 'file' && !dataSource?.applied);
+    const kind = demoMode || sourceType === 'mock'
+      ? '演示数据'
+      : sourceType === 'fixture' || declaredTestData
+        ? '测试数据'
+        : '真实数据';
+    const confidenceLevel = dataset?.metadata?.confidenceLevel ?? dataset?.diagnostics?.confidenceLevel ?? null;
+    const formalTrendEligible = dataset?.metadata?.formalTrendEligible ?? dataset?.diagnostics?.formalTrendEligible;
+    const historicalLabel = dataset?.diagnostics?.historicalScoreStatus?.label ?? null;
+    return {
+      kind,
+      gate: String(dataSource?.gate?.status ?? 'pass').toUpperCase(),
+      gateTone: String(dataSource?.gate?.status ?? 'pass').toLowerCase(),
+      date: dataset?.metadata?.geoDataDate ?? dataSource?.dashboard?.metadata?.geoDataDate ?? '未提供',
+      version: dataset?.datasetVersion ?? '未提供',
+      confidence: confidenceLevel === 'low' ? '低置信批次' : confidenceLevel ? `${confidenceLevel}置信` : '',
+      trendStatus: formalTrendEligible === false ? '不进入正式趋势' : '',
+      historicalLabel,
+      ruleVersion: dataset?.metadata?.analysisRuleVersion ?? dataset?.diagnostics?.analysisRuleVersion ?? ''
+    };
+  }
+
+  function sourceTypeCounts(citation) {
+    const datasetCitation = currentDataset()?.citation;
+    const total = datasetCitation?.summary?.totalCitations ?? citation.totalCitations;
+    const byId = new Map((datasetCitation?.sourceTypes ?? []).map((item) => [item.id, item]));
+    const countFor = (id, rate) => {
+      const explicit = byId.get(id)?.count;
+      if (Number.isFinite(explicit)) return explicit;
+      return Number.isFinite(total) && Number.isFinite(rate) ? Math.round(total * rate / 100) : null;
+    };
+    return {
+      official: countFor('official', citation.officialRate),
+      thirdParty: countFor('thirdParty', citation.thirdPartyRate),
+      community: countFor('community', citation.communityRate)
+    };
+  }
+
+  function citationPresentation(citation) {
+    const dataset = currentDataset();
+    const rawDomains = new Map((dataset?.citation?.sourceDomains ?? []).map((item) => [item.domain, item]));
+    const platformNames = new Map((dataset?.platforms ?? []).map((item) => [item.id, item.displayName ?? item.name ?? item.id]));
+    const platformsByDomain = new Map();
+    (dataset?.citation?.records ?? []).forEach((record) => {
+      if (!record.domain || !record.platformId) return;
+      const platforms = platformsByDomain.get(record.domain) ?? new Set();
+      platforms.add(platformNames.get(record.platformId) ?? record.platformId);
+      platformsByDomain.set(record.domain, platforms);
+    });
+    const sourceTypeLabels = { official: '官方', thirdParty: '第三方', community: '社区', unknown: '未分类' };
+    return citation.sourceDomains.map((item) => {
+      const raw = rawDomains.get(item.domain);
+      return {
+        ...item,
+        sourceType: raw?.sourceType ?? 'unknown',
+        sourceTypeLabel: sourceTypeLabels[raw?.sourceType] ?? sourceTypeLabels.unknown,
+        platforms: [...(platformsByDomain.get(item.domain) ?? [])]
+      };
+    });
+  }
+
+  function keywordPresentation(keyword) {
+    const datasetKeyword = currentDataset()?.keyword;
+    const records = Array.isArray(datasetKeyword?.records) ? datasetKeyword.records : [];
+    const trigger = (datasetKeyword?.triggerTypes ?? []).find((item) => item.id === 'citationTriggered');
+    const candidateMode = Number.isFinite(datasetKeyword?.summary?.candidateKeywordCount)
+      || trigger?.status === 'not_applicable'
+      || records.some((item) => String(item.status ?? '').includes('candidate-untested'));
+    const legacyTested = records.length
+      ? records.filter((item) => String(item.status ?? '').toLowerCase().includes('tested')).length
+      : null;
+    return {
+      source: datasetKeyword?.summary?.sourceKeywordCount ?? null,
+      total: datasetKeyword?.summary?.candidateKeywordCount ?? datasetKeyword?.summary?.totalKeywords ?? keyword.totalKeywords,
+      tested: candidateMode ? datasetKeyword?.summary?.testedCandidateCount ?? '未提供' : legacyTested,
+      triggered: candidateMode ? datasetKeyword?.summary?.triggeredCandidateCount ?? 'N/A' : (Number.isFinite(trigger?.count) ? trigger.count : null),
+      crossMatched: datasetKeyword?.summary?.opportunityCrossMatchCount ?? datasetKeyword?.summary?.opportunityKeywords ?? keyword.opportunityKeywords,
+      commercialValue: datasetKeyword?.metrics?.averageCommercialValue ?? keyword.commercialValue,
+      brandOpportunity: datasetKeyword?.metrics?.averageBrandOpportunity ?? null
+    };
+  }
+
+  function answerPresentation(answer) {
+    const records = currentDataset()?.answer?.records ?? [];
+    const selected = state.platform === 'all'
+      ? records
+      : records.filter((item) => item.platformId === state.platform);
+    const hasSelectedRecords = selected.length > 0;
+    const platformCounts = records.reduce((counts, item) => {
+      counts[item.platformId] = (counts[item.platformId] ?? 0) + 1;
+      return counts;
+    }, {});
+    return {
+      ...answer,
+      collectedAnswers: hasSelectedRecords ? selected.length : answer.collectedAnswers,
+      validAnswers: hasSelectedRecords ? selected.filter((item) => item.isValid).length : answer.validAnswers,
+      platformCounts
+    };
+  }
+
+  function answerMetricBasisText() {
+    const dataset = currentDataset();
+    const validated = dataset?.answer?.metricsValidated;
+    const legacy = dataset?.diagnostics?.legacyV1AnswerMetrics;
+    if (!validated || !legacy) return '';
+    const invalidCount = dataset?.answer?.summary?.invalidAnswers;
+    return `当前主指标：有效回答口径（分母${validated.denominator}） · V1历史口径：包含${invalidCount ?? '未提供'}条无效回答（分母${legacy.denominator}）`;
+  }
+
+  function healthPresentation(health) {
+    const source = currentDataset()?.dataHealth;
+    return {
+      ...health,
+      overallStatus: source?.overallStatus ?? health.status,
+      platformAccessibilityStatus: source?.platformAccessibility?.status,
+      platformAccessibilityReason: source?.platformAccessibility?.reason,
+      questionCollectionStatus: source?.questionCollectionCompleteness?.status,
+      questionCollectionReason: source?.questionCollectionCompleteness?.reason,
+      answerValidityStatus: source?.collectedAnswerValidity?.status,
+      answerValidityReason: source?.collectedAnswerValidity?.reason,
+      missingCombinationCount: source?.questionCollectionCompleteness?.affectedQuestions?.length ?? health.missingCombinationCount,
+      theoreticalValidCompleteness: source?.theoreticalValidCompleteness?.rate ?? health.theoreticalValidCompleteness,
+      theoreticalValidNumerator: source?.theoreticalValidCompleteness?.numerator ?? health.theoreticalValidNumerator,
+      theoreticalValidDenominator: source?.theoreticalValidCompleteness?.denominator ?? health.theoreticalValidDenominator
+    };
+  }
+
+  function aggregateTrendRows() {
+    const rows = currentDataset()?.diagnostics?.aggregateTrendComparison?.rows ?? [];
+    const preferred = ['综合评分', 'GEO最终评分', 'GEO语义质量评分'];
+    return preferred
+      .map((metric) => rows.find((item) => item['指标'] === metric))
+      .filter(Boolean);
+  }
+
+  function overviewPrompts(data) {
+    const primary = data.alerts.map((item) => ({ label: item.label, detail: item.detail }));
+    const diagnostics = currentDataset()?.diagnostics?.warnings ?? [];
+    const validation = dataSource?.validation?.warnings ?? [];
+    const messages = [
+      ...primary,
+      ...diagnostics.map((item) => ({ label: '数据提示', detail: item.message })),
+      ...validation.map((item) => ({ label: '数据提示', detail: item.message }))
+    ];
+    const seen = new Set();
+    return messages.filter((item) => {
+      const normalized = String(item.detail ?? '').replace(/[，。；：:×\s]/g, '').toLowerCase();
+      if (!normalized || [...seen].some((value) => normalized.includes(value) || value.includes(normalized))) return false;
+      seen.add(normalized);
+      return true;
+    });
+  }
+
+  function renderOverviewSignals(data, trend) {
+    const trendContainer = state.root.querySelector('[data-overview-aggregate-trends]');
+    const rows = aggregateTrendRows();
+    if (rows.length) {
+      trendContainer.innerHTML = rows.map((item) => `
+        <span><em>${escapeMarkup(item['指标'].replace('最终', '').replace('质量评分', '变化'))}</em><b class="${item['变化'] < 0 ? 'is-down' : 'is-up'}">${item['变化'] >= 0 ? '+' : ''}${Number(item['变化']).toFixed(2)}</b></span>
+      `).join('');
+    } else {
+      renderTrendChart(trendContainer, trend, { label: '相同平台与问题组合趋势' });
+    }
+
+    const prompts = overviewPrompts(data);
+    state.root.querySelector('[data-overview-alerts]').innerHTML = prompts.slice(0, 3)
+      .map((item) => `<p><b>${escapeMarkup(item.label)}</b><span>${escapeMarkup(item.detail)}</span></p>`)
+      .join('');
+    const remaining = Math.max(0, prompts.length - 3);
+    state.root.querySelector('[data-overview-more]').textContent = remaining ? `另有${remaining}项数据提示` : '';
+
+    const metadata = currentDataset()?.metadata ?? dataSource?.dashboard?.metadata;
+    const singleDay = metadata?.dataWindowStart && metadata.dataWindowStart === metadata.dataWindowEnd;
+    state.root.querySelector('[data-overview-window-note]').textContent = state.range === '7d' && singleDay
+      ? `${currentDataset()?.metadata?.formalTrendEligible === false ? '低置信批次，不进入正式趋势。' : ''}当前数据包仅包含单日明细，不生成七天虚假趋势。`
+      : '';
   }
 
   async function toggleFullscreen() {
@@ -833,25 +1076,72 @@ export function initializeGeoDashboardExperience() {
   }
 
   function updateOverview(data, trend) {
+    const answerFacts = answerPresentation(data.answer);
+    const presentation = datasetPresentation();
+    const citationCounts = sourceTypeCounts(data.citation);
+    const keywordFacts = keywordPresentation(data.keyword);
+    const contentSourceQualityScore = currentDataset()?.diagnostics?.contentSourceQualityScore;
+    state.currentOverview = data.overview;
     updateMetric('core-score', data.overview.finalScore);
     updateMetric('core-visibility', data.overview.brandVisibilityRate, '%');
-    updateMetric('core-first', data.overview.firstRecommendationRate, '%');
+    const recommendationMetric = Number.isFinite(data.overview.primaryRecommendationRate)
+      ? data.overview.primaryRecommendationRate
+      : data.overview.firstRecommendationRate;
+    const recommendationLabel = Number.isFinite(data.overview.primaryRecommendationRate) ? '主推荐率' : '首位推荐率';
+    updateMetric('core-first', recommendationMetric, '%');
     updateMetric('core-quality', data.overview.qualityCitationRate, '%');
     updateMetric('core-keyword', data.keyword.opportunityScore);
     updateMetric('answer-access', data.answer.platformAccessibilityRate, '%');
-    updateMetric('answer-complete', data.answer.questionCollectionCompleteness, '%');
+    updateMetric('answer-validity', data.answer.collectedAnswerValidity, '%');
     updateMetric('answer-mention', data.answer.brandMentionRate, '%');
-    updateMetric('answer-first', data.answer.firstRecommendationRate, '%');
+    updateMetric('answer-first', Number.isFinite(data.answer.primaryRecommendationRate) ? data.answer.primaryRecommendationRate : data.answer.firstRecommendationRate, '%');
     updateMetric('citation-total', data.citation.totalCitations, '', 0);
-    updateMetric('citation-quality', data.citation.qualityRate, '%');
-    updateMetric('citation-authority', data.citation.authorityRate, '%');
-    updateMetric('citation-indexed', data.citation.indexedRate, '%');
+    updateMetric('citation-official-count', citationCounts.official, '', 0);
+    updateMetric('citation-third-count', citationCounts.thirdParty, '', 0);
+    updateMetric('citation-community-count', citationCounts.community, '', 0);
     updateMetric('keyword-score', data.keyword.opportunityScore);
 
+    const datasetStatus = state.root.querySelector('[data-dataset-status]');
+    datasetStatus.dataset.gate = presentation.gateTone;
+    datasetStatus.querySelector('[data-dataset-kind]').textContent = presentation.kind;
+    datasetStatus.querySelector('[data-dataset-gate]').textContent = presentation.gate;
+    datasetStatus.querySelector('[data-dataset-date]').textContent = presentation.date;
+    datasetStatus.querySelector('[data-dataset-version]').textContent = presentation.version;
+    datasetStatus.querySelector('[data-dataset-history]').textContent = presentation.historicalLabel;
+    datasetStatus.querySelector('[data-dataset-confidence]').textContent = presentation.confidence;
+    datasetStatus.querySelector('[data-dataset-trend-status]').textContent = presentation.trendStatus;
+    datasetStatus.querySelector('[data-dataset-rule]').textContent = presentation.ruleVersion;
+    datasetStatus.title = [presentation.historicalLabel, presentation.confidence, presentation.trendStatus, presentation.ruleVersion].filter(Boolean).join(' · ');
+    state.root.querySelector('[data-core-recommendation-label]').textContent = recommendationLabel.replace('率', '');
+    state.root.querySelector('[data-answer-recommendation-label]').textContent = recommendationLabel;
+
     const delta = state.root.querySelector('[data-core-delta]');
-    delta.textContent = `今日 ${data.overview.dailyDelta >= 0 ? '+' : ''}${data.overview.dailyDelta.toFixed(1)}%`;
-    state.root.querySelector('[data-keyword-opportunity]').textContent = data.keyword.brandOpportunity;
+    delta.classList.toggle('is-down', Number.isFinite(data.overview.dailyDelta) && data.overview.dailyDelta < 0);
+    delta.textContent = Number.isFinite(data.overview.dailyDelta)
+      ? `今日 ${data.overview.dailyDelta >= 0 ? '+' : ''}${data.overview.dailyDelta.toFixed(2)}`
+      : '今日 未提供';
+    state.root.querySelector('[data-core-caption]').textContent = coreCaption(state.scoreExpanded);
+    state.root.querySelector('[data-keyword-opportunity]').textContent = data.keyword.brandOpportunity === '未提供'
+      ? '行业机会驱动分'
+      : data.keyword.brandOpportunity;
     state.root.querySelector('[data-keyword-direction]').textContent = data.keyword.optimizationDirection;
+    state.root.querySelector('[data-answer-completeness-note]').textContent = Number.isFinite(data.answer.questionCollectionCompleteness)
+      ? `问题采集完整率：${displayMetric(data.answer.questionCollectionCompleteness, '%')}（${data.dataHealth.collectedQuestions}/${data.dataHealth.expectedQuestions}）`
+      : '问题采集完整率：计划分母未提供';
+    state.root.querySelector('[data-answer-valid-count]').textContent = Number.isFinite(answerFacts.validAnswers)
+      ? `有效回答 ${answerFacts.validAnswers}条`
+      : '有效回答：未提供';
+    state.root.querySelector('[data-answer-basis-note]').textContent = answerMetricBasisText();
+    state.root.querySelector('[data-answer-basis-v12]').textContent = answerMetricBasisText();
+    state.root.querySelector('[data-citation-source-quality]').textContent = Number.isFinite(contentSourceQualityScore)
+      ? `内容来源质量分 ${contentSourceQualityScore.toFixed(2)}`
+      : '内容来源质量分：未提供';
+    state.root.querySelector('[data-citation-missing-note]').textContent = `优质引用率 ${displayMetric(data.citation.qualityRate, '%')} · 收录率 ${displayMetric(data.citation.indexedRate, '%')}`;
+    state.root.querySelector('[data-keyword-source]').textContent = displayMetric(keywordFacts.source, '', 0);
+    state.root.querySelector('[data-keyword-total]').textContent = displayMetric(keywordFacts.total, '', 0);
+    state.root.querySelector('[data-keyword-tested]').textContent = displayMetric(keywordFacts.tested, '', 0);
+    state.root.querySelector('[data-keyword-triggered]').textContent = displayMetric(keywordFacts.triggered, '', 0);
+    state.root.querySelector('[data-keyword-cross-match]').textContent = `行业机会交叉匹配 ${displayMetric(keywordFacts.crossMatched, '', 0)}`;
 
     renderRingMeter(state.root.querySelector('[data-core-meter]'), data.overview);
     renderSegmentArc(state.root.querySelector('[data-citation-segment]'), [
@@ -859,20 +1149,22 @@ export function initializeGeoDashboardExperience() {
       { label: '第三方', value: data.citation.thirdPartyRate },
       { label: '社区', value: data.citation.communityRate }
     ], { label: '引用来源结构' });
-    renderTrendChart(state.root.querySelector('[data-overview-trend]'), trend, {
-      label: '相同平台与问题组合趋势'
-    });
+    renderOverviewSignals(data, trend);
   }
 
   function updateAnswerV12(data, trend) {
-    renderAnswerPath(state.root.querySelector('[data-answer-path]'), data.answer);
+    const answer = answerPresentation(data.answer);
+    renderAnswerPath(state.root.querySelector('[data-answer-path]'), answer);
     renderHoloMetricNodes(state.root.querySelector('[data-answer-orbit]'), [
-      ['平台可访问率', data.answer.platformAccessibilityRate, '%', '可访问平台 / 预期平台'],
-      ['问题采集完整率', data.answer.questionCollectionCompleteness, '%', '采集问题 / 预期问题'],
-      ['回答有效率', data.answer.collectedAnswerValidity, '%', '有效回答 / 已采集回答'],
-      ['品牌提及率', data.answer.brandMentionRate, '%', '有效回答中的品牌提及'],
-      ['首位推荐率', data.answer.firstRecommendationRate, '%', '品牌位于第一推荐'],
-      ['平均品牌位置', data.answer.averageBrandPosition, '', '仅在品牌被提及时计算']
+      ['平台可访问率', answer.platformAccessibilityRate, '%', '可访问平台 / 预期平台'],
+      ['问题采集完整率', Number.isFinite(answer.questionCollectionCompleteness) ? answer.questionCollectionCompleteness : '计划分母未提供', '%', '采集问题 / 预期问题'],
+      ['回答有效率', answer.collectedAnswerValidity, '%', '有效回答 / 已采集回答'],
+      ['品牌提及率', answer.brandMentionRate, '%', '有效回答中的品牌提及'],
+      ['主推荐率', answer.primaryRecommendationRate, '%', '正式主推荐角色占比'],
+      ['次推荐率', answer.secondaryRecommendationRate, '%', '正式次推荐角色占比'],
+      ['品牌推荐率', answer.brandRecommendationRate, '%', '主推荐率 + 次推荐率'],
+      ['首位推荐率', answer.firstRecommendationDefinitionStatus === 'pending_definition' ? '待定义' : answer.firstRecommendationRate, '%', '正式定义待确认时不展示为0'],
+      ['平均品牌位置', answer.averageBrandPosition, '', '字符首次出现位置不会映射为品牌排名']
     ]);
     renderSegmentArc(state.root.querySelector('[data-answer-types-v12]'), data.answer.answerTypes, {
       label: '回答类型结构'
@@ -883,49 +1175,74 @@ export function initializeGeoDashboardExperience() {
   }
 
   function updateCitationV12(data) {
-    renderCitationNetwork(state.root.querySelector('[data-citation-network]'), data.citation);
+    const counts = sourceTypeCounts(data.citation);
+    const contentSourceQualityScore = currentDataset()?.diagnostics?.contentSourceQualityScore;
+    const citation = {
+      ...data.citation,
+      sourceDomains: citationPresentation(data.citation),
+      contentSourceQualityScore
+    };
+    renderCitationNetwork(state.root.querySelector('[data-citation-network]'), citation);
     renderHoloMetricNodes(state.root.querySelector('[data-citation-orbit]'), [
-      ['总引用', data.citation.totalCitations, '', '去重后的有效引用'],
-      ['高质量引用率', data.citation.qualityRate, '%', '官方与高权威第三方来源'],
-      ['官方来源', data.citation.officialRate, '%', '来源结构保持独立'],
-      ['第三方来源', data.citation.thirdPartyRate, '%', '来源结构保持独立'],
-      ['社区来源', data.citation.communityRate, '%', '来源结构保持独立'],
-      ['权威来源占比', data.citation.authorityRate, '%', '按来源分级规则计算'],
-      ['榜单 / 测评', data.citation.rankingReviewRate, '%', '评测型来源比例'],
-      ['收录与索引', data.citation.indexedRate, '%', '可访问并被平台索引']
+      ['总引用', citation.totalCitations, '', '有效引用记录数量'],
+      ['官方来源', counts.official, '', '官方来源数量；零值分类仍保留'],
+      ['第三方来源', counts.thirdParty, '', '第三方来源数量'],
+      ['社区来源', counts.community, '', '社区来源数量'],
+      ['第三方比例', citation.thirdPartyRate, '%', '第三方来源 / 总引用'],
+      ['社区比例', citation.communityRate, '%', '社区来源 / 总引用'],
+      ['优质引用率', citation.qualityRate, '%', '源数据未提供时保持空值'],
+      ['收录率', citation.indexedRate, '%', '引用存在不等于已收录']
     ]);
-    state.root.querySelector('[data-source-domains-v12]').innerHTML = data.citation.sourceDomains
+    state.root.querySelector('[data-source-domains-v12]').innerHTML = citation.sourceDomains
       .map((item) => `
-        <li><span class="geo-domain-node geo-domain-node--${item.tone}"></span><b>${item.domain}</b><strong>${item.value}</strong></li>
+        <li><span class="geo-domain-node geo-domain-node--${item.tone}"></span><b>${escapeMarkup(item.domain)}</b><em>${escapeMarkup(item.sourceTypeLabel)}${item.platforms.length ? ` · ${escapeMarkup(item.platforms.join(' / '))}` : ''}</em><strong>${item.value}</strong></li>
       `).join('');
     state.root.querySelector('[data-abnormal-sources-v12]').innerHTML = data.citation.abnormalSources
-      .map((item) => `<li><b>${item.source}</b><span>${item.count}条 · ${item.severity}</span></li>`)
+      .map((item) => `<li><b>${item.source}</b><span>${item.count}条 · ${item.severity}${item.reason ? ` · ${escapeMarkup(item.reason)}` : ''}</span></li>`)
       .join('');
   }
 
   function updateKeywordV12(data) {
+    const facts = keywordPresentation(data.keyword);
     renderKeywordOpportunityField(state.root.querySelector('[data-keyword-field]'), data.keyword);
     renderHoloMetricNodes(state.root.querySelector('[data-keyword-orbit]'), [
-      ['综合机会评分', data.keyword.opportunityScore, '', '需求、竞争与品牌能力综合'],
-      ['商业价值', data.keyword.commercialValue, '', '商业意图与转化潜力'],
-      ['新增机会词', data.keyword.newKeywords.length, '', '本周期首次进入机会池'],
-      ['下降词', data.keyword.decliningKeywords.length, '', '同口径趋势下降']
+      ['机会驱动分', data.keyword.opportunityScore, '', '行业机会驱动评分'],
+      ['来源关键词', facts.source, '', '本批来源关键词数量'],
+      ['AI拓展候选', facts.total, '', 'AI生成、尚未逐条实测的候选关键词'],
+      ['实际测试', facts.tested, '', '未提供时保持空态'],
+      ['候选引用触发', facts.triggered, '', '未逐条实测时显示N/A']
     ]);
     state.root.querySelector('[data-keyword-rank-v12]').innerHTML = data.keyword.topKeywords
       .map((item, index) => `
-        <li><span>${String(index + 1).padStart(2, '0')}</span><b>${item.keyword}</b><strong>${item.score}</strong><em class="${item.trend < 0 ? 'is-declining' : ''}">${item.trend >= 0 ? '+' : ''}${item.trend}%</em></li>
+        <li><span>${String(index + 1).padStart(2, '0')}</span><b>${item.keyword}</b><strong>${displayMetric(item.score)}</strong><em class="${Number.isFinite(item.trend) && item.trend < 0 ? 'is-declining' : ''}">${formatTrend(item.trend)}</em></li>
       `).join('');
-    state.root.querySelector('[data-keyword-signals-v12]').innerHTML = [
+    const keywordSignals = [
+      ['交叉匹配', displayMetric(facts.crossMatched, '', 0), 'new'],
+      ['商业价值', displayMetric(facts.commercialValue), 'neutral'],
+      ['品牌机会', displayMetric(facts.brandOpportunity), 'neutral'],
       ...data.keyword.newKeywords.map((item) => ['新增', item, 'new']),
       ...data.keyword.decliningKeywords.map((item) => ['下降', item, 'declining'])
-    ].map(([label, item, tone]) => `<span class="geo-holo-signal geo-holo-signal--${tone}"><i>${label}</i>${item}</span>`).join('');
+    ];
+    state.root.querySelector('[data-keyword-signals-v12]').innerHTML = keywordSignals
+      .map(([label, item, tone]) => `<span class="geo-holo-signal geo-holo-signal--${tone}"><i>${label}</i>${item}</span>`)
+      .join('');
   }
 
   function updateDataHealthV12(data) {
+    const health = healthPresentation(data.dataHealth);
     renderDataHealthPipeline(
       state.root.querySelector('[data-health-pipeline]'),
-      data.dataHealth
+      health
     );
+    const overall = state.root.querySelector('[data-health-overall]');
+    overall.dataset.status = health.overallStatus ?? 'missing';
+    overall.textContent = `OVERALL · ${String(health.overallStatus ?? 'missing').toUpperCase()}`;
+    overall.title = Number.isFinite(health.missingCombinationCount)
+      ? `缺失平台×问题组合 ${health.missingCombinationCount} 条；理论有效完整率 ${displayMetric(health.theoreticalValidCompleteness, '%')}`
+      : '';
+    state.root.querySelector('[data-health-aux]').textContent = Number.isFinite(health.missingCombinationCount)
+      ? `缺失组合 ${health.missingCombinationCount} · 理论有效完整率 ${displayMetric(health.theoreticalValidCompleteness, '%')}（${health.theoreticalValidNumerator}/${health.theoreticalValidDenominator}）`
+      : '';
     const metadata = dataSource.dashboard.metadata;
     state.root.querySelector('[data-date-lineage-v12]').innerHTML = [
       ['报告日期', metadata.reportDate],
@@ -934,17 +1251,17 @@ export function initializeGeoDashboardExperience() {
       ['品牌心智快照日期', metadata.brandMindSnapshotDate],
       ['数据滞后', `${metadata.lagDays}天`]
     ].map(([label, value], index) => `<li class="${index === 4 ? 'is-lag' : ''}"><span>${label}</span><strong>${value}</strong></li>`).join('');
-    state.root.querySelector('[data-health-warnings-v12]').innerHTML = data.dataHealth.warnings
-      .map((item) => `<li><b>需关注</b><span>${item}</span></li>`)
+    const healthWarnings = overviewPrompts(data).slice(0, 3);
+    state.root.querySelector('[data-health-warnings-v12]').innerHTML = healthWarnings
+      .map((item) => `<li><b>${item.label}</b><span>${item.detail}</span></li>`)
       .join('');
   }
 
   function renderHoloMetricNodes(container, metrics) {
     container.innerHTML = metrics.map(([label, value, suffix, note], index) => {
-      const digits = Number.isInteger(value) ? 0 : 1;
       return `
         <div class="geo-holo-metric geo-holo-metric--${index + 1}" tabindex="0" data-tooltip="${note}">
-          <span>${label}</span><strong>${Number(value).toFixed(digits)}${suffix}</strong>
+          <span>${label}</span><strong>${displayMetric(value, suffix)}</strong>
         </div>
       `;
     }).join('');
@@ -1069,12 +1386,23 @@ export function initializeGeoDashboardExperience() {
   }
 
   function moduleMetricMarkup(label, value, suffix, note) {
-    const digits = Number.isInteger(value) ? 0 : 1;
     return `
       <div class="geo-module__metric" tabindex="0" data-tooltip="${note}">
-        <span>${label}</span><strong>${Number(value).toFixed(digits)}${suffix}<small>${note}</small></strong>
+        <span>${label}</span><strong>${displayMetric(value, suffix)}<small>${note}</small></strong>
       </div>
     `;
+  }
+
+  function displayMetric(value, suffix = '', digits = null) {
+    if (typeof value === 'string' && value.trim()) return value;
+    if (!Number.isFinite(value)) return '未提供';
+    const precision = digits ?? (Number.isInteger(value) ? 0 : 1);
+    return `${value.toFixed(precision)}${suffix}`;
+  }
+
+  function formatTrend(value) {
+    if (!Number.isFinite(value)) return '未提供';
+    return `${value >= 0 ? '+' : ''}${value}%`;
   }
 
   function updateAlerts(alerts) {
@@ -1126,6 +1454,10 @@ export function initializeGeoDashboardExperience() {
   function updateMetric(key, value, suffix = '', digits = 1) {
     const element = state.root.querySelector(`[data-metric="${key}"]`);
     if (!element) return;
+    if (!Number.isFinite(value)) {
+      element.textContent = '未提供';
+      return;
+    }
     state.cancelAnimations.push(animateMetric(element, value, { suffix, digits }));
   }
 
