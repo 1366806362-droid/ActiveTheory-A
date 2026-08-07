@@ -1,0 +1,168 @@
+{
+  "camera": {
+    "fovAxis": "sensor-fit-dependent",
+    "fovDegrees": 50.0,
+    "fovHorizontalDegrees": 50.0,
+    "fovVerticalDegrees": 34.537989,
+    "name": "CAM_HERO_MASTER",
+    "position": [
+      14.5,
+      64.0,
+      17.6
+    ],
+    "quaternionWXYZ": [
+      0.657632,
+      0.737656,
+      -0.114145,
+      -0.101762
+    ],
+    "target": [
+      40.5,
+      146.0,
+      27.5
+    ]
+  },
+  "coordinateSystem": {
+    "source": "Blender Z-up, camera looks local -Z",
+    "target": "Three.js Y-up"
+  },
+  "duration": 8.0,
+  "entryAnchors": {
+    "a5": {
+      "name": "ANCHOR_5A",
+      "position": [
+        26.095625,
+        136.965286,
+        30.034229
+      ],
+      "screenNormalized": [
+        0.340611,
+        0.603039
+      ]
+    },
+    "brandMind": {
+      "name": "ANCHOR_BRAND_MIND",
+      "position": [
+        46.178913,
+        150.676071,
+        21.164309
+      ],
+      "screenNormalized": [
+        0.54662,
+        0.354961
+      ]
+    },
+    "geo": {
+      "name": "ANCHOR_GEO",
+      "position": [
+        39.644707,
+        116.833847,
+        21.250843
+      ],
+      "screenNormalized": [
+        0.647897,
+        0.401402
+      ]
+    }
+  },
+  "fps": 30,
+  "frameEnd": 240,
+  "frameStart": 1,
+  "galaxy": {
+    "coreAnchor": {
+      "name": "GALAXY_CORE_ANCHOR",
+      "position": [
+        82.818687,
+        140.505981,
+        35.415501
+      ],
+      "screenNormalized": [
+        0.974049,
+        0.640459
+      ]
+    },
+    "masterAnchor": {
+      "name": "GALAXY_MASTER_ANCHOR",
+      "position": [
+        82.818687,
+        140.505981,
+        35.415501
+      ],
+      "screenNormalized": [
+        0.974049,
+        0.640459
+      ]
+    }
+  },
+  "handoff": {
+    "endProgress": 1.0,
+    "finalProgress": 1.0,
+    "startProgress": 0.96
+  },
+  "renderHeight": 540,
+  "renderWidth": 960,
+  "schemaVersion": "1.0.0",
+  "sourceScene": "hero-cinematic-v2-prep.blend",
+  "timeline": {
+    "acceleration": {
+      "frames": [
+        78,
+        144
+      ],
+      "progress": [
+        0.32,
+        0.6
+      ]
+    },
+    "approach": {
+      "frames": [
+        198,
+        226
+      ],
+      "progress": [
+        0.82,
+        0.94
+      ]
+    },
+    "discovery": {
+      "frames": [
+        145,
+        197
+      ],
+      "progress": [
+        0.6,
+        0.82
+      ]
+    },
+    "handoff": {
+      "frames": [
+        227,
+        240
+      ],
+      "progress": [
+        0.94,
+        1.0
+      ]
+    },
+    "immenseSpace": {
+      "frames": [
+        1,
+        29
+      ],
+      "progress": [
+        0.0,
+        0.12
+      ]
+    },
+    "initialTravel": {
+      "frames": [
+        30,
+        77
+      ],
+      "progress": [
+        0.12,
+        0.32
+      ]
+    }
+  }
+}

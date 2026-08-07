@@ -5,6 +5,7 @@ import {
 } from './dataCenterRegistry.js';
 import { createDataCenterLifecycle } from './dataCenterLifecycle.js';
 import { createDataCenterRouter, resolveDataCenterRoute } from './dataCenterRouter.js';
+import { createGeoCoreDataCenterBridge } from './geoCoreDataCenterBridge.js';
 
 const results = [];
 
@@ -206,6 +207,27 @@ test('Router navigate updates URL and opens one center', () => {
   harness.router.navigate('a5');
   assert.match(harness.windowObject.location.href, /dataCenter=a5/);
   assert.equal(harness.lifecycle.getActiveDataCenterId(), 'a5');
+});
+
+test('GEO core navigation request routes to geo data center', () => {
+  const harness = createHarness();
+  harness.router.start();
+  const bridge = createGeoCoreDataCenterBridge({
+    router: harness.router,
+    windowObject: harness.windowObject,
+    documentObject: {
+      addEventListener() {}
+    }
+  });
+
+  bridge.requestEnter();
+  bridge.requestEnter();
+
+  assert.match(harness.windowObject.location.href, /dataCenter=geo/);
+  assert.equal(harness.lifecycle.getActiveDataCenterId(), 'geo');
+  assert.equal(harness.lifecycle.getStatus().instanceCount, 1);
+  assert.equal(harness.events.filter((event) => event === 'create:geo').length, 1);
+  bridge.dispose();
 });
 
 test('Return clears the unified route and destroys the active center', () => {

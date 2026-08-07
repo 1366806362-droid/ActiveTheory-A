@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "1.0.0",
+  "seed": 260807,
+  "timeline": {
+    "fps": 30,
+    "duration": 8,
+    "frameStart": 1,
+    "frameEnd": 240,
+    "stages": {
+      "immenseSpace": { "progress": [0.0, 0.12], "frames": [1, 29] },
+      "initialTravel": { "progress": [0.12, 0.32], "frames": [30, 77] },
+      "acceleration": { "progress": [0.32, 0.6], "frames": [78, 144] },
+      "discovery": { "progress": [0.6, 0.82], "frames": [145, 197] },
+      "approach": { "progress": [0.82, 0.94], "frames": [198, 226] },
+      "handoff": { "progress": [0.94, 1.0], "frames": [227, 240] }
+    }
+  },
+  "camera": {
+    "name": "CAM_HERO_MASTER",
+    "sensorWidthMm": 36.0,
+    "pathPoints": [
+      [-18.0, -8.0, 12.0],
+      [-14.0, 1.0, 12.8],
+      [-7.0, 15.0, 14.2],
+      [3.0, 34.0, 16.1],
+      [10.5, 52.0, 17.1],
+      [14.0, 62.2, 17.5],
+      [14.5, 64.0, 17.6]
+    ],
+    "targetPathPoints": [
+      [-16.0, 88.0, 11.0],
+      [-11.0, 96.0, 12.5],
+      [-1.0, 108.0, 16.5],
+      [17.0, 125.0, 22.5],
+      [35.0, 141.0, 27.0],
+      [40.0, 145.0, 27.5],
+      [40.5, 146.0, 27.5]
+    ],
+    "keyframes": [1, 29, 77, 144, 197, 226, 240],
+    "pathFactors": [0.0, 0.1, 0.3, 0.58, 0.82, 0.985, 1.0],
+    "targetFactors": [0.0, 0.08, 0.28, 0.58, 0.82, 0.985, 1.0],
+    "fovDegrees": [50.0, 50.0, 50.5, 53.5, 52.0, 50.3, 50.0]
+  },
+  "proxy": {
+    "farStarCount": 320,
+    "midStarCount": 120,
+    "nearPassCount": 12,
+    "cosmicFlowCount": 4,
+    "galaxyLocal": [42.0, 7.0, -95.0],
+    "galaxyScale": [48.0, 20.0, 2.0],
+    "galaxyRotationDegrees": [64.0, -10.0, 32.0],
+    "nearPassSchedules": [
+      [20, 90], [30, 110], [45, 125], [55, 140],
+      [65, 155], [72, 165], [78, 175], [85, 185],
+      [95, 190], [105, 195], [120, 202], [135, 210]
+    ],
+    "entryAnchorsCameraLocal": {
+      "geo": [8.0, -3.0, -58.0],
+      "a5": [-11.0, 4.0, -74.0],
+      "brandMind": [4.0, -7.0, -92.0]
+    }
+  },
+  "volumes": {
+    "density": 0.002,
+    "anisotropy": 0.15,
+    "noiseScale": 0.7,
+    "detailScale": 0.2,
+    "emissionStrength": 0.0,
+    "previewSafe": true
+  },
+  "companyPreview": {
+    "engine": "BLENDER_EEVEE",
+    "renderWidth": 960,
+    "renderHeight": 540,
+    "resolutionPercentage": 100,
+    "samples": 8,
+    "motionBlur": false,
+    "volumesEnabled": false,
+    "previewRenderEngine": "BLENDER_WORKBENCH"
+  },
+  "homeRender": {
+    "engine": "CYCLES",
+    "device": "GPU",
+    "computeBackend": "OPTIX",
+    "renderWidth": 1920,
+    "renderHeight": 1080,
+    "fps": 30,
+    "samples": 256,
+    "motionBlur": true,
+    "volumesEnabled": true,
+    "denoise": true,
+    "executed": false
+  },
+  "handoff": {
+    "startProgress": 0.96,
+    "endProgress": 1.0,
+    "finalProgress": 1.0
+  }
+}
