@@ -34,15 +34,16 @@ const VIEW_DEFINITIONS = Object.freeze([
   { id: 'data-health', label: 'Data Health' }
 ]);
 
-export function initializeGeoDashboardExperience() {
+export function initializeGeoDashboardExperience(options = {}) {
   window[DASHBOARD_INSTANCE_KEY]?.dispose();
 
   const abortController = new AbortController();
   const { signal } = abortController;
   const params = new URLSearchParams(window.location.search);
-  const dashboardRequested = params.get('geoDashboard') === 'v1';
-  const entryMode = params.get('entry') === 'geo';
-  const holographicDetails = params.get('geoDashboardVisual') === 'v12';
+  const dashboardRequested = options.requested === true || params.get('geoDashboard') === 'v1';
+  const entryMode = options.entryMode ?? params.get('entry') === 'geo';
+  const holographicDetails = options.visual === 'v12'
+    || params.get('geoDashboardVisual') === 'v12';
   const requestedDataMode = params.get('geoDashboardData');
   const dataMode = holographicDetails && ['fixture', 'json', 'file'].includes(requestedDataMode)
     ? requestedDataMode
@@ -70,7 +71,8 @@ export function initializeGeoDashboardExperience() {
     fileLastResult: null,
     cancelViewTransition: null,
     cancelAnimations: [],
-    openedFrom: entryMode ? 'geo' : 'direct'
+    openedFrom: options.openedFrom ?? (entryMode ? 'geo' : 'direct'),
+    returnLabel: options.returnLabel ?? '返回 GEO'
   };
   const status = {
     mounted: false,
@@ -146,6 +148,9 @@ export function initializeGeoDashboardExperience() {
       if (window[DASHBOARD_INSTANCE_KEY] === experience) {
         delete window[DASHBOARD_INSTANCE_KEY];
       }
+    },
+    destroy() {
+      experience.dispose();
     }
   };
 
@@ -274,7 +279,8 @@ export function initializeGeoDashboardExperience() {
       status.mounted = false;
       publishStatus();
       delete window[DASHBOARD_DATA_STATUS_KEY];
-      removeDashboardQuery();
+      if (typeof options.onRequestClose === 'function') options.onRequestClose();
+      else removeDashboardQuery();
     });
   }
 
@@ -371,7 +377,7 @@ export function initializeGeoDashboardExperience() {
           </label>
           ${dataMode === 'file' ? '<button class="geo-action-button geo-action-button--import" type="button" data-file-import-open>导入数据包</button>' : ''}
           <button class="geo-action-button" type="button" data-fullscreen>全屏</button>
-          <button class="geo-action-button geo-action-button--return" type="button">返回 GEO</button>
+          <button class="geo-action-button geo-action-button--return" type="button">${state.returnLabel}</button>
         </div>
       </header>
     `;
@@ -1132,7 +1138,8 @@ export function initializeGeoDashboardExperience() {
       ? `有效回答 ${answerFacts.validAnswers}条`
       : '有效回答：未提供';
     state.root.querySelector('[data-answer-basis-note]').textContent = answerMetricBasisText();
-    state.root.querySelector('[data-answer-basis-v12]').textContent = answerMetricBasisText();
+    const answerBasisV12 = state.root.querySelector('[data-answer-basis-v12]');
+    if (answerBasisV12) answerBasisV12.textContent = answerMetricBasisText();
     state.root.querySelector('[data-citation-source-quality]').textContent = Number.isFinite(contentSourceQualityScore)
       ? `内容来源质量分 ${contentSourceQualityScore.toFixed(2)}`
       : '内容来源质量分：未提供';

@@ -1,0 +1,8 @@
+.data-center-shell--brandMind {
+  --center-accent: #a9a6ff;
+  --center-accent-soft: rgba(130, 122, 236, 0.17);
+}
+
+.data-center-shell--brandMind .data-center-shell__network {
+  stroke: #9bbfff;
+}
