@@ -7,6 +7,11 @@ import {
   resolveHeroWheelOwnership
 } from './heroCinematicIntegration.js';
 import { createHeroScrollController } from './heroScrollController.js';
+import { HERO_HANDOFF_CONTRACT } from './heroHandoffContract.js';
+import {
+  HERO_CINEMATIC_ASSET_MODES,
+  resolveHeroCinematicAsset
+} from './heroCinematicAssetConfig.js';
 
 const results = [];
 
@@ -150,6 +155,32 @@ test('Integrated Hybrid creates no Three renderer and only one scrubber', () => 
   const source = readFileSync(new URL('./heroCinematicHybrid.js', import.meta.url), 'utf8');
   assert.equal(source.includes('new THREE.WebGLRenderer'), false);
   assert.equal((source.match(/createHeroCinematicScrubber\(/g) ?? []).length, 1);
+});
+
+test('Generated handoff contract uses the converted vertical FOV and camera', () => {
+  assert.equal(HERO_HANDOFF_CONTRACT.cameraVerticalFovDeg, 34.537989);
+  assert.deepEqual(HERO_HANDOFF_CONTRACT.cameraPositionFinal, [14.5, 17.6, -64]);
+  assert.equal(HERO_HANDOFF_CONTRACT.cameraQuaternionXYZW.length, 4);
+  assert.notEqual(HERO_HANDOFF_CONTRACT.cameraFov, 'TBD');
+  assert.notEqual(HERO_HANDOFF_CONTRACT.cameraTargetFinal, 'TBD');
+  assert.notEqual(HERO_HANDOFF_CONTRACT.cameraFov, HERO_HANDOFF_CONTRACT.cameraHorizontalFovDeg);
+});
+
+test('Cinematic asset slot defaults to the existing placeholder', () => {
+  const asset = resolveHeroCinematicAsset({ placeholderSource: '/placeholder.webm' });
+  assert.equal(asset.mode, HERO_CINEMATIC_ASSET_MODES.PLACEHOLDER);
+  assert.equal(asset.placeholder, true);
+  assert.equal(asset.source, '/placeholder.webm');
+});
+
+test('Final cinematic mode retains a safe placeholder fallback', () => {
+  const asset = resolveHeroCinematicAsset({
+    placeholderSource: '/placeholder.webm',
+    mode: HERO_CINEMATIC_ASSET_MODES.FINAL
+  });
+  assert.equal(asset.placeholder, false);
+  assert.equal(asset.fallbackSource, '/placeholder.webm');
+  assert.match(asset.source, /hero-cinematic-v2-master\.webm$/);
 });
 
 function createControllerHarness(controllerOptions = {}) {

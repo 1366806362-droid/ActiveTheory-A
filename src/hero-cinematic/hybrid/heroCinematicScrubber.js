@@ -2,6 +2,7 @@ const DEFAULT_DURATION_SECONDS = 8;
 
 export function createHeroCinematicScrubber({
   source,
+  fallbackSource = null,
   duration = DEFAULT_DURATION_SECONDS,
   placeholder = true,
   maxSeekRate = 45,
@@ -20,6 +21,8 @@ export function createHeroCinematicScrubber({
   let deferredSeekId = null;
   let disposed = false;
   let error = null;
+  let activeSource = source;
+  let fallbackUsed = false;
 
   video.className = 'hero-cinematic-hybrid__video';
   video.muted = true;
@@ -37,7 +40,7 @@ export function createHeroCinematicScrubber({
   video.addEventListener('loadeddata', handleLoadedData);
   video.addEventListener('seeked', handleSeeked);
   video.addEventListener('error', handleError);
-  video.src = source;
+  video.src = activeSource;
   video.load();
   video.pause();
 
@@ -63,6 +66,15 @@ export function createHeroCinematicScrubber({
 
   function handleError() {
     error = video.error?.message ?? `Video decode error ${video.error?.code ?? 'unknown'}`;
+    if (!fallbackUsed && fallbackSource && fallbackSource !== activeSource) {
+      fallbackUsed = true;
+      activeSource = fallbackSource;
+      error = null;
+      video.dataset.placeholder = 'true';
+      video.src = activeSource;
+      video.load();
+      video.pause();
+    }
   }
 
   function setProgress(progress, now = performance.now()) {
@@ -114,8 +126,10 @@ export function createHeroCinematicScrubber({
       ? video.getVideoPlaybackQuality()
       : null;
     return {
-      placeholder: Boolean(placeholder),
-      source,
+      placeholder: Boolean(placeholder || fallbackUsed),
+      source: activeSource,
+      requestedSource: source,
+      fallbackUsed,
       paused: video.paused,
       autoplay: video.autoplay,
       currentTime: Number.isFinite(video.currentTime) ? video.currentTime : 0,

@@ -1,0 +1,185 @@
+{
+  "schemaVersion": "1.0.0",
+  "visualSkeletonVersion": "hero-home-visual-skeleton-v1",
+  "seed": 260810,
+  "lockedInputs": {
+    "baseline": "docs/hero-cinematic/blender-shot-v1/hero-handoff-baseline-v11.json",
+    "baselineSha256": "E69F9447183BD925F9164091BAC7B0BBD098E38CD2DA1C6ED7BE4C848F294268",
+    "threeContract": "docs/hero-cinematic/blender-shot-v1/hero-handoff-three-v11.json",
+    "threeContractSha256": "B0FF80B3E45205533E9A8A75407A4D811EE9F2718C5FFBE45EE4E8F294186F42",
+    "cameraConfig": "tools/hero-cinematic-blender/hero_cinematic_v2_config.json"
+  },
+  "galaxy": {
+    "armCount": 4,
+    "armTwist": 7.65,
+    "armSpread": 0.21,
+    "armNoise": 0.14,
+    "armPhaseOffsets": [0.0, 1.43, 3.21, 4.92],
+    "armRadialScales": [1.0, 0.91, 1.06, 0.84],
+    "diskRadius": 48.0,
+    "diskThickness": 5.2,
+    "bulgeRadius": 10.5,
+    "bulgeHeight": 8.4,
+    "haloRadius": 61.0,
+    "starCountPreview": 2200,
+    "starCountHome": 160000,
+    "orientationDegrees": [64.0, -10.0, 32.0],
+    "layerRatios": {
+      "bulge": 0.16,
+      "arms": 0.48,
+      "starDisk": 0.27,
+      "halo": 0.09
+    }
+  },
+  "dustLanes": {
+    "count": 4,
+    "radialOffsets": [1.7, -1.2, 2.3, -1.8],
+    "verticalOffsets": [0.35, -0.45, 0.62, -0.28],
+    "widths": [1.8, 1.25, 1.55, 1.1],
+    "density": [0.62, 0.46, 0.55, 0.38]
+  },
+  "nebulaRegions": [
+    {
+      "name": "NEBULA_REGION_01",
+      "position": [13.5, 8.5, 1.8],
+      "scale": [8.0, 4.2, 2.4],
+      "density": 0.12,
+      "emission": 0.18,
+      "temperatureBias": -0.24,
+      "noiseScale": 0.85
+    },
+    {
+      "name": "NEBULA_REGION_02",
+      "position": [-21.0, 5.0, -1.2],
+      "scale": [10.5, 4.8, 2.8],
+      "density": 0.09,
+      "emission": 0.14,
+      "temperatureBias": 0.1,
+      "noiseScale": 1.15
+    },
+    {
+      "name": "NEBULA_REGION_03",
+      "position": [28.0, -7.5, 0.5],
+      "scale": [7.0, 3.6, 2.0],
+      "density": 0.08,
+      "emission": 0.12,
+      "temperatureBias": -0.08,
+      "noiseScale": 0.72
+    },
+    {
+      "name": "NEBULA_REGION_04",
+      "position": [-6.5, -17.0, 2.2],
+      "scale": [6.2, 3.2, 2.6],
+      "density": 0.07,
+      "emission": 0.1,
+      "temperatureBias": 0.2,
+      "noiseScale": 1.3
+    }
+  ],
+  "starFields": {
+    "far": {
+      "companyCount": 320,
+      "homeCount": 45000,
+      "sizeRange": [0.025, 0.085],
+      "brightnessRange": [0.12, 0.55]
+    },
+    "mid": {
+      "companyCount": 120,
+      "homeCount": 18000,
+      "sizeRange": [0.055, 0.16],
+      "brightnessRange": [0.2, 0.72]
+    }
+  },
+  "nearPass": {
+    "count": 12,
+    "sizeRange": [0.1, 0.24],
+    "brightnessRange": [0.32, 0.78],
+    "temperatureRangeKelvin": [6200, 9200],
+    "trailStrengthRange": [0.04, 0.18],
+    "motionBlurWeightRange": [0.08, 0.3]
+  },
+  "cosmicFlow": {
+    "paths": {
+      "FLOW_MAIN_01": {
+        "companyParticleCount": 56,
+        "homeParticleCount": 12000,
+        "spreadRadius": 3.8,
+        "speed": 0.72,
+        "brightness": 0.28,
+        "sizeVariation": 0.46,
+        "flowNoise": 0.22,
+        "depthScatter": 2.4
+      },
+      "FLOW_MAIN_02": {
+        "companyParticleCount": 48,
+        "homeParticleCount": 10000,
+        "spreadRadius": 3.2,
+        "speed": 0.65,
+        "brightness": 0.24,
+        "sizeVariation": 0.42,
+        "flowNoise": 0.2,
+        "depthScatter": 2.1
+      },
+      "FLOW_SUPPORT_01": {
+        "companyParticleCount": 32,
+        "homeParticleCount": 6500,
+        "spreadRadius": 4.6,
+        "speed": 0.4,
+        "brightness": 0.16,
+        "sizeVariation": 0.36,
+        "flowNoise": 0.28,
+        "depthScatter": 3.0
+      },
+      "FLOW_SUPPORT_02": {
+        "companyParticleCount": 28,
+        "homeParticleCount": 5500,
+        "spreadRadius": 2.8,
+        "speed": 0.48,
+        "brightness": 0.18,
+        "sizeVariation": 0.38,
+        "flowNoise": 0.19,
+        "depthScatter": 1.9
+      }
+    }
+  },
+  "materials": {
+    "emissionStrength": 1.8,
+    "blackbodyTemperature": 7600,
+    "dustAbsorption": 0.72,
+    "volumeDensity": 0.028,
+    "anisotropy": 0.32,
+    "nebulaEmission": 0.48,
+    "starBrightnessRange": [0.35, 2.6]
+  },
+  "presets": {
+    "companySkeleton": {
+      "engine": "BLENDER_WORKBENCH",
+      "renderWidth": 960,
+      "renderHeight": 540,
+      "galaxyStarCount": 2200,
+      "volumeEnabled": false,
+      "dustVolumeEnabled": false,
+      "cosmicFlowEnabled": true,
+      "motionBlur": false,
+      "cycles": false,
+      "optix": false,
+      "denoise": false
+    },
+    "homeLookdev": {
+      "engine": "CYCLES",
+      "device": "GPU",
+      "computeBackend": "OPTIX",
+      "renderWidth": 1920,
+      "renderHeight": 1080,
+      "galaxyStarCount": 160000,
+      "volumeEnabled": true,
+      "dustVolumeEnabled": true,
+      "cosmicFlowEnabled": true,
+      "motionBlur": true,
+      "cycles": true,
+      "optix": true,
+      "denoise": true,
+      "samples": 256
+    }
+  }
+}

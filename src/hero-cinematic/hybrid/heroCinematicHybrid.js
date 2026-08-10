@@ -8,6 +8,7 @@ import {
   HANDOFF_PREPARE_PROGRESS,
   HERO_HANDOFF_CONTRACT
 } from './heroHandoffContract.js';
+import { resolveHeroCinematicAsset } from './heroCinematicAssetConfig.js';
 import {
   HERO_WHEEL_OWNERSHIP,
   resolveHeroWheelOwnership
@@ -26,10 +27,15 @@ export function initializeHeroCinematicHybrid({
 
   const params = new URLSearchParams(window.location.search);
   const debugEnabled = import.meta.env.DEV && params.get('heroDebug') === '1';
+  const handoffDebugEnabled = import.meta.env.DEV && params.get('heroHandoffDebug') === '1';
   const quality = params.get('heroQuality') === 'default' ? 'default' : 'company';
   const app = document.querySelector('#app');
   const root = document.createElement('main');
   const debug = createDebugOverlay(debugEnabled);
+  const handoffDebug = createHandoffDebugOverlay(handoffDebugEnabled);
+  const cinematicAsset = resolveHeroCinematicAsset({
+    placeholderSource: GALAXY_ASSET_PROFILES.H1_HD.url
+  });
   const previousAppStyle = {
     opacity: app.style.opacity,
     visibility: app.style.visibility,
@@ -47,17 +53,20 @@ export function initializeHeroCinematicHybrid({
   let wheelOwnership = HERO_WHEEL_OWNERSHIP.CINEMATIC;
 
   root.className = 'hero-cinematic-hybrid';
-  root.dataset.placeholder = 'true';
+  root.dataset.placeholder = String(cinematicAsset.placeholder);
+  root.dataset.cinematicAssetMode = cinematicAsset.mode;
 
   const scrubber = createHeroCinematicScrubber({
-    source: GALAXY_ASSET_PROFILES.H1_HD.url,
+    source: cinematicAsset.source,
+    fallbackSource: cinematicAsset.fallbackSource,
     duration: HERO_HANDOFF_CONTRACT.duration,
-    placeholder: true,
+    placeholder: cinematicAsset.placeholder,
     onDecodedFrame: () => publishStatus(performance.now(), true)
   });
 
   root.append(scrubber.video);
   if (debug.element) root.append(debug.element);
+  if (handoffDebug.element) root.append(handoffDebug.element);
   document.body.append(root);
 
   const handoff = createHeroCinematicHandoff({
@@ -149,7 +158,10 @@ export function initializeHeroCinematicHybrid({
     status = {
       active: true,
       mode: 'hybrid-scroll-v1-latest-site',
-      placeholder: true,
+      placeholder: scrubberDiagnostics.placeholder,
+      cinematicAssetMode: cinematicAsset.mode,
+      cinematicAssetSource: scrubberDiagnostics.source,
+      cinematicAssetFallbackUsed: scrubberDiagnostics.fallbackUsed,
       quality,
       state: handoffStatus?.state ?? 'CINEMATIC',
       phase: handoffStatus?.phase ?? 'CINEMATIC_ONLY',
@@ -177,6 +189,7 @@ export function initializeHeroCinematicHybrid({
       contract: HERO_HANDOFF_CONTRACT
     };
     debug.update(status);
+    handoffDebug.update(status);
     window[STATUS_KEY] = status;
     document.documentElement.dataset.heroHybridStatus = JSON.stringify(status);
   }
@@ -188,6 +201,7 @@ export function initializeHeroCinematicHybrid({
     controller.dispose();
     scrubber.dispose();
     debug.dispose();
+    handoffDebug.dispose();
     root.remove();
     app.style.opacity = previousAppStyle.opacity;
     app.style.visibility = previousAppStyle.visibility;
@@ -204,6 +218,46 @@ export function initializeHeroCinematicHybrid({
     controller.setEnabled(route === 'universe');
     publishStatus(performance.now(), true);
   }
+}
+
+function createHandoffDebugOverlay(enabled) {
+  if (!enabled) return Object.freeze({ element: null, update() {}, dispose() {} });
+  const element = document.createElement('pre');
+  const contract = HERO_HANDOFF_CONTRACT;
+  element.className = 'hero-cinematic-hybrid__handoff-debug';
+
+  return Object.freeze({
+    element,
+    update(status) {
+      const visible = status.currentProgress >= HANDOFF_PREPARE_PROGRESS;
+      element.hidden = !visible;
+      if (!visible) return;
+      element.textContent = [
+        'BLENDER / THREE HANDOFF V1.1',
+        `state       ${status.state}`,
+        `progress    ${status.currentProgress.toFixed(4)}`,
+        `camera      ${formatVector(contract.cameraPositionFinal)}`,
+        `target      ${formatVector(contract.cameraTargetFinal)}`,
+        `verticalFov ${contract.cameraVerticalFovDeg.toFixed(6)} deg`,
+        `galaxy      ${formatAnchor(contract.galaxyMasterAnchor)}`,
+        `GEO         ${formatAnchor(contract.entryAnchors.geo)}`,
+        `5A          ${formatAnchor(contract.entryAnchors.a5)}`,
+        `Brand Mind  ${formatAnchor(contract.entryAnchors.brandMind)}`
+      ].join('\n');
+    },
+    dispose() {
+      element.remove();
+    }
+  });
+}
+
+function formatAnchor(anchor) {
+  const screen = anchor.sourceScreenNormalized;
+  return `${formatVector(anchor.position)} screen(${screen[0].toFixed(4)}, ${screen[1].toFixed(4)})`;
+}
+
+function formatVector(vector) {
+  return `[${vector.map((value) => Number(value).toFixed(4)).join(', ')}]`;
 }
 
 function readUniverseState() {
