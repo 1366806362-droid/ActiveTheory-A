@@ -14,6 +14,7 @@ import bpy
 
 
 PREVIEW_FRAMES = [1, 78, 145, 198, 240]
+ALLOWED_SAMPLES = (64, 128, 256)
 
 
 def parse_args() -> argparse.Namespace:
@@ -23,6 +24,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--frames", required=True)
     parser.add_argument("--confirm-render", required=True)
+    parser.add_argument("--samples", type=int, choices=ALLOWED_SAMPLES)
     parser.add_argument("--force-render", action="store_true")
     return parser.parse_args(argv)
 
@@ -43,10 +45,29 @@ def parse_frames(value: str, confirmation: str) -> list[int]:
     return frames
 
 
-def configure_cycles(scene: bpy.types.Scene, settings: dict) -> list[dict]:
+def resolve_samples(config_samples: int, requested_samples: int | None) -> int:
+    config_value = int(config_samples)
+    if config_value not in ALLOWED_SAMPLES:
+        raise RuntimeError(
+            f"Unsupported config samples: {config_value}. Allowed values: {ALLOWED_SAMPLES}."
+        )
+    if requested_samples is None:
+        return config_value
+    requested_value = int(requested_samples)
+    if requested_value not in ALLOWED_SAMPLES:
+        raise RuntimeError(
+            f"Unsupported requested samples: {requested_value}. Allowed values: {ALLOWED_SAMPLES}."
+        )
+    return requested_value
+
+
+def configure_cycles(scene: bpy.types.Scene, settings: dict, samples: int) -> dict:
+    requested_backend = str(settings["computeBackend"]).upper()
+    if requested_backend not in {"OPTIX", "CUDA"}:
+        raise RuntimeError(f"Unsupported Cycles compute backend: {requested_backend}.")
     scene.render.engine = "CYCLES"
     scene.cycles.device = "GPU"
-    scene.cycles.samples = int(settings["samples"])
+    scene.cycles.samples = int(samples)
     scene.cycles.use_denoising = bool(settings["denoise"])
     scene.render.resolution_x = int(settings["renderWidth"])
     scene.render.resolution_y = int(settings["renderHeight"])
@@ -57,27 +78,35 @@ def configure_cycles(scene: bpy.types.Scene, settings: dict) -> list[dict]:
         scene.render.use_motion_blur = bool(settings["motionBlur"])
 
     preferences = bpy.context.preferences.addons["cycles"].preferences
-    preferences.compute_device_type = str(settings["computeBackend"])
+    preferences.compute_device_type = requested_backend
     preferences.get_devices()
     devices = []
     for device in preferences.devices:
-        is_usable = device.type in {"OPTIX", "CUDA"}
-        device.use = is_usable
-        devices.append({"name": device.name, "type": device.type, "enabled": bool(device.use)})
-    if not any(item["enabled"] for item in devices):
-        raise RuntimeError("No Cycles GPU device was enabled.")
-    return devices
+        device_type = str(device.type).upper()
+        device.use = device_type == requested_backend
+        devices.append({"name": device.name, "type": device_type, "enabled": bool(device.use)})
+    active_gpu_devices = [item for item in devices if item["enabled"]]
+    if not active_gpu_devices:
+        raise RuntimeError(f"No {requested_backend} Cycles GPU device was enabled.")
+    if any(item["type"] != requested_backend for item in active_gpu_devices):
+        raise RuntimeError("Cycles enabled a device outside the requested backend.")
+    return {
+        "requestedBackend": requested_backend,
+        "activeGpuDevices": active_gpu_devices,
+        "devices": devices,
+    }
 
 
 def main() -> int:
     args = parse_args()
     config = json.loads(Path(args.config).read_text(encoding="utf-8"))
     settings = config["homeRender"]
+    effective_samples = resolve_samples(settings["samples"], args.samples)
     frames = parse_frames(args.frames, args.confirm_render)
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     scene = bpy.context.scene
-    devices = configure_cycles(scene, settings)
+    device_configuration = configure_cycles(scene, settings, effective_samples)
     started_at = datetime.now(timezone.utc)
 
     for frame in frames:
@@ -93,10 +122,13 @@ def main() -> int:
         "frames": frames,
         "engine": "CYCLES",
         "device": "GPU",
-        "computeBackend": settings["computeBackend"],
-        "samples": settings["samples"],
+        "computeBackend": device_configuration["requestedBackend"],
+        "requestedBackend": device_configuration["requestedBackend"],
+        "activeGpuDevices": device_configuration["activeGpuDevices"],
+        "activeDeviceTypes": sorted({item["type"] for item in device_configuration["activeGpuDevices"]}),
+        "samples": effective_samples,
         "denoise": settings["denoise"],
-        "devices": devices,
+        "devices": device_configuration["devices"],
         "host": platform.node(),
         "startedAt": started_at.isoformat(),
         "completedAt": completed_at.isoformat(),

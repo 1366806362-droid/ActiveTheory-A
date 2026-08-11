@@ -1,6 +1,8 @@
 param(
   [switch]$dryRun,
   [switch]$forceRender,
+  [ValidateSet(64, 128, 256)]
+  [int]$Samples,
   [string]$BlenderPath = 'C:\Tools\Blender-5.2-LTS\blender.exe'
 )
 
@@ -9,7 +11,7 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $configPath = Join-Path $PSScriptRoot 'hero_cinematic_v2_config.json'
 $baselinePath = Join-Path $repoRoot 'docs\hero-cinematic\blender-shot-v1\hero-handoff-baseline-v11.json'
 $sceneGenerator = Join-Path $PSScriptRoot 'build_hero_cinematic_v2_scene.py'
-$scenePath = Join-Path $repoRoot 'art\hero-cinematic\blender-shot-v1\hero-cinematic-v2-prep.blend'
+$scenePath = Join-Path $repoRoot 'art\hero-cinematic\home-lookdev-v1\hero-cinematic-home-lookdev-v1.blend'
 $renderHelper = Join-Path $PSScriptRoot 'run_home_preview.py'
 $outputDir = Join-Path $repoRoot 'art\hero-cinematic\home-preview-v1'
 $diagnosticsDir = Join-Path $repoRoot 'art\hero-cinematic\handoff-alignment-v1'
@@ -17,6 +19,14 @@ $planPath = Join-Path $diagnosticsDir 'home-render-dry-run.json'
 $frames = @(1, 78, 145, 198, 240)
 
 $config = Get-Content -Raw -LiteralPath $configPath | ConvertFrom-Json
+$allowedSamples = @(64, 128, 256)
+$configSamples = [int]$config.homeRender.samples
+$samplesRequested = $PSBoundParameters.ContainsKey('Samples')
+if ($configSamples -notin $allowedSamples) {
+  throw "Unsupported config samples: $configSamples. Allowed values: 64, 128, 256."
+}
+$requestedSamples = if ($samplesRequested) { [int]$Samples } else { $null }
+$effectiveSamples = if ($samplesRequested) { [int]$Samples } else { $configSamples }
 $gpuNames = @(
   Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue |
     ForEach-Object { $_.Name } |
@@ -39,7 +49,10 @@ $plan = [ordered]@{
     width = [int]$config.homeRender.renderWidth
     height = [int]$config.homeRender.renderHeight
   }
-  samples = [int]$config.homeRender.samples
+  configSamples = $configSamples
+  requestedSamples = $requestedSamples
+  effectiveSamples = $effectiveSamples
+  samples = $effectiveSamples
   engine = [string]$config.homeRender.engine
   device = [string]$config.homeRender.device
   computeBackend = [string]$config.homeRender.computeBackend
@@ -81,6 +94,7 @@ $arguments = @(
   '--frames', ($frames -join ','),
   '--confirm-render', 'HOME_PREVIEW_5_FRAMES'
 )
+if ($samplesRequested) { $arguments += @('--samples', [string]$effectiveSamples) }
 if ($forceRender) { $arguments += '--force-render' }
 
 & $BlenderPath @arguments
