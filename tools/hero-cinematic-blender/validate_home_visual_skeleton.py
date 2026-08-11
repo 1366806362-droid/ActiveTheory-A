@@ -35,6 +35,7 @@ MATERIAL_NAMES = (
     "MAT_FLOW_PARTICLE",
     "MAT_NEAR_STAR",
 )
+STAR_TIER_ORDER = ("micro", "medium", "hero")
 
 
 def parse_args() -> argparse.Namespace:
@@ -81,13 +82,16 @@ def nested_vectors_match(actual: list[list[float]], expected: list[list[float]],
     return len(actual) == len(expected) and all(close_vector(left, right, tolerance) for left, right in zip(actual, expected))
 
 
-def mesh_thickness(object_names: list[str]) -> float:
+def geometry_thickness(object_names: list[str]) -> float:
     values = []
     for name in object_names:
         obj = bpy.data.objects.get(name)
-        if not obj or obj.type != "MESH":
+        if not obj:
             continue
-        values.extend(float(vertex.co.z) for vertex in obj.data.vertices)
+        if obj.type == "MESH":
+            values.extend(float(vertex.co.z) for vertex in obj.data.vertices)
+        elif obj.type == "POINTCLOUD":
+            values.extend(float(point.co.z) for point in obj.data.points)
     return max(values) - min(values) if values else 0.0
 
 
@@ -122,17 +126,21 @@ def main() -> int:
     phase_gaps = [round((phases[(index + 1) % len(phases)] - phases[index]) % math.tau, 6) for index in range(len(phases))] if phases else []
     check("spiralArmsNotPerfectlySymmetric", len(set(phase_gaps)) > 1, phase_gaps, "non-uniform phase gaps")
 
-    thickness_names = ["GALAXY_BULGE_STARS", "GALAXY_STAR_DISK_STARS", "GALAXY_HALO_STARS"] + arm_names
-    thickness = mesh_thickness(thickness_names)
+    bulge_star_names = sorted(obj.name for obj in bpy.data.objects if obj.name.startswith("GALAXY_BULGE_STARS_"))
+    disk_star_names = sorted(obj.name for obj in bpy.data.objects if obj.name.startswith("GALAXY_STAR_DISK_STARS_"))
+    halo_star_names = sorted(obj.name for obj in bpy.data.objects if obj.name.startswith("GALAXY_HALO_STARS_"))
+    arm_point_names = sorted(obj.name for obj in bpy.data.objects if obj.name.startswith("SPIRAL_ARM_POINTS_"))
+    thickness_names = bulge_star_names + disk_star_names + halo_star_names + arm_point_names
+    thickness = geometry_thickness(thickness_names)
     check("galaxyNonZeroThickness", thickness > 0.5, round(thickness, 6), "> 0.5")
-    bulge_thickness = mesh_thickness(["GALAXY_BULGE_STARS"])
-    disk_thickness = mesh_thickness(["GALAXY_STAR_DISK_STARS"])
+    bulge_thickness = geometry_thickness(bulge_star_names)
+    disk_thickness = geometry_thickness(disk_star_names)
     check("coreThickerThanOuterDisk", bulge_thickness > disk_thickness, [round(bulge_thickness, 6), round(disk_thickness, 6)], "bulge > disk")
 
-    dust_names = sorted(obj.name for obj in bpy.data.objects if obj.name.startswith("DUST_LANE_"))
+    dust_names = sorted(obj.name for obj in bpy.data.objects if obj.name.startswith("DUST_LANE_") and obj.type == "CURVE")
     check("dustLaneStructure", len(dust_names) == config["dustLanes"]["count"], dust_names)
     check("dustLanesOffsetFromArms", all(abs(float(bpy.data.objects[name].get("armOffset", 0))) > 0.1 for name in dust_names))
-    nebula_anchors = sorted(obj.name for obj in bpy.data.objects if obj.name.startswith("NEBULA_REGION_") and not obj.name.endswith("_PROXY"))
+    nebula_anchors = sorted(name for name in (region["name"] for region in config["nebulaRegions"]) if bpy.data.objects.get(name))
     check("nebulaAnchors", len(nebula_anchors) == len(config["nebulaRegions"]), nebula_anchors)
     check("nebulaParameters", all(all(key in bpy.data.objects[name] for key in ("density", "emission", "temperatureBias", "noiseScale", "scaleReference")) for name in nebula_anchors))
 
@@ -152,9 +160,81 @@ def main() -> int:
     check("cosmicFlowPaths", actual_flows == sorted(FLOW_NAMES), actual_flows, sorted(FLOW_NAMES))
     check("cosmicFlowParticles", particle_flows == sorted(FLOW_NAMES), particle_flows, sorted(FLOW_NAMES))
     check("flowCurvesHiddenForFormalRender", all(bpy.data.objects[name].hide_render and not bpy.data.objects[name]["curveVisibleInFormalRender"] for name in FLOW_NAMES))
-    check("flowParameterSlots", all(all(key in bpy.data.objects[name] for key in ("particleCountCompany", "particleCountHome", "spreadRadius", "speed", "brightness", "sizeVariation", "flowNoise", "depthScatter")) for name in FLOW_NAMES))
+    check("flowParameterSlots", all(all(key in bpy.data.objects[name] for key in ("particleCountCompany", "particleCountHome", "spreadRadius", "speed", "brightness", "sizeVariation", "flowNoise", "depthScatter", "dropout")) for name in FLOW_NAMES))
 
     check("materialTemplates", all(bpy.data.materials.get(name) is not None for name in MATERIAL_NAMES), sorted(name for name in MATERIAL_NAMES if bpy.data.materials.get(name)))
+    galaxy_point_clouds = [bpy.data.objects[name] for name in bulge_star_names + disk_star_names + halo_star_names + arm_point_names]
+    check(
+        "v12NativePointCloudStars",
+        preset_name != "homeLookdev" or (galaxy_point_clouds and all(obj.type == "POINTCLOUD" for obj in galaxy_point_clouds)),
+        sorted({obj.type for obj in galaxy_point_clouds}), "POINTCLOUD",
+    )
+    star_tiers = sorted({str(obj.get("starTier")) for obj in galaxy_point_clouds})
+    check("v12ThreeStarTiers", preset_name != "homeLookdev" or star_tiers == sorted(STAR_TIER_ORDER), star_tiers, sorted(STAR_TIER_ORDER))
+    proxy_names = ("PROXY_FAR_STARS", "PROXY_MID_STARS")
+    proxy_hidden = all(bpy.data.objects.get(name) and bpy.data.objects[name].hide_render for name in proxy_names)
+    triangle_cloud_visible = [
+        obj.name for obj in bpy.data.objects
+        if obj.type == "MESH" and obj.get("pointCount") and not obj.hide_render
+    ]
+    check("v12TriangleProxiesHidden", preset_name != "homeLookdev" or (proxy_hidden and not triangle_cloud_visible), triangle_cloud_visible, [])
+    dust_volumes = [obj for obj in bpy.data.objects if obj.name.startswith("DUST_LANE_VOLUME_")]
+    expected_dust_volumes = config["dustLanes"]["count"] * config["dustLanes"]["volumeSegmentsPerLane"]
+    check("v12VisibleDustVolumes", preset_name != "homeLookdev" or (len(dust_volumes) == expected_dust_volumes and all(not obj.hide_render for obj in dust_volumes)), len(dust_volumes), expected_dust_volumes)
+    nebula_volumes = [obj for obj in bpy.data.objects if obj.name.startswith("NEBULA_REGION_") and obj.name.endswith("_VOLUME")]
+    check("v12VisibleNebulaVolumes", preset_name != "homeLookdev" or (len(nebula_volumes) == len(config["nebulaRegions"]) and all(not obj.hide_render for obj in nebula_volumes)), len(nebula_volumes), len(config["nebulaRegions"]))
+    background_clouds = [obj for obj in bpy.data.objects if obj.name.startswith("HOME_FAR_STARS_") or obj.name.startswith("HOME_MID_STARS_")]
+    check("v12DeepSpacePointFields", preset_name != "homeLookdev" or (len(background_clouds) == 6 and all(obj.type == "POINTCLOUD" for obj in background_clouds)), len(background_clouds), 6)
+    flow_clouds = [obj for obj in bpy.data.objects if obj.name.startswith("FLOW_PARTICLES_")]
+    flow_point_count = sum(int(obj.get("pointCount", 0)) for obj in flow_clouds)
+    check("v12SparsePointFlow", preset_name != "homeLookdev" or (len(flow_clouds) == len(FLOW_NAMES) and all(obj.type == "POINTCLOUD" for obj in flow_clouds) and flow_point_count < 4000), flow_point_count, "< 4000")
+    near_stars = [obj for obj in bpy.data.objects if obj.name.startswith("NEAR_PASS_STAR_")]
+    check("v12NearPassPointStars", preset_name != "homeLookdev" or (len(near_stars) == len(config["nearPass"]["visiblePathIndicesFrame145"]) and all(obj.type == "POINTCLOUD" for obj in near_stars) and all(bpy.data.objects[name].hide_render for name in near_names)), len(near_stars), len(config["nearPass"]["visiblePathIndicesFrame145"]))
+    core_volume = bpy.data.objects.get("GALAXY_CORE_GLOW_VOLUME")
+    deep_space_ok = bool(scene.world and scene.world.use_nodes and scene.view_settings.view_transform == "AgX" and scene.view_settings.exposure < 0.0)
+    check("v12CoreAndDeepSpace", preset_name != "homeLookdev" or (core_volume is not None and not core_volume.hide_render and deep_space_ok), {"coreVolume": core_volume is not None, "viewTransform": scene.view_settings.view_transform, "exposure": scene.view_settings.exposure})
+
+    tier_config = config["galaxy"]["starTiers"]
+    check(
+        "v12SubPixelStarRadii",
+        preset_name != "homeLookdev" or (
+            tier_config["micro"]["radiusRange"] == [0.003, 0.009]
+            and tier_config["medium"]["radiusRange"] == [0.018, 0.043]
+            and tier_config["hero"]["radiusRange"] == [0.07, 0.15]
+        ),
+        {name: tier_config[name]["radiusRange"] for name in STAR_TIER_ORDER},
+    )
+    check(
+        "v12HeroStarsScarce",
+        preset_name != "homeLookdev" or (
+            float(tier_config["micro"]["ratio"]) >= 0.95 and float(tier_config["hero"]["ratio"]) <= 0.001
+        ),
+        {name: tier_config[name]["ratio"] for name in STAR_TIER_ORDER},
+    )
+    arm_envelopes = [obj for obj in bpy.data.objects if obj.name.startswith("GALAXY_ARM_LIGHT_ENVELOPE_")]
+    expected_envelopes = config["galaxy"]["armCount"] * config["galaxy"]["armLightEnvelope"]["segmentsPerArm"]
+    check(
+        "v12ContinuousArmLightEnvelope",
+        preset_name != "homeLookdev" or (
+            len(arm_envelopes) == expected_envelopes
+            and all(not obj.hide_render and obj.get("continuousArmEnvelope") for obj in arm_envelopes)
+        ),
+        len(arm_envelopes), expected_envelopes,
+    )
+    diffuse_point_count = sum(int(bpy.data.objects[name].get("pointCount", 0)) for name in disk_star_names + halo_star_names)
+    diffuse_planned_count = int(preset.get("galaxyStarCount", 0) * (config["galaxy"]["layerRatios"]["starDisk"] + config["galaxy"]["layerRatios"]["halo"]))
+    check("v12RightEdgeDiffuseThinned", preset_name != "homeLookdev" or diffuse_point_count < diffuse_planned_count, diffuse_point_count, f"< {diffuse_planned_count}")
+    outer_core = bpy.data.objects.get("GALAXY_CORE_OUTER_VOLUME")
+    check("v12WarmCoreFalloff", preset_name != "homeLookdev" or bool(outer_core and outer_core.get("neutralOuterFalloff") and not outer_core.hide_render), outer_core.name if outer_core else None)
+    core_dust = [obj for obj in bpy.data.objects if obj.name.startswith("DUST_CORE_VOLUME_")]
+    check("v12CoreForegroundDust", preset_name != "homeLookdev" or (len(core_dust) == config["dustLanes"]["coreVolumeCount"] and all(obj.get("coreForegroundDust") for obj in core_dust)), len(core_dust), config["dustLanes"]["coreVolumeCount"])
+    volume_materials = [material for material in bpy.data.materials if material.get("localizedNoiseVolume")]
+    check("v12VolumeNoiseContrast", preset_name != "homeLookdev" or (volume_materials and all(material.get("noiseContrast") for material in volume_materials)), len(volume_materials), "> 0, all contrast-shaped")
+    background_radius_max = max((max(obj.get("radiusRange", [0.0])) for obj in background_clouds), default=0.0)
+    check("v12BackgroundStarsReduced", preset_name != "homeLookdev" or background_radius_max <= 0.066, background_radius_max, "<= 0.066")
+    near_radius_max = max((max(obj.get("radiusRange", [0.0])) for obj in near_stars), default=0.0)
+    check("v12NearPassReduced", preset_name != "homeLookdev" or (len(near_stars) <= 2 and near_radius_max <= 0.045), {"count": len(near_stars), "maxRadius": near_radius_max}, {"count": "<= 2", "maxRadius": "<= 0.045"})
+    check("v12SceneVersion", preset_name != "homeLookdev" or scene.get("homeLookdevVersion") == "v1.2", scene.get("homeLookdevVersion"), "v1.2")
     check("randomSeedFixed", scene.get("visualSkeletonSeed") == config["seed"], scene.get("visualSkeletonSeed"), config["seed"])
     company = config["presets"]["companySkeleton"]
     home = config["presets"]["homeLookdev"]
@@ -202,7 +282,7 @@ def main() -> int:
 
     failed = [item for item in checks if item["blocking"] and not item["pass"]]
     report = {
-        "schemaVersion": "1.0.0",
+        "schemaVersion": "1.2.0",
         "passed": len(checks) - len(failed),
         "failed": len(failed),
         "checks": checks,
@@ -215,6 +295,10 @@ def main() -> int:
         "nebulaRegionCount": len(nebula_anchors),
         "nearPassCount": len(near_names),
         "cosmicFlowCount": len(actual_flows),
+        "galaxyPointCount": sum(int(obj.get("pointCount", 0)) for obj in galaxy_point_clouds),
+        "totalPointCount": sum(int(obj.get("pointCount", 0)) for obj in bpy.data.objects if obj.type == "POINTCLOUD"),
+        "volumeCount": sum(1 for obj in bpy.data.objects if obj.get("localizedVolume")),
+        "armEnvelopeCount": len(arm_envelopes),
         "cyclesOrOptixExecuted": False,
     }
     output = Path(args.output)

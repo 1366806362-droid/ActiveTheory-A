@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 import bpy
+from bpy_extras.object_utils import world_to_camera_view
 from mathutils import Vector
 from mathutils.geometry import interpolate_bezier
 
@@ -43,6 +44,7 @@ FLOW_NAMES = (
     "FLOW_SUPPORT_01",
     "FLOW_SUPPORT_02",
 )
+STAR_TIER_ORDER = ("micro", "medium", "hero")
 
 
 def parse_args() -> argparse.Namespace:
@@ -156,20 +158,124 @@ def basic_material(name: str, color: tuple[float, float, float], emission: float
     return material
 
 
+def attribute_emission_material(
+    name: str,
+    fallback_color: tuple[float, float, float],
+    fallback_strength: float,
+) -> bpy.types.Material:
+    existing = bpy.data.materials.get(name)
+    if existing:
+        bpy.data.materials.remove(existing)
+    material = bpy.data.materials.new(name)
+    material.use_nodes = True
+    material.use_fake_user = True
+    nodes = material.node_tree.nodes
+    nodes.clear()
+    output = nodes.new("ShaderNodeOutputMaterial")
+    emission = nodes.new("ShaderNodeEmission")
+    color_attribute = nodes.new("ShaderNodeAttribute")
+    color_attribute.attribute_name = "starColor"
+    brightness_attribute = nodes.new("ShaderNodeAttribute")
+    brightness_attribute.attribute_name = "brightness"
+    emission.inputs["Color"].default_value = (*fallback_color, 1.0)
+    emission.inputs["Strength"].default_value = fallback_strength
+    material.node_tree.links.new(color_attribute.outputs["Color"], emission.inputs["Color"])
+    material.node_tree.links.new(brightness_attribute.outputs["Fac"], emission.inputs["Strength"])
+    material.node_tree.links.new(emission.outputs["Emission"], output.inputs["Surface"])
+    material["pointCloudMaterial"] = True
+    return material
+
+
+def volume_material(
+    name: str,
+    color: tuple[float, float, float],
+    density: float,
+    emission_color: tuple[float, float, float],
+    emission_strength: float,
+    noise_scale: float,
+    anisotropy: float,
+) -> bpy.types.Material:
+    existing = bpy.data.materials.get(name)
+    if existing:
+        bpy.data.materials.remove(existing)
+    material = bpy.data.materials.new(name)
+    material.use_nodes = True
+    material.use_fake_user = True
+    nodes = material.node_tree.nodes
+    nodes.clear()
+    output = nodes.new("ShaderNodeOutputMaterial")
+    volume = nodes.new("ShaderNodeVolumePrincipled")
+    texture = nodes.new("ShaderNodeTexCoord")
+    noise = nodes.new("ShaderNodeTexNoise")
+    noise.noise_dimensions = "3D"
+    noise.inputs["Scale"].default_value = noise_scale
+    noise.inputs["Detail"].default_value = 3.2
+    noise.inputs["Roughness"].default_value = 0.68
+    contrast = nodes.new("ShaderNodeMapRange")
+    contrast.clamp = True
+    contrast.inputs["From Min"].default_value = 0.24
+    contrast.inputs["From Max"].default_value = 0.76
+    contrast.inputs["To Min"].default_value = 0.0
+    contrast.inputs["To Max"].default_value = 1.0
+    distance = nodes.new("ShaderNodeVectorMath")
+    distance.operation = "DISTANCE"
+    distance.inputs[1].default_value = (0.5, 0.5, 0.5)
+    falloff = nodes.new("ShaderNodeMapRange")
+    falloff.clamp = True
+    falloff.inputs["From Min"].default_value = 0.16
+    falloff.inputs["From Max"].default_value = 0.82
+    falloff.inputs["To Min"].default_value = 1.0
+    falloff.inputs["To Max"].default_value = 0.0
+    density_noise = nodes.new("ShaderNodeMath")
+    density_noise.operation = "MULTIPLY"
+    density_scale = nodes.new("ShaderNodeMath")
+    density_scale.operation = "MULTIPLY"
+    density_scale.inputs[1].default_value = density
+    material.node_tree.links.new(texture.outputs["Generated"], noise.inputs["Vector"])
+    material.node_tree.links.new(noise.outputs["Fac"], contrast.inputs["Value"])
+    material.node_tree.links.new(texture.outputs["Generated"], distance.inputs[0])
+    material.node_tree.links.new(distance.outputs["Value"], falloff.inputs["Value"])
+    material.node_tree.links.new(contrast.outputs["Result"], density_noise.inputs[0])
+    material.node_tree.links.new(falloff.outputs["Result"], density_noise.inputs[1])
+    material.node_tree.links.new(density_noise.outputs[0], density_scale.inputs[0])
+    material.node_tree.links.new(density_scale.outputs[0], volume.inputs["Density"])
+    volume.inputs["Color"].default_value = (*color, 1.0)
+    volume.inputs["Anisotropy"].default_value = anisotropy
+    emission_color_input = volume.inputs.get("Emission Color") or volume.inputs.get("Emission")
+    if emission_color_input:
+        emission_color_input.default_value = (*emission_color, 1.0)
+    emission_input = volume.inputs.get("Emission Strength")
+    if emission_input:
+        emission_density = nodes.new("ShaderNodeMath")
+        emission_density.operation = "MULTIPLY"
+        emission_density.inputs[1].default_value = emission_strength
+        material.node_tree.links.new(density_noise.outputs[0], emission_density.inputs[0])
+        material.node_tree.links.new(emission_density.outputs[0], emission_input)
+    material.node_tree.links.new(volume.outputs["Volume"], output.inputs["Volume"])
+    material["localizedNoiseVolume"] = True
+    material["noiseContrast"] = True
+    material["densityReference"] = density
+    material["emissionReference"] = emission_strength
+    return material
+
+
 def create_materials(config: dict) -> dict[str, bpy.types.Material]:
     params = config["materials"]
-    colors = {
-        "MAT_GALAXY_CORE": ((0.74, 0.81, 0.92), params["emissionStrength"]),
-        "MAT_GALAXY_STAR": ((0.34, 0.54, 0.78), params["emissionStrength"] * 0.55),
-        "MAT_DUST": ((0.055, 0.045, 0.07), 0.0),
-        "MAT_NEBULA": ((0.18, 0.28, 0.42), params["nebulaEmission"]),
-        "MAT_FLOW_PARTICLE": ((0.12, 0.42, 0.58), params["emissionStrength"] * 0.18),
-        "MAT_NEAR_STAR": ((0.66, 0.82, 0.94), params["emissionStrength"] * 0.7),
+    result = {
+        "MAT_GALAXY_CORE": attribute_emission_material("MAT_GALAXY_CORE", (1.0, 0.72, 0.46), 2.0),
+        "MAT_GALAXY_STAR": attribute_emission_material("MAT_GALAXY_STAR", (0.9, 0.92, 1.0), 1.0),
+        "MAT_DUST": volume_material(
+            "MAT_DUST", (0.012, 0.009, 0.014), params["dustAbsorption"],
+            (0.0, 0.0, 0.0), 0.0, 4.8, 0.12,
+        ),
+        "MAT_NEBULA": volume_material(
+            "MAT_NEBULA", (0.1, 0.16, 0.24), params["volumeDensity"],
+            (0.16, 0.24, 0.36), params["nebulaEmission"], 2.4, params["anisotropy"],
+        ),
+        "MAT_FLOW_PARTICLE": attribute_emission_material("MAT_FLOW_PARTICLE", (0.48, 0.62, 0.8), 0.15),
+        "MAT_NEAR_STAR": attribute_emission_material("MAT_NEAR_STAR", (0.88, 0.92, 1.0), 4.0),
     }
-    result = {}
-    for name in MATERIAL_NAMES:
-        color, emission = colors[name]
-        material = basic_material(name, color, emission)
+    for name, material in result.items():
         material["emissionStrength"] = float(params["emissionStrength"])
         material["blackbodyTemperature"] = float(params["blackbodyTemperature"])
         material["dustAbsorption"] = float(params["dustAbsorption"])
@@ -177,39 +283,41 @@ def create_materials(config: dict) -> dict[str, bpy.types.Material]:
         material["anisotropy"] = float(params["anisotropy"])
         material["nebulaEmission"] = float(params["nebulaEmission"])
         material["starBrightnessRange"] = list(params["starBrightnessRange"])
-        result[name] = material
     return result
 
 
-def create_triangle_cloud(
+def create_point_cloud(
     name: str,
     positions: list[tuple[float, float, float]],
-    sizes: list[float],
+    radii: list[float],
+    colors: list[tuple[float, float, float, float]],
+    brightness: list[float],
     collection: bpy.types.Collection,
     material: bpy.types.Material,
     seed: int,
     parent: bpy.types.Object | None = None,
 ) -> bpy.types.Object:
-    vertices = []
-    faces = []
-    for position, size in zip(positions, sizes):
-        x, y, z = position
-        base = len(vertices)
-        vertices.extend([
-            (x - size, y, z - size * 0.55),
-            (x + size, y, z - size * 0.55),
-            (x, y, z + size),
-        ])
-        faces.append((base, base + 1, base + 2))
-    mesh = bpy.data.meshes.new(name)
-    mesh.from_pydata(vertices, [], faces)
-    mesh.materials.append(material)
-    obj = bpy.data.objects.new(name, mesh)
+    if not (len(positions) == len(radii) == len(colors) == len(brightness)):
+        raise RuntimeError(f"Point cloud attributes are misaligned for {name}.")
+    point_cloud = bpy.data.pointclouds.new(name)
+    point_cloud.resize(len(positions))
+    radius_attribute = point_cloud.attributes.new("radius", "FLOAT", "POINT")
+    color_attribute = point_cloud.attributes.new("starColor", "FLOAT_COLOR", "POINT")
+    brightness_attribute = point_cloud.attributes.new("brightness", "FLOAT", "POINT")
+    point_cloud.attributes["position"].data.foreach_set(
+        "vector", [component for position in positions for component in position]
+    )
+    radius_attribute.data.foreach_set("value", radii)
+    color_attribute.data.foreach_set("color", [component for color in colors for component in color])
+    brightness_attribute.data.foreach_set("value", brightness)
+    point_cloud.materials.append(material)
+    obj = bpy.data.objects.new(name, point_cloud)
     collection.objects.link(obj)
     obj.parent = parent
     obj["generatorSeed"] = seed
     obj["pointCount"] = len(positions)
     obj["nonZeroThickness"] = True
+    obj["renderPrimitive"] = "NATIVE_POINT_SPHERE"
     return obj
 
 
@@ -242,6 +350,99 @@ def distribute_counts(total: int, ratios: dict) -> dict[str, int]:
     result = {key: int(total * float(ratios[key])) for key in keys}
     result["arms"] += total - sum(result.values())
     return result
+
+
+def weighted_star_color(galaxy: dict, rng: random.Random, core_bias: float = 0.0) -> tuple[float, float, float, float]:
+    palette = galaxy["temperaturePalette"]
+    if core_bias > 0.0 and rng.random() < core_bias:
+        warm = next(item for item in palette if item["name"] == "warmWhite")
+        color = warm["color"]
+    else:
+        threshold = rng.random() * sum(float(item["weight"]) for item in palette)
+        color = palette[-1]["color"]
+        accumulated = 0.0
+        for item in palette:
+            accumulated += float(item["weight"])
+            if threshold <= accumulated:
+                color = item["color"]
+                break
+    variation = rng.uniform(0.9, 1.06)
+    return tuple(min(1.0, float(component) * variation) for component in color) + (1.0,)
+
+
+def create_star_tier_clouds(
+    prefix: str,
+    positions: list[tuple[float, float, float]],
+    collection: bpy.types.Collection,
+    material: bpy.types.Material,
+    config: dict,
+    rng: random.Random,
+    seed: int,
+    parent: bpy.types.Object | None,
+    core_bias: float = 0.0,
+    radius_scale: float = 1.0,
+    brightness_scale: float = 1.0,
+) -> list[bpy.types.Object]:
+    tiers = config["galaxy"]["starTiers"]
+    thresholds = []
+    running = 0.0
+    for tier_name in STAR_TIER_ORDER:
+        running += float(tiers[tier_name]["ratio"])
+        thresholds.append((running, tier_name))
+    buckets = {
+        tier_name: {"positions": [], "radii": [], "colors": [], "brightness": []}
+        for tier_name in STAR_TIER_ORDER
+    }
+    for position in positions:
+        roll = rng.random()
+        tier_name = STAR_TIER_ORDER[-1]
+        for threshold, candidate in thresholds:
+            if roll <= threshold:
+                tier_name = candidate
+                break
+        tier = tiers[tier_name]
+        bucket = buckets[tier_name]
+        bucket["positions"].append(position)
+        bucket["radii"].append(rng.uniform(*tier["radiusRange"]) * radius_scale)
+        bucket["colors"].append(weighted_star_color(config["galaxy"], rng, core_bias))
+        bucket["brightness"].append(rng.uniform(*tier["brightnessRange"]) * brightness_scale)
+    objects = []
+    for tier_index, tier_name in enumerate(STAR_TIER_ORDER):
+        bucket = buckets[tier_name]
+        if not bucket["positions"]:
+            continue
+        obj = create_point_cloud(
+            f"{prefix}_{tier_name.upper()}",
+            bucket["positions"], bucket["radii"], bucket["colors"], bucket["brightness"],
+            collection, material, seed + tier_index, parent,
+        )
+        obj["starTier"] = tier_name
+        obj["radiusRange"] = [float(value) * radius_scale for value in tier["radiusRange"]]
+        obj["brightnessRange"] = [float(value) * brightness_scale for value in tier["brightnessRange"]]
+        objects.append(obj)
+    return objects
+
+
+def create_volume_box(
+    name: str,
+    location: tuple[float, float, float],
+    scale: tuple[float, float, float],
+    collection: bpy.types.Collection,
+    material: bpy.types.Material,
+    parent: bpy.types.Object | None,
+    rotation_z: float = 0.0,
+) -> bpy.types.Object:
+    bpy.ops.mesh.primitive_cube_add(size=2.0)
+    obj = link_object(bpy.context.object, collection)
+    obj.name = name
+    obj.location = location
+    obj.scale = scale
+    obj.rotation_euler.z = rotation_z
+    obj.parent = parent
+    obj.data.materials.append(material)
+    obj.display_type = "WIRE"
+    obj["localizedVolume"] = True
+    return obj
 
 
 def make_galaxy_root(config: dict, collections: dict) -> bpy.types.Object:
@@ -299,18 +500,31 @@ def spiral_coordinate(galaxy: dict, arm_index: int, progress: float, noise: floa
 
 def arm_positions(count: int, galaxy: dict, arm_index: int, rng: random.Random) -> tuple[list, list]:
     positions, sizes = [], []
-    for _ in range(count):
-        progress = rng.random()
+    clump_centers = [rng.uniform(0.06, 0.97) for _ in range(int(galaxy["armClumpCount"]))]
+    while len(positions) < count:
+        if rng.random() < galaxy["armClumpProbability"]:
+            progress = max(0.0, min(1.0, rng.gauss(rng.choice(clump_centers), 0.035 + rng.random() * 0.055)))
+        else:
+            progress = rng.random()
+        broken_pattern = 0.5 + 0.5 * math.sin(progress * 31.0 + arm_index * 1.73)
+        if rng.random() < galaxy["armDropout"] * (0.35 + 0.65 * broken_pattern):
+            continue
         angular_noise = rng.gauss(0.0, galaxy["armNoise"] * (0.4 + progress))
         x, y, _ = spiral_coordinate(galaxy, arm_index, progress, angular_noise)
-        spread = galaxy["armSpread"] * galaxy["diskRadius"] * (0.18 + 0.82 * progress)
+        width_wave = 1.0 + galaxy["armWidthVariation"] * math.sin(progress * 13.0 + arm_index * 0.91)
+        spread = galaxy["armSpread"] * galaxy["diskRadius"] * (0.12 + 0.88 * progress) * max(0.35, width_wave)
         radial_angle = math.atan2(y, x)
-        radial_offset = rng.gauss(0.0, spread * 0.18)
+        tangent_angle = radial_angle + math.pi * 0.5
+        radial_offset = rng.gauss(0.0, spread * 0.24)
+        tangent_offset = rng.gauss(0.0, spread * 0.16)
         x += math.cos(radial_angle) * radial_offset
         y += math.sin(radial_angle) * radial_offset
-        thickness = galaxy["diskThickness"] * (0.28 + 0.72 * (1.0 - progress))
-        positions.append((x, y, rng.gauss(0.0, thickness * 0.24)))
-        sizes.append(rng.uniform(0.12, 0.34) * (1.1 - progress * 0.28))
+        x += math.cos(tangent_angle) * tangent_offset
+        y += math.sin(tangent_angle) * tangent_offset
+        local_thickness = 0.72 + 0.28 * math.sin(progress * 17.0 + arm_index * 0.63)
+        thickness = galaxy["diskThickness"] * (0.3 + 0.7 * (1.0 - progress)) * galaxy["armVerticalScatter"] * local_thickness
+        positions.append((x, y, rng.gauss(0.0, thickness * 0.3)))
+        sizes.append(1.0 - progress * 0.25)
     return positions, sizes
 
 
@@ -325,10 +539,101 @@ def halo_positions(count: int, galaxy: dict, rng: random.Random) -> tuple[list, 
     return positions, sizes
 
 
+def thin_particle_wall_at_review_frame(
+    positions: list[tuple[float, float, float]],
+    root: bpy.types.Object,
+    galaxy: dict,
+    rng: random.Random,
+) -> list[tuple[float, float, float]]:
+    """Deterministically thin only the diffuse disk/halo in the fixed Frame 145 right edge."""
+    control = galaxy["particleWallControl"]
+    scene = bpy.context.scene
+    camera = scene.camera
+    if not camera:
+        raise RuntimeError("Locked scene camera is missing during Frame 145 density shaping.")
+    original_frame = scene.frame_current
+    scene.frame_set(int(control["frame"]))
+    bpy.context.view_layer.update()
+    start = float(control["screenStart"])
+    end = float(control["screenEnd"])
+    minimum_keep = float(control["minimumKeep"])
+    frequency = float(control["gapFrequency"])
+    gap_strength = float(control["gapStrength"])
+    filtered = []
+    for position in positions:
+        projected = world_to_camera_view(scene, camera, root.matrix_world @ Vector(position))
+        edge_factor = max(0.0, min(1.0, (float(projected.x) - start) / max(1e-6, end - start)))
+        broken_gap = 0.5 + 0.5 * math.sin(position[0] * 0.17 + position[1] * 0.11 + frequency * projected.y)
+        keep_probability = 1.0 - edge_factor * (1.0 - minimum_keep)
+        keep_probability *= 1.0 - edge_factor * gap_strength * broken_gap
+        if rng.random() <= keep_probability:
+            filtered.append(position)
+    scene.frame_set(original_frame)
+    bpy.context.view_layer.update()
+    return filtered
+
+
+def create_arm_light_envelopes(
+    config: dict,
+    preset: dict,
+    collections: dict,
+    root: bpy.types.Object,
+) -> list[bpy.types.Object]:
+    if not preset["volumeEnabled"]:
+        return []
+    galaxy = config["galaxy"]
+    envelope = galaxy["armLightEnvelope"]
+    segment_count = int(envelope["segmentsPerArm"])
+    start, end = (float(value) for value in envelope["progressRange"])
+    length_min, length_max = (float(value) for value in envelope["lengthRange"])
+    width_min, width_max = (float(value) for value in envelope["widthRange"])
+    height_min, height_max = (float(value) for value in envelope["heightRange"])
+    result = []
+    for arm_index in range(galaxy["armCount"]):
+        for segment_index in range(segment_count):
+            fraction = (segment_index + 0.5) / segment_count
+            progress = start + (end - start) * fraction
+            phase_jitter = 0.022 * math.sin((arm_index + 1) * 1.91 + segment_index * 1.37)
+            x, y, z = spiral_coordinate(galaxy, arm_index, progress, phase_jitter)
+            next_progress = min(1.0, progress + 0.014)
+            next_x, next_y, _ = spiral_coordinate(galaxy, arm_index, next_progress, phase_jitter)
+            clump = 0.5 + 0.5 * math.sin(progress * 27.0 + arm_index * 1.63)
+            is_break = ((arm_index * 3 + segment_index) % int(envelope["breakModulo"])) == 4
+            break_scale = 0.28 if is_break else 1.0
+            density = float(envelope["density"]) * (0.62 + 0.58 * clump) * break_scale
+            emission = float(envelope["emission"]) * (0.55 + 0.75 * clump) * (0.2 if is_break else 1.0)
+            material = volume_material(
+                f"MAT_GALAXY_ARM_LIGHT_ENVELOPE_{arm_index + 1:02d}_{segment_index + 1:02d}",
+                (0.075, 0.085, 0.105), density,
+                (0.52, 0.58, 0.66), emission,
+                float(envelope["noiseScale"]) * (0.86 + 0.22 * clump),
+                config["materials"]["anisotropy"],
+            )
+            length = length_min + (length_max - length_min) * (0.35 + 0.65 * clump)
+            width = width_min + (width_max - width_min) * (0.2 + 0.8 * clump)
+            height = height_min + (height_max - height_min) * (1.0 - progress * 0.35)
+            volume = create_volume_box(
+                f"GALAXY_ARM_LIGHT_ENVELOPE_{arm_index + 1:02d}_{segment_index + 1:02d}",
+                (x, y, z),
+                (length * 0.5, width * (0.62 if is_break else 1.0), height),
+                collections["GALAXY_ARMS"], material, root,
+                rotation_z=math.atan2(next_y - y, next_x - x),
+            )
+            volume["armIndex"] = arm_index + 1
+            volume["segmentIndex"] = segment_index + 1
+            volume["continuousArmEnvelope"] = True
+            volume["clumpFactor"] = clump
+            volume["intentionalBreak"] = is_break
+            result.append(volume)
+    return result
+
+
 def create_galaxy_layers(config: dict, preset: dict, collections: dict, materials: dict, rng: random.Random) -> dict:
     galaxy = config["galaxy"]
     root = make_galaxy_root(config, collections)
     counts = distribute_counts(int(preset["galaxyStarCount"]), galaxy["layerRatios"])
+    point_objects = []
+    layer_actual_counts = {}
     layer_builders = {
         "bulge": ("GALAXY_BULGE_STARS", "GALAXY_BULGE", "MAT_GALAXY_CORE", bulge_positions),
         "starDisk": ("GALAXY_STAR_DISK_STARS", "GALAXY_STAR_DISK", "MAT_GALAXY_STAR", disk_positions),
@@ -336,22 +641,35 @@ def create_galaxy_layers(config: dict, preset: dict, collections: dict, material
     }
     for index, (key, spec) in enumerate(layer_builders.items()):
         name, collection_name, material_name, builder = spec
-        positions, sizes = builder(counts[key], galaxy, rng)
-        create_triangle_cloud(name, positions, sizes, collections[collection_name], materials[material_name], config["seed"] + index, root)
+        positions, _sizes = builder(counts[key], galaxy, rng)
+        if preset["engine"] == "CYCLES" and key in {"starDisk", "halo"}:
+            positions = thin_particle_wall_at_review_frame(positions, root, galaxy, rng)
+        layer_actual_counts[key] = len(positions)
+        point_objects.extend(create_star_tier_clouds(
+            name, positions, collections[collection_name], materials[material_name], config, rng,
+            config["seed"] + index * 10, root,
+            core_bias=galaxy["coreWarmBias"] if key == "bulge" else 0.0,
+            brightness_scale=1.85 if key == "bulge" else (0.42 if key == "halo" else 0.68),
+        ))
 
     arm_total = counts["arms"]
     base_per_arm = arm_total // galaxy["armCount"]
     remaining = arm_total - base_per_arm * galaxy["armCount"]
     for arm_index in range(galaxy["armCount"]):
         arm_count = base_per_arm + (1 if arm_index < remaining else 0)
-        positions, sizes = arm_positions(arm_count, galaxy, arm_index, rng)
-        cloud = create_triangle_cloud(
-            f"SPIRAL_ARM_STARS_{arm_index + 1:02d}", positions, sizes,
-            collections["GALAXY_ARMS"], materials["MAT_GALAXY_STAR"],
-            config["seed"] + 100 + arm_index, root,
-        )
-        cloud["armIndex"] = arm_index + 1
-        cloud["phaseOffset"] = galaxy["armPhaseOffsets"][arm_index]
+        positions, _sizes = arm_positions(arm_count, galaxy, arm_index, rng)
+        layer_actual_counts[f"arm{arm_index + 1}"] = len(positions)
+        arm_slot = bpy.data.objects.new(f"SPIRAL_ARM_STARS_{arm_index + 1:02d}", None)
+        collections["GALAXY_ARMS"].objects.link(arm_slot)
+        arm_slot.parent = root
+        arm_slot["armIndex"] = arm_index + 1
+        arm_slot["phaseOffset"] = galaxy["armPhaseOffsets"][arm_index]
+        arm_slot["naturalDistribution"] = True
+        point_objects.extend(create_star_tier_clouds(
+            f"SPIRAL_ARM_POINTS_{arm_index + 1:02d}", positions,
+            collections["GALAXY_ARMS"], materials["MAT_GALAXY_STAR"], config, rng,
+            config["seed"] + 100 + arm_index * 10, root, brightness_scale=0.88,
+        ))
         guide_points = [spiral_coordinate(galaxy, arm_index, step / 47) for step in range(48)]
         guide = create_poly_curve(
             f"SPIRAL_ARM_GUIDE_{arm_index + 1:02d}", guide_points,
@@ -360,12 +678,41 @@ def create_galaxy_layers(config: dict, preset: dict, collections: dict, material
         guide.hide_render = True
         guide["guideOnly"] = True
 
-    create_dust_lanes(config, collections, materials, root)
-    create_nebula_regions(config, collections, materials, root)
-    return {"root": root, "counts": counts}
+    arm_envelopes = create_arm_light_envelopes(config, preset, collections, root)
+    core_volume_material = volume_material(
+        "MAT_GALAXY_CORE_VOLUME", (0.16, 0.115, 0.075), config["materials"]["volumeDensity"] * 0.68,
+        (1.0, 0.68, 0.4), config["materials"]["nebulaEmission"] * 1.05, 3.4, 0.18,
+    )
+    core_volume = create_volume_box(
+        "GALAXY_CORE_GLOW_VOLUME", (0.0, 0.0, 0.0),
+        (galaxy["bulgeRadius"] * 0.78, galaxy["bulgeRadius"] * 0.64, galaxy["bulgeHeight"] * 0.52),
+        collections["GALAXY_BULGE"], core_volume_material, root,
+    )
+    core_volume["softCoreGradient"] = True
+    outer_core_material = volume_material(
+        "MAT_GALAXY_CORE_OUTER_VOLUME", (0.1, 0.085, 0.07), config["materials"]["volumeDensity"] * 0.24,
+        (0.68, 0.61, 0.52), config["materials"]["nebulaEmission"] * 0.42, 2.15, 0.24,
+    )
+    outer_core = create_volume_box(
+        "GALAXY_CORE_OUTER_VOLUME", (0.0, 0.0, 0.0),
+        (galaxy["bulgeRadius"] * 1.18, galaxy["bulgeRadius"] * 0.94, galaxy["bulgeHeight"] * 0.72),
+        collections["GALAXY_BULGE"], outer_core_material, root,
+        rotation_z=0.16,
+    )
+    outer_core["softCoreGradient"] = True
+    outer_core["neutralOuterFalloff"] = True
+    create_dust_lanes(config, preset, collections, materials, root)
+    create_nebula_regions(config, preset, collections, materials, root)
+    return {
+        "root": root,
+        "counts": counts,
+        "actualCounts": layer_actual_counts,
+        "galaxyPointCount": sum(int(obj.get("pointCount", 0)) for obj in point_objects),
+        "armEnvelopeCount": len(arm_envelopes),
+    }
 
 
-def create_dust_lanes(config: dict, collections: dict, materials: dict, root: bpy.types.Object) -> None:
+def create_dust_lanes(config: dict, preset: dict, collections: dict, materials: dict, root: bpy.types.Object) -> None:
     galaxy = config["galaxy"]
     dust = config["dustLanes"]
     for lane_index in range(dust["count"]):
@@ -390,9 +737,71 @@ def create_dust_lanes(config: dict, collections: dict, materials: dict, root: bp
         lane["laneWidth"] = dust["widths"][lane_index]
         lane["density"] = dust["density"][lane_index]
         lane["armOffset"] = dust["radialOffsets"][lane_index]
+        if preset["dustVolumeEnabled"]:
+            dust_material = volume_material(
+                f"MAT_DUST_LANE_{lane_index + 1:02d}", (0.008, 0.006, 0.01),
+                config["materials"]["dustAbsorption"] * dust["density"][lane_index],
+                (0.0, 0.0, 0.0), 0.0, 4.0 + lane_index * 0.55, 0.08,
+            )
+            segment_count = int(dust["volumeSegmentsPerLane"])
+            for segment_index in range(segment_count):
+                progress = 0.25 + (segment_index + 0.5) * (0.62 / segment_count)
+                jitter = 0.018 * math.sin((lane_index + 1) * (segment_index + 2) * 1.37)
+                x, y, _ = spiral_coordinate(galaxy, arm_index, progress, jitter)
+                next_x, next_y, _ = spiral_coordinate(galaxy, arm_index, min(1.0, progress + 0.012), jitter)
+                angle = math.atan2(y, x)
+                offset = dust["radialOffsets"][lane_index]
+                location = (
+                    x + math.cos(angle) * offset,
+                    y + math.sin(angle) * offset,
+                    dust["verticalOffsets"][lane_index],
+                )
+                length = sum(dust["volumeLengthRange"]) * 0.5 * (0.82 + 0.18 * math.sin(segment_index + lane_index))
+                height = sum(dust["volumeHeightRange"]) * 0.5 * (0.85 + 0.15 * math.cos(segment_index * 1.9))
+                volume = create_volume_box(
+                    f"DUST_LANE_VOLUME_{lane_index + 1:02d}_{segment_index + 1:02d}", location,
+                    (length * 0.5, dust["widths"][lane_index], height),
+                    collections["GALAXY_DUST_LANES"], dust_material, root,
+                    rotation_z=math.atan2(next_y - y, next_x - x),
+                )
+                volume["visibleDust"] = True
+                volume["sourceLane"] = lane.name
+
+    if preset["dustVolumeEnabled"]:
+        scene = bpy.context.scene
+        camera = scene.camera
+        if not camera:
+            raise RuntimeError("Locked scene camera is missing while placing core dust volumes.")
+        original_frame = scene.frame_current
+        scene.frame_set(int(galaxy["particleWallControl"]["frame"]))
+        bpy.context.view_layer.update()
+        camera_local = root.matrix_world.inverted() @ camera.matrix_world.translation
+        camera_side = Vector((camera_local.x, camera_local.y, 0.0))
+        if camera_side.length < 1e-6:
+            camera_side = Vector((1.0, 0.0, 0.0))
+        camera_side.normalize()
+        tangent = Vector((-camera_side.y, camera_side.x, 0.0))
+        for core_index in range(int(dust["coreVolumeCount"])):
+            lateral = (core_index - (dust["coreVolumeCount"] - 1) * 0.5) * 3.15
+            location_vector = camera_side * (1.9 + core_index * 0.72) + tangent * lateral
+            material = volume_material(
+                f"MAT_DUST_CORE_{core_index + 1:02d}", (0.009, 0.007, 0.008),
+                config["materials"]["dustAbsorption"] * (0.82 + core_index * 0.12),
+                (0.0, 0.0, 0.0), 0.0, 5.1 + core_index * 0.7, 0.1,
+            )
+            volume = create_volume_box(
+                f"DUST_CORE_VOLUME_{core_index + 1:02d}", tuple(location_vector),
+                (galaxy["bulgeRadius"] * (0.54 + core_index * 0.07), 0.72 + core_index * 0.18, 1.15 + core_index * 0.2),
+                collections["GALAXY_DUST_LANES"], material, root,
+                rotation_z=math.atan2(camera_side.y, camera_side.x) + math.pi * 0.5 + (core_index - 1) * 0.18,
+            )
+            volume["visibleDust"] = True
+            volume["coreForegroundDust"] = True
+        scene.frame_set(original_frame)
+        bpy.context.view_layer.update()
 
 
-def create_nebula_regions(config: dict, collections: dict, materials: dict, root: bpy.types.Object) -> None:
+def create_nebula_regions(config: dict, preset: dict, collections: dict, materials: dict, root: bpy.types.Object) -> None:
     for region in config["nebulaRegions"]:
         anchor = bpy.data.objects.new(region["name"], None)
         collections["GALAXY_NEBULA"].objects.link(anchor)
@@ -404,20 +813,85 @@ def create_nebula_regions(config: dict, collections: dict, materials: dict, root
             anchor[key] = region[key]
         anchor["scaleReference"] = region["scale"]
 
-        bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=1, radius=1.0)
-        proxy = link_object(bpy.context.object, collections["GALAXY_NEBULA"])
-        proxy.name = f"{region['name']}_PROXY"
-        proxy.parent = root
-        proxy.location = region["position"]
-        proxy.scale = region["scale"]
-        proxy.data.materials.append(materials["MAT_NEBULA"])
-        proxy.display_type = "WIRE"
-        proxy.hide_render = True
-        proxy["assetSlotOnly"] = True
-        proxy["volumeEnabledCompany"] = False
+        warm = float(region["temperatureBias"]) > 0.08
+        emission_color = (0.42, 0.19, 0.08) if warm else (0.12, 0.2, 0.34)
+        nebula_material = volume_material(
+            f"MAT_{region['name']}", (0.055, 0.075, 0.11),
+            config["materials"]["volumeDensity"] * float(region["density"]),
+            emission_color,
+            config["materials"]["nebulaEmission"] * float(region["emission"]),
+            2.0 + float(region["noiseScale"]) * 1.8,
+            config["materials"]["anisotropy"],
+        )
+        volume = create_volume_box(
+            f"{region['name']}_VOLUME", tuple(region["position"]), tuple(region["scale"]),
+            collections["GALAXY_NEBULA"], nebula_material, root,
+            rotation_z=float(region["temperatureBias"]) * 0.7,
+        )
+        volume.hide_render = not bool(preset["volumeEnabled"])
+        volume["visibleNebula"] = bool(preset["volumeEnabled"])
+        volume["sourceAnchor"] = anchor.name
 
 
-def attach_star_field_slots(config: dict, collections: dict) -> None:
+def create_background_star_field(
+    key: str,
+    count: int,
+    bounds: tuple,
+    field_config: dict,
+    config: dict,
+    collection: bpy.types.Collection,
+    material: bpy.types.Material,
+    rng: random.Random,
+) -> None:
+    tier_names = STAR_TIER_ORDER
+    ratios = config["deepSpace"]["backgroundTierRatios"]
+    thresholds = []
+    running = 0.0
+    for tier_name, ratio in zip(tier_names, ratios):
+        running += float(ratio)
+        thresholds.append((running, tier_name))
+    buckets = {name: {"positions": [], "radii": [], "colors": [], "brightness": []} for name in tier_names}
+    radius_multipliers = {"micro": 0.35, "medium": 0.7, "hero": 1.2}
+    brightness_multipliers = {"micro": 0.42, "medium": 0.82, "hero": 1.65}
+    for _ in range(count):
+        roll = rng.random()
+        tier_name = tier_names[-1]
+        for threshold, candidate in thresholds:
+            if roll <= threshold:
+                tier_name = candidate
+                break
+        bucket = buckets[tier_name]
+        bucket["positions"].append(tuple(rng.uniform(axis[0], axis[1]) for axis in bounds))
+        bucket["radii"].append(rng.uniform(*field_config["sizeRange"]) * radius_multipliers[tier_name])
+        bucket["colors"].append(weighted_star_color(config["galaxy"], rng))
+        bucket["brightness"].append(
+            rng.uniform(*field_config["brightnessRange"]) * brightness_multipliers[tier_name]
+        )
+    for tier_index, tier_name in enumerate(tier_names):
+        bucket = buckets[tier_name]
+        obj = create_point_cloud(
+            f"HOME_{key.upper()}_STARS_{tier_name.upper()}",
+            bucket["positions"], bucket["radii"], bucket["colors"], bucket["brightness"],
+            collection, material, config["seed"] + 700 + tier_index,
+        )
+        obj["starTier"] = tier_name
+        obj["deepSpaceBackground"] = True
+        obj["radiusRange"] = [
+            float(value) * radius_multipliers[tier_name] for value in field_config["sizeRange"]
+        ]
+
+
+def attach_star_field_slots(
+    config: dict,
+    preset_name: str,
+    collections: dict,
+    materials: dict,
+    rng: random.Random,
+) -> None:
+    bounds = {
+        "far": ((-90, 90), (15, 210), (-30, 65)),
+        "mid": ((-55, 65), (5, 150), (-12, 48)),
+    }
     for key, collection_name, existing_name in (
         ("far", "HERO_FAR_STARS", "PROXY_FAR_STARS"),
         ("mid", "HERO_MID_STARS", "PROXY_MID_STARS"),
@@ -437,9 +911,19 @@ def attach_star_field_slots(config: dict, collections: dict) -> None:
             existing["assetSlot"] = slot.name
             existing["companyCount"] = config["starFields"][key]["companyCount"]
             existing["homeCount"] = config["starFields"][key]["homeCount"]
+            if preset_name == "homeLookdev":
+                existing.hide_render = True
+                existing.hide_viewport = True
+                existing["replacedByPointCloud"] = True
+        if preset_name == "homeLookdev":
+            create_background_star_field(
+                key, int(config["starFields"][key]["homeCount"]), bounds[key],
+                config["starFields"][key], config, collections["HOME_VISUAL_STAR_FIELDS"],
+                materials["MAT_GALAXY_STAR"], rng,
+            )
 
 
-def attach_near_pass_slots(config: dict) -> None:
+def attach_near_pass_slots(config: dict, preset_name: str, collections: dict, materials: dict) -> None:
     near = config["nearPass"]
     rng = random.Random(config["seed"] + 900)
     for index in range(near["count"]):
@@ -454,6 +938,46 @@ def attach_near_pass_slots(config: dict) -> None:
         path["motionBlurWeight"] = rng.uniform(*near["motionBlurWeightRange"])
         path["motionBlurEnabledCompany"] = False
         path["generatorSeed"] = config["seed"] + 900 + index
+        start_frame = int(path["activeFrameStart"])
+        end_frame = int(path["activeFrameEnd"])
+        for frame in (max(1, start_frame - 1), start_frame, end_frame, min(240, end_frame + 1)):
+            path.hide_render = True
+            path.keyframe_insert("hide_render", frame=frame)
+        path["formalPathHidden"] = True
+        path.hide_render = True
+
+        if preset_name != "homeLookdev" or index + 1 not in near["visiblePathIndicesFrame145"]:
+            continue
+        samples = sample_bezier_curve(path, samples_per_segment=32)
+        if not samples:
+            raise RuntimeError(f"Near Pass path has no usable samples: {path.name}")
+        color = weighted_star_color(config["galaxy"], rng)
+        star = create_point_cloud(
+            f"NEAR_PASS_STAR_{index + 1:02d}", [(0.0, 0.0, 0.0)],
+            [rng.uniform(*near["pointRadiusRange"])], [color],
+            [rng.uniform(*near["pointBrightnessRange"])],
+            collections["HOME_VISUAL_STAR_FIELDS"], materials["MAT_NEAR_STAR"],
+            config["seed"] + 950 + index,
+        )
+        star["sourcePath"] = path.name
+        star["motionBlurEnabled"] = True
+        star["radiusRange"] = list(near["pointRadiusRange"])
+        star["brightnessRange"] = list(near["pointBrightnessRange"])
+        for frame, factor in (
+            (start_frame, 0.0),
+            ((start_frame + end_frame) // 2, 0.5),
+            (end_frame, 1.0),
+        ):
+            sample_index = min(len(samples) - 1, int(factor * (len(samples) - 1)))
+            star.location = samples[sample_index]
+            star.keyframe_insert("location", frame=frame)
+        star.hide_render = True
+        star.keyframe_insert("hide_render", frame=max(1, start_frame - 1))
+        star.hide_render = False
+        star.keyframe_insert("hide_render", frame=start_frame)
+        star.keyframe_insert("hide_render", frame=end_frame)
+        star.hide_render = True
+        star.keyframe_insert("hide_render", frame=min(240, end_frame + 1))
 
 
 def sample_bezier_curve(obj: bpy.types.Object, samples_per_segment: int = 24) -> list[Vector]:
@@ -480,7 +1004,7 @@ def create_cosmic_flow_particles(config: dict, preset_name: str, collections: di
         params = flow_config[name]
         curve.hide_render = True
         curve["curveVisibleInFormalRender"] = False
-        for key in ("spreadRadius", "speed", "brightness", "sizeVariation", "flowNoise", "depthScatter"):
+        for key in ("spreadRadius", "speed", "brightness", "sizeVariation", "flowNoise", "depthScatter", "dropout"):
             curve[key] = params[key]
         curve["particleCountCompany"] = params["companyParticleCount"]
         curve["particleCountHome"] = params["homeParticleCount"]
@@ -489,9 +1013,12 @@ def create_cosmic_flow_particles(config: dict, preset_name: str, collections: di
         particle_count = params["companyParticleCount"] if preset_name == "companySkeleton" else params["homeParticleCount"]
         samples = sample_bezier_curve(curve)
         rng = random.Random(config["seed"] + 1200 + flow_index)
-        positions, sizes = [], []
-        for particle_index in range(particle_count):
-            progress = (particle_index + rng.random() * 0.7) / max(1, particle_count - 1)
+        positions, sizes, colors, brightness = [], [], [], []
+        for _particle_index in range(particle_count):
+            progress = rng.random()
+            discontinuity = 0.5 + 0.5 * math.sin(progress * 29.0 + flow_index * 1.91)
+            if rng.random() < params["dropout"] * (0.45 + 0.55 * discontinuity):
+                continue
             sample_index = min(len(samples) - 1, int(progress * (len(samples) - 1)))
             base = samples[sample_index]
             scatter = Vector((
@@ -501,14 +1028,17 @@ def create_cosmic_flow_particles(config: dict, preset_name: str, collections: di
             ))
             point = base + scatter
             positions.append(tuple(point))
-            sizes.append(rng.uniform(0.07, 0.15) * (1 + params["sizeVariation"] * rng.random()))
-        cloud = create_triangle_cloud(
-            f"FLOW_PARTICLES_{name}", positions, sizes,
+            sizes.append(rng.uniform(0.012, 0.038) * (1 + params["sizeVariation"] * rng.random()))
+            colors.append((0.44 + rng.random() * 0.08, 0.55 + rng.random() * 0.08, 0.7 + rng.random() * 0.1, 1.0))
+            brightness.append(params["brightness"] * rng.uniform(0.55, 1.35))
+        cloud = create_point_cloud(
+            f"FLOW_PARTICLES_{name}", positions, sizes, colors, brightness,
             collections["HOME_VISUAL_COSMIC_FLOW"], materials["MAT_FLOW_PARTICLE"],
             config["seed"] + 1200 + flow_index,
         )
         cloud["sourceCurve"] = name
-        cloud["formalVisual"] = "PARTICLES_ONLY"
+        cloud["formalVisual"] = "SPARSE_POINT_GUIDANCE"
+        cloud["dropout"] = params["dropout"]
 
 
 def configure_scene(config: dict, preset_name: str, preset: dict) -> None:
@@ -538,6 +1068,34 @@ def configure_scene(config: dict, preset_name: str, preset: dict) -> None:
         scene["cyclesDevice"] = preset["device"]
         scene["cyclesComputeBackend"] = preset["computeBackend"]
         scene["cyclesConfiguredForFutureRender"] = True
+        scene["homeLookdevVersion"] = "v1.2"
+        deep_space = config["deepSpace"]
+        world = scene.world
+        world.use_nodes = True
+        nodes = world.node_tree.nodes
+        nodes.clear()
+        output = nodes.new("ShaderNodeOutputWorld")
+        background = nodes.new("ShaderNodeBackground")
+        background.inputs["Color"].default_value = (*deep_space["worldColor"], 1.0)
+        background.inputs["Strength"].default_value = float(deep_space["worldStrength"])
+        world.node_tree.links.new(background.outputs["Background"], output.inputs["Surface"])
+        world.color = tuple(deep_space["worldColor"])
+        scene.view_settings.view_transform = "AgX"
+        try:
+            scene.view_settings.look = "AgX - Medium High Contrast"
+        except TypeError:
+            pass
+        scene.view_settings.exposure = float(deep_space["exposure"])
+        scene.view_settings.gamma = 1.0
+        for light_name, energy, color in (
+            ("LIGHT_GALAXY_CORE", 32.0, (1.0, 0.58, 0.32)),
+            ("LIGHT_AMBIENT_COLD", 4.0, (0.38, 0.5, 0.72)),
+            ("LIGHT_RIM_SPACE", 7.0, (0.48, 0.62, 0.82)),
+        ):
+            light = bpy.data.objects.get(light_name)
+            if light and light.type == "LIGHT":
+                light.data.energy = energy
+                light.data.color = color
     else:
         scene["cyclesConfiguredForFutureRender"] = False
     scene.display.shading.light = "STUDIO"
@@ -702,8 +1260,8 @@ def main() -> int:
     configure_scene(config, args.preset, preset)
     rng = random.Random(config["seed"])
     galaxy_result = create_galaxy_layers(config, preset, collections, materials, rng)
-    attach_star_field_slots(config, collections)
-    attach_near_pass_slots(config)
+    attach_star_field_slots(config, args.preset, collections, materials, rng)
+    attach_near_pass_slots(config, args.preset, collections, materials)
     create_cosmic_flow_particles(config, args.preset, collections, materials)
     after = lock_snapshot(camera_config)
     if before != after:
@@ -722,12 +1280,15 @@ def main() -> int:
         bpy.ops.wm.save_as_mainfile(filepath=str(output))
 
     build_report = {
-        "schemaVersion": "1.0.0",
+        "schemaVersion": "1.2.0",
         "status": "ok",
         "preset": args.preset,
         "output": str(output),
         "collections": list(GALAXY_COLLECTIONS + EXTRA_COLLECTIONS),
         "galaxyCounts": galaxy_result["counts"],
+        "galaxyActualCounts": galaxy_result["actualCounts"],
+        "galaxyPointCount": galaxy_result["galaxyPointCount"],
+        "armEnvelopeCount": galaxy_result["armEnvelopeCount"],
         "armCount": config["galaxy"]["armCount"],
         "dustLaneCount": config["dustLanes"]["count"],
         "nebulaRegionCount": len(config["nebulaRegions"]),

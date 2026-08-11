@@ -1,6 +1,6 @@
 {
-  "schemaVersion": "1.0.0",
-  "visualSkeletonVersion": "hero-home-visual-skeleton-v1",
+  "schemaVersion": "1.2.0",
+  "visualSkeletonVersion": "hero-home-lookdev-v1.2",
   "seed": 260810,
   "lockedInputs": {
     "baseline": "docs/hero-cinematic/blender-shot-v1/hero-handoff-baseline-v11.json",
@@ -24,11 +24,59 @@
     "starCountPreview": 2200,
     "starCountHome": 160000,
     "orientationDegrees": [64.0, -10.0, 32.0],
+    "starTiers": {
+      "micro": {
+        "ratio": 0.966,
+        "radiusRange": [0.003, 0.009],
+        "brightnessRange": [0.7, 1.8]
+      },
+      "medium": {
+        "ratio": 0.033,
+        "radiusRange": [0.018, 0.043],
+        "brightnessRange": [1.8, 4.6]
+      },
+      "hero": {
+        "ratio": 0.001,
+        "radiusRange": [0.07, 0.15],
+        "brightnessRange": [5.0, 11.0]
+      }
+    },
+    "temperaturePalette": [
+      {"name": "coolWhite", "color": [0.72, 0.84, 1.0], "weight": 0.25},
+      {"name": "neutralWhite", "color": [1.0, 0.94, 0.82], "weight": 0.46},
+      {"name": "warmWhite", "color": [1.0, 0.68, 0.4], "weight": 0.24},
+      {"name": "blueWhite", "color": [0.52, 0.68, 1.0], "weight": 0.05}
+    ],
+    "coreWarmBias": 0.68,
+    "armClumpCount": 11,
+    "armClumpProbability": 0.64,
+    "armDropout": 0.24,
+    "armWidthVariation": 0.58,
+    "armVerticalScatter": 1.35,
     "layerRatios": {
       "bulge": 0.16,
       "arms": 0.48,
       "starDisk": 0.27,
       "halo": 0.09
+    },
+    "particleWallControl": {
+      "frame": 145,
+      "screenStart": 0.72,
+      "screenEnd": 1.04,
+      "minimumKeep": 0.28,
+      "gapFrequency": 31.0,
+      "gapStrength": 0.36
+    },
+    "armLightEnvelope": {
+      "segmentsPerArm": 6,
+      "progressRange": [0.16, 0.94],
+      "lengthRange": [8.5, 12.5],
+      "widthRange": [3.2, 5.6],
+      "heightRange": [1.35, 2.35],
+      "density": 0.014,
+      "emission": 0.115,
+      "noiseScale": 3.6,
+      "breakModulo": 7
     }
   },
   "dustLanes": {
@@ -36,7 +84,11 @@
     "radialOffsets": [1.7, -1.2, 2.3, -1.8],
     "verticalOffsets": [0.35, -0.45, 0.62, -0.28],
     "widths": [1.8, 1.25, 1.55, 1.1],
-    "density": [0.62, 0.46, 0.55, 0.38]
+    "density": [0.62, 0.46, 0.55, 0.38],
+    "volumeSegmentsPerLane": 4,
+    "volumeLengthRange": [6.5, 10.0],
+    "volumeHeightRange": [0.65, 1.25],
+    "coreVolumeCount": 3
   },
   "nebulaRegions": [
     {
@@ -80,15 +132,21 @@
     "far": {
       "companyCount": 320,
       "homeCount": 45000,
-      "sizeRange": [0.025, 0.085],
+      "sizeRange": [0.008, 0.03],
       "brightnessRange": [0.12, 0.55]
     },
     "mid": {
       "companyCount": 120,
       "homeCount": 18000,
-      "sizeRange": [0.055, 0.16],
+      "sizeRange": [0.015, 0.055],
       "brightnessRange": [0.2, 0.72]
     }
+  },
+  "deepSpace": {
+    "worldColor": [0.00018, 0.00032, 0.00075],
+    "worldStrength": 0.025,
+    "exposure": -0.85,
+    "backgroundTierRatios": [0.965, 0.034, 0.001]
   },
   "nearPass": {
     "count": 12,
@@ -96,59 +154,66 @@
     "brightnessRange": [0.32, 0.78],
     "temperatureRangeKelvin": [6200, 9200],
     "trailStrengthRange": [0.04, 0.18],
-    "motionBlurWeightRange": [0.08, 0.3]
+    "motionBlurWeightRange": [0.08, 0.3],
+    "visiblePathIndicesFrame145": [7, 12],
+    "pointRadiusRange": [0.018, 0.045],
+    "pointBrightnessRange": [1.8, 4.0]
   },
   "cosmicFlow": {
     "paths": {
       "FLOW_MAIN_01": {
         "companyParticleCount": 56,
-        "homeParticleCount": 12000,
-        "spreadRadius": 3.8,
+        "homeParticleCount": 700,
+        "spreadRadius": 6.2,
         "speed": 0.72,
-        "brightness": 0.28,
+        "brightness": 0.22,
         "sizeVariation": 0.46,
         "flowNoise": 0.22,
-        "depthScatter": 2.4
+        "depthScatter": 4.2,
+        "dropout": 0.48
       },
       "FLOW_MAIN_02": {
         "companyParticleCount": 48,
-        "homeParticleCount": 10000,
-        "spreadRadius": 3.2,
+        "homeParticleCount": 560,
+        "spreadRadius": 5.8,
         "speed": 0.65,
-        "brightness": 0.24,
+        "brightness": 0.18,
         "sizeVariation": 0.42,
         "flowNoise": 0.2,
-        "depthScatter": 2.1
+        "depthScatter": 3.8,
+        "dropout": 0.52
       },
       "FLOW_SUPPORT_01": {
         "companyParticleCount": 32,
-        "homeParticleCount": 6500,
-        "spreadRadius": 4.6,
+        "homeParticleCount": 280,
+        "spreadRadius": 7.4,
         "speed": 0.4,
-        "brightness": 0.16,
+        "brightness": 0.12,
         "sizeVariation": 0.36,
         "flowNoise": 0.28,
-        "depthScatter": 3.0
+        "depthScatter": 5.2,
+        "dropout": 0.58
       },
       "FLOW_SUPPORT_02": {
         "companyParticleCount": 28,
-        "homeParticleCount": 5500,
-        "spreadRadius": 2.8,
+        "homeParticleCount": 220,
+        "spreadRadius": 5.0,
         "speed": 0.48,
-        "brightness": 0.18,
+        "brightness": 0.13,
         "sizeVariation": 0.38,
         "flowNoise": 0.19,
-        "depthScatter": 1.9
+        "depthScatter": 3.5,
+        "dropout": 0.6
       }
     }
   },
   "materials": {
-    "emissionStrength": 1.8,
+    "emissionStrength": 1.0,
     "blackbodyTemperature": 7600,
-    "dustAbsorption": 0.72,
-    "volumeDensity": 0.028,
+    "dustAbsorption": 0.058,
+    "volumeDensity": 0.022,
     "anisotropy": 0.32,
-    "nebulaEmission": 0.48,
+    "nebulaEmission": 0.12,
     "starBrightnessRange": [0.35, 2.6]
   },
   "presets": {
