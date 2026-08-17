@@ -220,7 +220,29 @@ export function createGalaxyTextureLayer(parameters = DEFAULT_PARAMETERS) {
               * brokenEdge;
             dissolvedAlpha = featheredAlpha * (1.0 - dissolveAmount);
           }
-          float assetAlpha = dissolvedAlpha * edgeFeather * uOpacity;
+          vec2 assetCoreRelative = sampleUv - uCoreUv;
+          float assetRadialDistance = length(assetCoreRelative * vec2(0.92, 1.08));
+          float assetOuterZone = smoothstep(0.25, 0.64, assetRadialDistance);
+          float broadAssetNoise = valueNoise(sampleUv * 5.7 + vec2(4.1, 7.3));
+          float detailAssetNoise = valueNoise(sampleUv * 13.1 + vec2(8.7, 2.4));
+          float asymmetricEdge = smoothstep(
+            -0.42,
+            0.56,
+            assetCoreRelative.x * 0.74 - assetCoreRelative.y * 0.38
+          );
+          float sparseBreak = smoothstep(
+            0.57,
+            0.84,
+            broadAssetNoise * 0.72 + detailAssetNoise * 0.28
+          );
+          float irregularFalloff = 1.0 - assetOuterZone * (
+            0.24 + broadAssetNoise * 0.3 + asymmetricEdge * 0.16
+          );
+          irregularFalloff *= 1.0 - sparseBreak * assetOuterZone * 0.88;
+          float assetAlpha = dissolvedAlpha
+            * edgeFeather
+            * irregularFalloff
+            * uOpacity;
           if (assetAlpha < 0.001) discard;
           gl_FragColor = vec4(assetColor, assetAlpha);
           return;

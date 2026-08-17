@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { getCamera } from '../engine/camera.js';
+import { createBrandGalaxyCore } from './brandGalaxyCore.js';
 import { createGalaxyCoreCluster } from './galaxyCoreCluster.js';
 import { createCinematicGalaxyShell } from './cinematicGalaxyShell.js';
 import { createGalaxyBaseLayer } from './galaxyBaseLayer.js';
@@ -14,6 +15,7 @@ import {
   H1_COMPOSITION_D_CONFIG
 } from './galaxyVideoLayer.js';
 import { createHeroTextureLoader } from './heroTextureLoader.js';
+import { UNIVERSE_RENDER_DEBUG } from './universeRenderDebug.js';
 
 const TAU = Math.PI * 2;
 const INNER_RADIUS = 0.07;
@@ -150,6 +152,7 @@ export function createCinematicGalaxy({
     hazeOpacity: 0.075,
     seed: 88217
   });
+  const brandCore = createBrandGalaxyCore(texture);
   const coreGlow = createWarmCoreGlow();
   const innerStarDisk = createInnerStarDisk(texture);
   const coreMicroStars = core.group.getObjectByName('GalaxyCoreMicroStars');
@@ -240,7 +243,7 @@ export function createCinematicGalaxy({
   nebulaLayer.add(armNebula.points);
   dustLayer.add(outskirts.points, dustLanes.points);
   nodesLayer.add(armHighlights.points);
-  coreLayer.add(coreGlow.sprite, innerStarDisk.points, core.group);
+  coreLayer.add(coreGlow.sprite, brandCore.group, innerStarDisk.points, core.group);
   coreLayer.scale.set(1.12, 0.78, 0.28);
   visual.add(
     baseLayerGroup,
@@ -322,8 +325,10 @@ export function createCinematicGalaxy({
     armHighlights.update(alignmentTime, pulse);
     innerStarDisk.update(alignmentTime, pulse);
     coreGlow.update(pulse);
+    brandCore.update(delta, alignmentTime, pulse, journeyProgress);
     core.update(galaxyAlignmentDebug.enabled ? 0 : delta, alignmentTime, pulse, 1, proximity, 1);
     applyGalaxyV2LayerWeights();
+    applyUniverseRenderDebugVisibility();
     if (galaxyV2Config && diagnosticsEnabled) {
       publishVersionDiagnostics(measureVersionAlignment(getCamera()));
     }
@@ -392,6 +397,7 @@ export function createCinematicGalaxy({
       coreLayer.visible = fallbackVisible && debugVisibility.core;
       alignmentDebugGroup.visible = false;
       if (galaxyAtmosphere) galaxyAtmosphere.group.visible = fallbackVisible;
+      applyUniverseRenderDebugVisibility();
       return;
     }
 
@@ -426,6 +432,7 @@ export function createCinematicGalaxy({
         nodesLayer.visible = false;
         coreLayer.visible = false;
       }
+      applyUniverseRenderDebugVisibility();
       return;
     }
 
@@ -440,6 +447,7 @@ export function createCinematicGalaxy({
       textureLayerGroup.visible = false;
       shell.setHybridWeight(1, 0);
       baseLayer.setHybridWeight(1);
+      applyUniverseRenderDebugVisibility();
       return;
     }
 
@@ -493,6 +501,38 @@ export function createCinematicGalaxy({
       shellLayer.visible = false;
       textureLayerGroup.visible = false;
       textureLayerWeight = 0;
+    }
+    applyUniverseRenderDebugVisibility();
+  }
+
+  function applyUniverseRenderDebugVisibility() {
+    if (!UNIVERSE_RENDER_DEBUG.galaxyTexture) {
+      textureLayerGroup.visible = false;
+      galaxyVideoLayer.group.visible = false;
+    }
+    if (!UNIVERSE_RENDER_DEBUG.proceduralGalaxy) {
+      baseLayerGroup.visible = false;
+      shellLayer.visible = false;
+      coreLayer.visible = false;
+      if (galaxyAtmosphere) {
+        galaxyAtmosphere.layers.volumeAura.visible = false;
+        galaxyAtmosphere.layers.rearMist.visible = false;
+        galaxyAtmosphere.layers.lightSpill.visible = false;
+        galaxyAtmosphere.layers.edgeOcclusion.visible = false;
+      }
+    }
+    if (!UNIVERSE_RENDER_DEBUG.galaxyDust) {
+      armsLayer.visible = false;
+      nebulaLayer.visible = false;
+      dustLayer.visible = false;
+      nodesLayer.visible = false;
+      if (galaxyAtmosphere) {
+        galaxyAtmosphere.layers.starSpill.visible = false;
+        galaxyAtmosphere.layers.wisps.visible = false;
+      }
+    }
+    if (!UNIVERSE_RENDER_DEBUG.foregroundDust && galaxyAtmosphere) {
+      galaxyAtmosphere.layers.foregroundDust.visible = false;
     }
   }
 
@@ -555,6 +595,7 @@ export function createCinematicGalaxy({
     scaleObjectOpacity(innerStarDisk.points, weights.innerStarDisk * fallbackWeight);
     scaleObjectOpacity(core.group, weights.coreParticles * fallbackWeight);
     scaleObjectOpacity(coreGlow.sprite, weights.warmCoreGlow * fallbackWeight);
+    scaleObjectOpacity(brandCore.group, fallbackWeight);
   }
 
   function measureVersionAlignment(camera) {
@@ -652,6 +693,7 @@ export function createCinematicGalaxy({
     heroTextureLoader.dispose();
     shell.dispose();
     core.dispose();
+    brandCore.dispose();
     texture.dispose();
     if (diagnosticsEnabled) {
       delete window.__ACTIVE_THEORY_GALAXY_VERSION__;
@@ -699,6 +741,8 @@ export function createCinematicGalaxy({
     galaxyVideoComposition: galaxyVideoPreviewEnabled ? galaxyVideoComposition : null,
     galaxyAssetProfile,
     galaxyVersion,
+    brandCorePointCount: brandCore.pointCount,
+    brandCoreLayerCount: brandCore.layerCount,
     getTextureLoadStatus: () => textureLoadStatus
   };
 }

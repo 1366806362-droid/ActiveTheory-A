@@ -16,6 +16,8 @@ import { getInteractionState } from './interaction.js';
 import { createNebulaVolume } from './nebulaVolume.js';
 import { createNodeSystem } from './nodeSystem.js';
 import { createParticleField } from './particleField.js';
+import { createGpuGalaxy } from './galaxy-v2/gpuGalaxy.js';
+import { readGpuGalaxyV2State } from './galaxy-v2/galaxyV2Config.js';
 
 const DEBUG_MAIN_GALAXY_ONLY = readDebugFlag('debugMainGalaxyOnly', false);
 const DEBUG_MAIN_GALAXY_RENDER = readDebugFlag('debugMainGalaxyRender', false);
@@ -74,6 +76,7 @@ const DEBUG_GALAXY_ATMOSPHERE_ISOLATION = HERO_GALAXY_VERSION_STATE.isV2
   && HERO_GALAXY_ATMOSPHERE_DEBUG.enabled
   && HERO_GALAXY_ATMOSPHERE_DEBUG.mode.endsWith('Only');
 const CINEMATIC_GALAXY_DEBUG = readCinematicGalaxyDebugState();
+const GPU_GALAXY_V2_STATE = readGpuGalaxyV2State();
 export const useCinematicGalaxy = true;
 const HERO_DEBUG = Object.freeze({
   showBackground: DEBUG_MAIN_GALAXY_ACTIVE ? false : readDebugFlag('showBackground', true),
@@ -87,7 +90,7 @@ const HERO_DEBUG = Object.freeze({
   showNebula: DEBUG_MAIN_GALAXY_ACTIVE ? false : readDebugFlag('showNebula', true),
   showDust: DEBUG_MAIN_GALAXY_ACTIVE ? false : readDebugFlag('showDust', true),
   showGlow: DEBUG_MAIN_GALAXY_ONLY ? false : readDebugFlag('showGlow', true),
-  showLabels: DEBUG_MAIN_GALAXY_ACTIVE ? false : readDebugFlag('showLabels', true),
+  showLabels: DEBUG_MAIN_GALAXY_ACTIVE ? false : readDebugFlag('showLabels', false),
   freezeHeroMotion: DEBUG_MAIN_GALAXY_ACTIVE
     || DEBUG_HERO_COMPOSITION
     || readDebugFlag('freezeHeroMotion', false)
@@ -108,6 +111,7 @@ const universeState = {
   deepSpaceBackground: null,
   nebulaVolume: null,
   energyCore: null,
+  gpuGalaxy: null,
   galaxyPlanets: null,
   nodeSystem: null,
   particleField: null,
@@ -150,6 +154,7 @@ export function createUniverseRoot() {
       diagnosticsEnabled: HERO_GALAXY_VERSION_STATE.diagnostics
     })
     : createEnergyCore();
+  const gpuGalaxy = GPU_GALAXY_V2_STATE.enabled ? createGpuGalaxy() : null;
   const galaxyPlanets = createGalaxyPlanets();
   const galaxyGroup = new THREE.Group();
   const mainGalaxyFrame = new THREE.Group();
@@ -166,7 +171,7 @@ export function createUniverseRoot() {
   if (!useCinematicGalaxy) {
     energyCore.group.add(nebulaVolume.galaxyDustGroup);
   }
-  mainGalaxyFrame.add(energyCore.group);
+  mainGalaxyFrame.add(energyCore.group, ...(gpuGalaxy ? [gpuGalaxy.group] : []));
   mainGalaxyFrame.visible = !EARTH_LAYER_DEBUG.enabled;
   galaxyGroup.add(galaxyPlanets.group, mainGalaxyFrame);
   nodeSystem.group.visible = false;
@@ -218,6 +223,7 @@ export function createUniverseRoot() {
   universeState.deepSpaceBackground = deepSpaceBackground;
   universeState.nebulaVolume = nebulaVolume;
   universeState.energyCore = energyCore;
+  universeState.gpuGalaxy = gpuGalaxy;
   universeState.galaxyPlanets = galaxyPlanets;
   universeState.nodeSystem = nodeSystem;
   universeState.particleField = particleField;
@@ -245,9 +251,12 @@ export function createUniverseRoot() {
     deepSpaceBackground,
     nebulaVolume,
     energyCore,
+    gpuGalaxy,
     galaxyPlanets,
     nodeSystem,
     particleCount: particleField.count,
+    gpuGalaxyParticleCount: gpuGalaxy?.particleCount ?? 0,
+    businessNebulaPointCount: galaxyPlanets.pointCount,
     earthHorizon,
     getPlanetWorldPosition(name, target) {
       return galaxyPlanets.getPlanetWorldPosition(name, target);
@@ -369,6 +378,7 @@ export function updateUniverseRoot(renderState, delta, time, journeyProgress = 0
   );
   universeState.galaxyPlanets.update(motionDelta, motionTime, interaction);
   universeState.energyCore.update(motionDelta, motionTime, interaction, journeyProgress);
+  universeState.gpuGalaxy?.update(motionDelta, motionTime, interaction, journeyProgress);
   applyGalaxyComposition(universeState.galaxyGroup, false);
   applyMainGalaxyComposition(universeState.mainGalaxyFrame);
   universeState.root.rotation.y = Math.sin(motionTime * 0.008) * 0.008;
@@ -486,6 +496,10 @@ export function disposeUniverseRoot() {
     universeState.energyCore.dispose();
   }
 
+  if (universeState.gpuGalaxy) {
+    universeState.gpuGalaxy.dispose();
+  }
+
   if (universeState.galaxyPlanets) {
     universeState.galaxyPlanets.dispose();
   }
@@ -517,6 +531,7 @@ export function disposeUniverseRoot() {
   universeState.deepSpaceBackground = null;
   universeState.nebulaVolume = null;
   universeState.energyCore = null;
+  universeState.gpuGalaxy = null;
   universeState.galaxyPlanets = null;
   universeState.nodeSystem = null;
   universeState.particleField = null;

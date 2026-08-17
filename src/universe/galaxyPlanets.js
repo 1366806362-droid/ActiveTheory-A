@@ -1,16 +1,19 @@
 import * as THREE from 'three';
 import { createGalaxyCoreCluster } from './galaxyCoreCluster.js';
+import { UNIVERSE_RENDER_DEBUG } from './universeRenderDebug.js';
 
 const TAU = Math.PI * 2;
-const NEBULAE = [
+export const BRAND_GROWTH_NEBULAE = Object.freeze([
   {
     name: 'GEO Nebula',
     label: 'GEO',
     color: 0x00b8ff,
     accent: 0xb8f6ff,
-    orbitRadius: 1.12,
-    orbitScaleY: 0.62,
-    size: 0.38,
+    anchor: [0.77, -0.08, 0.34],
+    depthRole: 'foreground',
+    visualScale: [1.34, 0.74, 1.08],
+    visualRotation: -0.22,
+    size: 0.43,
     driftPeriod: 240,
     driftDirection: 1,
     driftPhase: Math.PI,
@@ -21,27 +24,29 @@ const NEBULAE = [
     depthScale: 0.22,
     tilt: [0.384, 0.04, -0.14],
     labelOffset: [0.12, -0.06, 0.08],
-    hoverX: 0.28,
-    hoverY: 0.12,
+    hoverX: 0.34,
+    hoverY: -0.06,
     brightness: 1.55,
     armCount: 2,
-    coreStars: 112,
-    visibleCoreCount: 62,
-    coreCount: 5,
-    mainArmCount: 112,
-    auxiliaryArmCount: 42,
-    dustCount: 58,
-    nebulaCount: 48,
-    nodeCount: 5
+    coreStars: 168,
+    visibleCoreCount: 84,
+    coreCount: 7,
+    mainArmCount: 188,
+    auxiliaryArmCount: 72,
+    dustCount: 86,
+    nebulaCount: 72,
+    nodeCount: 9
   },
   {
     name: '5A Nebula',
     label: '5A',
     color: 0x728bff,
     accent: 0xd8e2ff,
-    orbitRadius: 0.96,
-    orbitScaleY: 0.3,
-    size: 0.345,
+    anchor: [-0.5, 0.53, -0.28],
+    depthRole: 'rear',
+    visualScale: [1.48, 0.68, 1.18],
+    visualRotation: 0.34,
+    size: 0.4,
     driftPeriod: 285,
     driftDirection: -1,
     driftPhase: -Math.PI * 0.5,
@@ -52,27 +57,29 @@ const NEBULAE = [
     depthScale: 0.26,
     tilt: [-0.524, -0.16, 0.28],
     labelOffset: [-0.06, -0.16, 0.08],
-    hoverX: 0.24,
-    hoverY: -0.45,
+    hoverX: -0.15,
+    hoverY: 0.32,
     brightness: 1.46,
     armCount: 2,
-    coreStars: 96,
-    visibleCoreCount: 54,
-    coreCount: 4,
-    mainArmCount: 102,
-    auxiliaryArmCount: 38,
-    dustCount: 54,
-    nebulaCount: 44,
-    nodeCount: 4
+    coreStars: 128,
+    visibleCoreCount: 68,
+    coreCount: 5,
+    mainArmCount: 142,
+    auxiliaryArmCount: 58,
+    dustCount: 76,
+    nebulaCount: 64,
+    nodeCount: 7
   },
   {
     name: 'Brand Mind Nebula',
-    label: '\u54c1\u724c\u5fc3\u667a',
+    label: 'BRAND MIND',
     color: 0x9b83d5,
     accent: 0xdcecff,
-    orbitRadius: 0.98,
-    orbitScaleY: 0.48,
-    size: 0.345,
+    anchor: [-0.72, -0.36, -0.58],
+    depthRole: 'deep',
+    visualScale: [1.42, 0.82, 1.26],
+    visualRotation: -0.16,
+    size: 0.42,
     driftPeriod: 330,
     driftDirection: 1,
     driftPhase: Math.PI * 0.5,
@@ -83,25 +90,37 @@ const NEBULAE = [
     depthScale: 0.2,
     tilt: [0.663, 0.08, 0.2],
     labelOffset: [-0.08, 0.18, 0.08],
-    hoverX: -0.18,
-    hoverY: 0.24,
+    hoverX: -0.3,
+    hoverY: -0.22,
     brightness: 1.34,
     armCount: 2,
-    coreStars: 96,
-    visibleCoreCount: 54,
+    coreStars: 92,
+    visibleCoreCount: 48,
     coreCount: 4,
-    mainArmCount: 102,
-    auxiliaryArmCount: 38,
-    dustCount: 54,
-    nebulaCount: 44,
+    mainArmCount: 96,
+    auxiliaryArmCount: 36,
+    dustCount: 48,
+    nebulaCount: 52,
     nodeCount: 4
   }
-];
+].map(Object.freeze));
+
+const BUSINESS_NEBULA_POINT_COUNT = BRAND_GROWTH_NEBULAE.reduce((total, config) => (
+  total
+  + config.coreStars
+  + config.visibleCoreCount
+  + config.coreCount
+  + config.mainArmCount
+  + config.auxiliaryArmCount
+  + config.dustCount
+  + config.nebulaCount
+  + config.nodeCount
+), 0);
 
 export function createGalaxyPlanets() {
   const group = new THREE.Group();
   const particleTexture = createNebulaParticleTexture();
-  const nebulae = NEBULAE.map((config, index) => (
+  const nebulae = BRAND_GROWTH_NEBULAE.map((config, index) => (
     createBusinessNebula(config, particleTexture, 9107 + index * 193)
   ));
   const targetPosition = new THREE.Vector3();
@@ -111,7 +130,7 @@ export function createGalaxyPlanets() {
   };
 
   group.name = 'ActiveTheoryBusinessNebulae';
-  group.position.set(0.46, 0.04, 0);
+  group.position.set(0.64, 0.39, 0.02);
   group.rotation.set(-0.03, 0.02, 0);
 
   nebulae.forEach((nebula) => {
@@ -119,8 +138,8 @@ export function createGalaxyPlanets() {
   });
 
   function update(delta, time, interaction) {
-    group.rotation.y = Math.sin(time * 0.012) * 0.025;
-    group.rotation.x = -0.03 + Math.sin(time * 0.01) * 0.014;
+    group.rotation.y = Math.sin(time * 0.009) * 0.012;
+    group.rotation.x = -0.03 + Math.sin(time * 0.007) * 0.008;
 
     nebulae.forEach((nebula, index) => {
       const isEntryTarget = nebula.name === entryState.name;
@@ -163,6 +182,7 @@ export function createGalaxyPlanets() {
     setLabelsVisible(visible) {
       nebulae.forEach((nebula) => nebula.setLabelVisible(visible));
     },
+    pointCount: BUSINESS_NEBULA_POINT_COUNT,
     update,
     dispose
   };
@@ -171,6 +191,7 @@ export function createGalaxyPlanets() {
 function createBusinessNebula(config, particleTexture, seed) {
   const orbitalGroup = new THREE.Group();
   const nebulaGroup = new THREE.Group();
+  const visualGroup = new THREE.Group();
   const cluster = createNebulaCluster(config, particleTexture, seed);
   const dust = createNebulaDust(config, particleTexture, seed + 37);
   const nodes = createNebulaNodes(config, particleTexture, seed + 71);
@@ -192,17 +213,17 @@ function createBusinessNebula(config, particleTexture, seed) {
     seed: seed + 107
   });
   const label = createNebulaLabel(config);
-  const anchorPosition = new THREE.Vector3(
-    Math.cos(config.phase) * config.orbitRadius,
-    Math.sin(config.phase) * config.orbitRadius * config.orbitScaleY,
-    Math.sin(config.phase) * config.orbitRadius * Math.sin(config.tilt[0])
-  );
+  const anchorPosition = new THREE.Vector3(...config.anchor);
   let driftAngle = config.driftPhase;
 
   orbitalGroup.name = `${config.name.replace(/\s+/g, '')}Orbit`;
+  orbitalGroup.visible = isBusinessNebulaVisible(config.name);
   orbitalGroup.rotation.set(0, 0, 0);
   nebulaGroup.name = config.name.replace(/\s+/g, '');
-  nebulaGroup.add(
+  visualGroup.name = `${config.name.replace(/\s+/g, '')}VisualEnvelope`;
+  visualGroup.scale.fromArray(config.visualScale);
+  visualGroup.rotation.z = config.visualRotation;
+  visualGroup.add(
     nebula.points,
     dust.points,
     cluster.points,
@@ -210,6 +231,7 @@ function createBusinessNebula(config, particleTexture, seed) {
     visibleCore.group,
     coreCluster.group
   );
+  nebulaGroup.add(visualGroup);
   orbitalGroup.add(nebulaGroup, label.sprite);
 
   function update(delta, time, index, entryProgress, focusProgress, isEntryTarget, interaction) {
@@ -283,11 +305,18 @@ function createBusinessNebula(config, particleTexture, seed) {
     group: orbitalGroup,
     nebulaGroup,
     setLabelVisible(visible) {
-      label.sprite.visible = visible;
+      label.sprite.visible = false;
     },
     update,
     dispose
   };
+}
+
+function isBusinessNebulaVisible(name) {
+  if (name === 'GEO Nebula') return UNIVERSE_RENDER_DEBUG.geoNebula;
+  if (name === '5A Nebula') return UNIVERSE_RENDER_DEBUG.fiveANebula;
+  if (name === 'Brand Mind Nebula') return UNIVERSE_RENDER_DEBUG.brandMindNebula;
+  return true;
 }
 
 function createNebulaCluster(config, texture, seed) {

@@ -1,7 +1,8 @@
 import * as THREE from 'three';
+import { UNIVERSE_RENDER_DEBUG } from './universeRenderDebug.js';
 
 const FAR_STAR_COUNT = 1420;
-const NEAR_PARTICLE_COUNT = 10;
+const NEAR_PARTICLE_COUNT = 8;
 const SPACE_LAYER_MODES = new Set([
   'baseOnly',
   'farStarsOnly',
@@ -29,6 +30,7 @@ export function createDeepSpaceBackground(nebulaVolume) {
     nearParticles.points
   );
   applyLayerMode();
+  applyUniverseRenderDebugVisibility();
 
   function update({
     delta,
@@ -74,8 +76,8 @@ export function createDeepSpaceBackground(nebulaVolume) {
     nearParticles.update(
       delta,
       time,
-      parallaxX * 0.038,
-      parallaxY * 0.031,
+      parallaxX * 0.062,
+      parallaxY * 0.052,
       journeyProgress,
       isolatedLayer === 'foregroundStarsOnly' ? 1.65 : 0.76
     );
@@ -84,6 +86,7 @@ export function createDeepSpaceBackground(nebulaVolume) {
     if (cameraPosition && cameraQuaternion) {
       group.userData.cameraZ = cameraPosition.z ?? 0;
     }
+    applyUniverseRenderDebugVisibility();
   }
 
   function dispose() {
@@ -103,6 +106,18 @@ export function createDeepSpaceBackground(nebulaVolume) {
     nearParticles.points.visible = mode === 'combined' || mode === 'foregroundStarsOnly';
     nebulaVolume.setLayerMode?.(mode, debugState.enabled);
     group.userData.spaceLayerDebug = { ...debugState, mode };
+  }
+
+  function applyUniverseRenderDebugVisibility() {
+    if (!UNIVERSE_RENDER_DEBUG.deepStars) {
+      colorField.mesh.visible = false;
+      farStars.points.visible = false;
+      starRiver.points.visible = false;
+      nebulaVolume.backgroundGroup.visible = false;
+    }
+    if (!UNIVERSE_RENDER_DEBUG.foregroundDust) {
+      nearParticles.points.visible = false;
+    }
   }
 
   return { group, update, dispose };
@@ -355,19 +370,19 @@ function createNearParticles() {
     const stride = index * 3;
     const side = index % 2 === 0 ? -1 : 1;
 
-    positions[stride] = side * (4.1 + random() * 2.7);
+    positions[stride] = side * (2.8 + random() * 2.1);
     positions[stride + 1] = side < 0
-      ? -2.4 + random() * 1.1
-      : -2.8 + random() * 5.6;
-    positions[stride + 2] = 0.2 - random() * 2.8;
+      ? -2.1 + random() * 3.8
+      : -2.5 + random() * 5;
+    positions[stride + 2] = 0.45 - random() * 1.9;
     color.set(palette[index % palette.length]);
     colors[stride] = color.r;
     colors[stride + 1] = color.g;
     colors[stride + 2] = color.b;
-    sizes[index] = 5.0 + random() * 7.0;
+    sizes[index] = 6 + random() * 7;
     opacities[index] = index < 2
-      ? 0.105 + random() * 0.025
-      : 0.035 + random() * 0.04;
+      ? 0.045 + random() * 0.012
+      : 0.018 + random() * 0.026;
   }
 
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));

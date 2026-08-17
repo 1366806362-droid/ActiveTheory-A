@@ -26,13 +26,14 @@ export const HERO_GALAXY_V2_CONFIG = Object.freeze({
     colorAssetSaturation: 0.93,
     colorAssetContrast: 0.955,
     alphaFeatherPixels: 1.1,
+    edgeDissolveWidth: 0.12,
     textureSize: 2048
   }),
   composition: Object.freeze({
     galaxyGroupPosition: Object.freeze([0.12, 0.4, 0]),
     galaxyGroupScale: 1.42,
-    mainFramePosition: Object.freeze([0.45, -0.05, 0]),
-    mainFrameScale: 0.82,
+    mainFramePosition: Object.freeze([0.34, 0.02, -0.04]),
+    mainFrameScale: 0.56,
     mainFrameRotationDegrees: Object.freeze([2, 0, 0]),
     galaxyRootPosition: Object.freeze([0.46, -0.04, 0]),
     galaxyRootScale: 1.5,
@@ -40,15 +41,15 @@ export const HERO_GALAXY_V2_CONFIG = Object.freeze({
     visualScale: 0.94
   }),
   layerWeights: Object.freeze({
-    texture: 0.89,
-    shell: 0.035,
-    arms: 0.12,
-    nebula: 0.03,
-    dust: 0.03,
-    highlights: 0.18,
-    innerStarDisk: 0.12,
-    coreParticles: 0.08,
-    warmCoreGlow: 0
+    texture: 0.64,
+    shell: 0.09,
+    arms: 0.22,
+    nebula: 0.07,
+    dust: 0.08,
+    highlights: 0.2,
+    innerStarDisk: 0.16,
+    coreParticles: 0.12,
+    warmCoreGlow: 0.035
   })
 });
 
