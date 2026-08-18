@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.0.0",
+  "seed": 731942,
+  "render": {
+    "engine": "CYCLES",
+    "backend": "OPTIX",
+    "samples": 64,
+    "denoise": true,
+    "width": 2560,
+    "height": 1440,
+    "filmTransparent": true,
+    "exposure": -0.65
+  },
+  "camera": {
+    "location": [0.0, -15.8, 8.8],
+    "target": [0.15, 0.0, 0.0],
+    "lensMm": 55.0
+  },
+  "galaxy": {
+    "outerRadius": 6.6,
+    "turns": 1.6,
+    "rotationDegrees": 12.0,
+    "dominantArmStars": 31000,
+    "secondaryArmStars": 13500,
+    "coreStars": 12000,
+    "haloStars": 6500,
+    "detachedStars": 5500,
+    "knotStars": 1600,
+    "armSegments": 260,
+    "armWidthSegments": 8,
+    "dustSegments": 240,
+    "dustWidthSegments": 5
+  }
+}

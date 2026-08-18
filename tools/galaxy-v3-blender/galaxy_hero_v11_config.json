@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.1.0",
+  "seed": 18473,
+  "render": {
+    "engine": "CYCLES",
+    "backend": "OPTIX",
+    "samples": 64,
+    "denoise": true,
+    "width": 2560,
+    "height": 1440,
+    "exposure": -0.45
+  },
+  "camera": {
+    "location": [0.0, -21.8, 12.0],
+    "target": [0.35, 0.0, 0.0],
+    "lensMm": 55.0,
+    "angleDegrees": 28.8
+  },
+  "field": {
+    "resolutionXY": 320,
+    "resolutionZ": 64,
+    "worldSizeXY": 16.0,
+    "worldSizeZ": 4.0,
+    "coreOffsetX": 0.8,
+    "outerRadius": 6.5,
+    "rotationDegrees": 17.0
+  }
+}
