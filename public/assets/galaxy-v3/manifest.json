@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0.0",
+  "assetId": "galaxy-v3-hero-foundation",
+  "status": "placeholder",
+  "basePath": "/assets/galaxy-v3/",
+  "galaxyHeroAsset": {
+    "type": "placeholder",
+    "source": null,
+    "alphaSource": null,
+    "depthSource": null,
+    "previewSource": null,
+    "supportedFutureTypes": [
+      "transparent-image",
+      "texture-sequence",
+      "alpha-video",
+      "glb",
+      "mesh"
+    ]
+  },
+  "directories": {
+    "hero": "hero/",
+    "depth": "depth/",
+    "mask": "mask/",
+    "preview": "preview/"
+  }
+}
