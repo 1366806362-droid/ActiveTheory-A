@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0.0",
+  "experimentId": "rapid-beauty-gate-mock",
+  "builder": "tools/visual-gate/mock_visual_experiment.py",
+  "renderer": "tools/visual-gate/mock_visual_experiment.py",
+  "builderArgs": [],
+  "rendererArgs": [],
+  "resolutionX": 1280,
+  "resolutionY": 720,
+  "samples": 16,
+  "beautyOnly": true,
+  "denoise": true,
+  "maxGateSeconds": 300,
+  "outputDirectory": "art/visual-gate/rapid-beauty-gate-mock",
+  "outputFile": "BEAUTY_GATE.png",
+  "allowFullProduction": false,
+  "engine": "MOCK",
+  "backend": "STANDARD_LIBRARY",
+  "requiresBlender": false,
+  "blenderExecutable": null,
+  "mockBehavior": "success",
+  "mockDelaySeconds": 0
+}
