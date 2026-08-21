@@ -18,7 +18,11 @@ import { createNodeSystem } from './nodeSystem.js';
 import { createParticleField } from './particleField.js';
 import { createGpuGalaxy } from './galaxy-v2/gpuGalaxy.js';
 import { readGpuGalaxyV2State } from './galaxy-v2/galaxyV2Config.js';
-import { GALAXY_V3_CONFIG, readGalaxyV3State } from './galaxy-v3/galaxyV3Config.js';
+import {
+  GALAXY_V3_CONFIG,
+  GALAXY_V3_V4_CONFIG,
+  readGalaxyV3State
+} from './galaxy-v3/galaxyV3Config.js';
 import { createGalaxyV3Root } from './galaxy-v3/galaxyV3Root.js';
 
 const DEBUG_MAIN_GALAXY_ONLY = readDebugFlag('debugMainGalaxyOnly', false);
@@ -181,7 +185,9 @@ export function createUniverseRoot() {
   const galaxyV3 = GALAXY_V3_STATE.enabled
     ? createGalaxyV3Root({
       state: GALAXY_V3_STATE,
-      config: GALAXY_V3_CONFIG,
+      config: GALAXY_V3_STATE.heroVersion === 'v4'
+        ? GALAXY_V3_V4_CONFIG
+        : GALAXY_V3_CONFIG,
       gpuGalaxy,
       businessNebula: galaxyPlanets,
       fallbackGroup: mainGalaxyFrame
@@ -222,8 +228,10 @@ export function createUniverseRoot() {
   }
   galaxyPlanets.setLabelsVisible(sceneDebugActive ? false : HERO_DEBUG.showLabels);
   particleField.points.visible = false;
-  earthHorizon.group.visible = EARTH_LAYER_DEBUG.enabled
-    || (!debugActive && !DEBUG_GALAXY_ATMOSPHERE_ISOLATION);
+  earthHorizon.group.visible = !GALAXY_V3_STATE.isolated && (
+    EARTH_LAYER_DEBUG.enabled
+      || (!debugActive && !DEBUG_GALAXY_ATMOSPHERE_ISOLATION)
+  );
   earthHorizon.setLayerMode(EARTH_LAYER_DEBUG.mode);
   debugBackdrop.visible = sceneDebugActive;
   if (EARTH_LAYER_DEBUG.enabled) {
@@ -409,7 +417,7 @@ export function updateUniverseRoot(renderState, delta, time, journeyProgress = 0
     || universeState.galaxyV3.layers.gpuStars.visible) {
     universeState.gpuGalaxy?.update(motionDelta, motionTime, interaction, journeyProgress);
   }
-  universeState.galaxyV3?.update({ camera: getCamera() });
+  universeState.galaxyV3?.update({ camera: getCamera(), interaction });
   applyGalaxyComposition(universeState.galaxyGroup, false);
   applyMainGalaxyComposition(universeState.mainGalaxyFrame);
   universeState.root.rotation.y = Math.sin(motionTime * 0.008) * 0.008;

@@ -19,7 +19,9 @@ export function createGalaxyV3Root({
   group.add(...GALAXY_V3_LAYER_ORDER.map(({ id }) => layers[id]));
 
   try {
-    heroAsset = createGalaxyV3HeroAsset(config.galaxyHeroAsset);
+    heroAsset = createGalaxyV3HeroAsset(config.galaxyHeroAsset, {
+      layerVisibility: state.debug.v4
+    });
     layers.heroAsset.add(heroAsset.group);
   } catch (error) {
     fallbackUsed = true;
@@ -54,9 +56,9 @@ export function createGalaxyV3Root({
     }
   }
 
-  function update({ camera } = {}) {
+  function update({ camera, interaction } = {}) {
     if (layers.heroAsset.visible && !fallbackUsed) {
-      heroAsset?.update(camera);
+      heroAsset?.update(camera, interaction);
     }
   }
 
@@ -70,6 +72,7 @@ export function createGalaxyV3Root({
       fallbackMode,
       fallbackReason,
       useGpuStars: state.useGpuStars,
+      heroAsset: heroAsset?.getStatus?.() ?? null,
       layers: Object.freeze(Object.fromEntries(
         GALAXY_V3_LAYER_ORDER.map(({ id, name, depth, renderOrder }) => [id, Object.freeze({
           name,

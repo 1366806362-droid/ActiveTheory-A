@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import {
   GALAXY_V3_ASSET_TYPES,
   GALAXY_V3_CONFIG,
+  GALAXY_V3_V4_CONFIG,
   GALAXY_V3_LAYER_ORDER,
   readGalaxyV3State
 } from './galaxyV3Config.js';
@@ -36,8 +37,31 @@ test('V3 GPU stars default on only while V3 is active', () => {
 test('V3 debug layers default on and accept explicit zero switches', () => {
   const defaults = readGalaxyV3State('?galaxyV3=1').debug;
   const disabled = readGalaxyV3State('?galaxyV3=1&debugV3Hero=0&debugV3GpuStars=0&debugV3Foreground=0&debugV3BusinessNebula=0').debug;
-  assert.deepEqual(defaults, { hero: true, gpuStars: true, foreground: true, businessNebula: true });
-  assert.deepEqual(disabled, { hero: false, gpuStars: false, foreground: false, businessNebula: false });
+  assert.equal(defaults.hero, true);
+  assert.equal(defaults.gpuStars, true);
+  assert.equal(defaults.foreground, true);
+  assert.equal(defaults.businessNebula, true);
+  assert.equal(disabled.hero, false);
+  assert.equal(disabled.gpuStars, false);
+  assert.equal(disabled.foreground, false);
+  assert.equal(disabled.businessNebula, false);
+});
+
+test('V4 LDI hero is opt-in and exposes five URL debug switches', () => {
+  const state = readGalaxyV3State('?galaxyV3=1&galaxyHero=v4&debugV4Core=0&debugV4Isolated=1');
+  assert.equal(state.heroVersion, 'v4');
+  assert.equal(state.isolated, true);
+  assert.equal(state.debug.v4.core, false);
+  assert.equal(state.debug.v4.nearArm, true);
+  assert.equal(readGalaxyV3State('?galaxyV3=1').heroVersion, 'foundation');
+});
+
+test('V4 LDI uses five world-space planes with stable far-to-near ordering', () => {
+  const { layers } = GALAXY_V3_V4_CONFIG.galaxyHeroAsset;
+  assert.equal(GALAXY_V3_V4_CONFIG.galaxyHeroAsset.type, 'ldi-5-layer');
+  assert.equal(layers.length, 5);
+  assert.deepEqual(layers.map(({ z }) => z), [-0.04, -0.02, 0, 0.02, 0.04]);
+  assert.deepEqual(layers.map(({ renderOrder }) => renderOrder), [5, 6, 7, 8, 9]);
 });
 
 test('Layer order declares far-to-near ownership without a renderer', () => {

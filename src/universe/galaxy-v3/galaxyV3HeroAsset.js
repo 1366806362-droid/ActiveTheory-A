@@ -3,8 +3,12 @@ import { GALAXY_V3_ASSET_TYPES } from './galaxyV3Config.js';
 
 const PLACEHOLDER_COLOR = 0x62d9f4;
 
-export function createGalaxyV3HeroAsset(config) {
+export function createGalaxyV3HeroAsset(config, { layerVisibility = {} } = {}) {
   validateHeroAssetConfig(config);
+
+  if (config.type === 'ldi-5-layer') {
+    return createLdiHeroAsset(config, layerVisibility);
+  }
 
   if (config.type !== 'placeholder') {
     if (!config.source) {
@@ -88,6 +92,111 @@ export function createGalaxyV3HeroAsset(config) {
   };
 }
 
+function createLdiHeroAsset(config, layerVisibility) {
+  const group = new THREE.Group();
+  const geometry = new THREE.PlaneGeometry(16 / 9, 1);
+  const loader = new THREE.TextureLoader();
+  const textures = [];
+  const materials = [];
+  const meshes = [];
+  const basePosition = new THREE.Vector3().fromArray(config.position);
+  const initialCameraPosition = new THREE.Vector3();
+  let hasInitialCamera = false;
+
+  group.name = 'GalaxyV3HeroAssetV4LDI';
+  group.position.copy(basePosition);
+  group.position.z += config.depthBias;
+  group.rotation.fromArray(config.rotation);
+  group.scale.fromArray(config.scale);
+  group.visible = config.enabled;
+
+  for (const layer of config.layers) {
+    const texture = loader.load(layer.source);
+    texture.name = `GalaxyV4Texture:${layer.id}`;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = true;
+    texture.anisotropy = 4;
+    texture.premultiplyAlpha = false;
+
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      color: 0xffffff,
+      transparent: true,
+      opacity: config.opacity,
+      premultipliedAlpha: false,
+      depthWrite: false,
+      depthTest: true,
+      side: THREE.DoubleSide,
+      toneMapped: false
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = `GalaxyV4LDI:${layer.id}`;
+    mesh.position.z = layer.z;
+    mesh.renderOrder = layer.renderOrder;
+    mesh.visible = layerVisibility[layer.id] !== false;
+    mesh.userData.parallaxFactor = layer.parallaxFactor;
+    group.add(mesh);
+    textures.push(texture);
+    materials.push(material);
+    meshes.push(mesh);
+  }
+
+  function update(camera, interaction = null) {
+    if (!camera || config.parallaxStrength <= 0) return;
+    if (!hasInitialCamera) {
+      initialCameraPosition.copy(camera.position);
+      hasInitialCamera = true;
+    }
+    const cameraX = camera.position.x - initialCameraPosition.x;
+    const cameraY = camera.position.y - initialCameraPosition.y;
+    const pointerX = interaction?.parallaxX ?? 0;
+    const pointerY = interaction?.parallaxY ?? 0;
+
+    for (const mesh of meshes) {
+      const strength = config.parallaxStrength * mesh.userData.parallaxFactor;
+      mesh.position.x = pointerX * strength + cameraX * strength * 0.28;
+      mesh.position.y = pointerY * strength * 0.62 + cameraY * strength * 0.18;
+    }
+  }
+
+  function setEnabled(enabled) {
+    group.visible = Boolean(enabled) && config.enabled;
+  }
+
+  function dispose() {
+    geometry.dispose();
+    textures.forEach((texture) => texture.dispose());
+    materials.forEach((material) => material.dispose());
+    group.clear();
+  }
+
+  return {
+    group,
+    type: config.type,
+    placeholder: false,
+    config,
+    update,
+    setEnabled,
+    dispose,
+    getStatus() {
+      return Object.freeze({
+        layerCount: meshes.length,
+        drawCalls: meshes.filter((mesh) => mesh.visible).length,
+        layers: Object.freeze(meshes.map((mesh, index) => Object.freeze({
+          id: config.layers[index].id,
+          source: config.layers[index].source,
+          z: config.layers[index].z,
+          visible: mesh.visible,
+          renderOrder: mesh.renderOrder,
+          parallaxFactor: mesh.userData.parallaxFactor
+        })))
+      });
+    }
+  };
+}
+
 export function validateHeroAssetConfig(config) {
   if (!config || typeof config !== 'object') {
     throw createAssetError('GALAXY_V3_ASSET_CONFIG_INVALID', 'Hero asset config is required.');
@@ -111,6 +220,10 @@ export function validateHeroAssetConfig(config) {
     if (!Number.isFinite(config[key])) {
       throw createAssetError('GALAXY_V3_ASSET_VALUE_INVALID', `${key} must be finite.`);
     }
+  }
+  if (config.type === 'ldi-5-layer'
+    && (!Array.isArray(config.layers) || config.layers.length !== 5)) {
+    throw createAssetError('GALAXY_V3_LDI_LAYERS_INVALID', 'LDI hero asset requires five layers.');
   }
 }
 
