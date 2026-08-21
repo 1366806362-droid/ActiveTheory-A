@@ -3,7 +3,7 @@ import { getCamera } from '../engine/camera.js';
 import { createCinematicGalaxy } from './cinematicGalaxy.js';
 import { createEnergyCore } from './core.js';
 import { createDeepSpaceBackground } from './deepSpaceBackground.js';
-import { createEarthHorizon } from './earthHorizon.js';
+import { createEarthHorizon, readEarthV2State } from './earthHorizon.js';
 import { readGalaxyAssetSelection } from './galaxyAssetProfiles.js';
 import { createGalaxyPlanets } from './galaxyPlanets.js';
 import { readGalaxyAtmosphereDebugState } from './galaxyAtmosphere.js';
@@ -17,7 +17,10 @@ import { createNebulaVolume } from './nebulaVolume.js';
 import { createNodeSystem } from './nodeSystem.js';
 import { createParticleField } from './particleField.js';
 import { createGpuGalaxy } from './galaxy-v2/gpuGalaxy.js';
-import { readGpuGalaxyV2State } from './galaxy-v2/galaxyV2Config.js';
+import {
+  GPU_GALAXY_V4_SUPPORT_CONFIG,
+  readGpuGalaxyV2State
+} from './galaxy-v2/galaxyV2Config.js';
 import {
   GALAXY_V3_CONFIG,
   GALAXY_V3_V4_CONFIG,
@@ -84,6 +87,9 @@ const DEBUG_GALAXY_ATMOSPHERE_ISOLATION = HERO_GALAXY_VERSION_STATE.isV2
 const CINEMATIC_GALAXY_DEBUG = readCinematicGalaxyDebugState();
 const GPU_GALAXY_V2_STATE = readGpuGalaxyV2State();
 const GALAXY_V3_STATE = readGalaxyV3State();
+const EARTH_V2_STATE = readEarthV2State();
+const EARTH_V2_ENABLED = GALAXY_V3_STATE.heroVersion === 'v4'
+  && EARTH_V2_STATE.enabled;
 export const useCinematicGalaxy = true;
 const HERO_DEBUG = Object.freeze({
   showBackground: DEBUG_MAIN_GALAXY_ACTIVE ? false : readDebugFlag('showBackground', true),
@@ -163,14 +169,20 @@ export function createUniverseRoot() {
     })
     : createEnergyCore();
   const gpuGalaxy = (GPU_GALAXY_V2_STATE.enabled || GALAXY_V3_STATE.useGpuStars)
-    ? createGpuGalaxy()
+    ? createGpuGalaxy(
+      GALAXY_V3_STATE.heroVersion === 'v4'
+        ? GPU_GALAXY_V4_SUPPORT_CONFIG
+        : undefined
+    )
     : null;
-  const galaxyPlanets = createGalaxyPlanets();
+  const galaxyPlanets = createGalaxyPlanets({
+    homeComposition: GALAXY_V3_STATE.heroVersion === 'v4' ? 'v4' : 'default'
+  });
   const galaxyGroup = new THREE.Group();
   const mainGalaxyFrame = new THREE.Group();
   const nodeSystem = createNodeSystem();
   const particleField = createParticleField();
-  const earthHorizon = createEarthHorizon();
+  const earthHorizon = createEarthHorizon({ heroV2: EARTH_V2_ENABLED });
   const debugBackdrop = createDebugBackdrop();
 
   root.name = 'ActiveTheoryUniverseRoot';
@@ -228,9 +240,11 @@ export function createUniverseRoot() {
   }
   galaxyPlanets.setLabelsVisible(sceneDebugActive ? false : HERO_DEBUG.showLabels);
   particleField.points.visible = false;
-  earthHorizon.group.visible = !GALAXY_V3_STATE.isolated && (
-    EARTH_LAYER_DEBUG.enabled
-      || (!debugActive && !DEBUG_GALAXY_ATMOSPHERE_ISOLATION)
+  earthHorizon.group.visible = EARTH_V2_ENABLED || (
+    !GALAXY_V3_STATE.isolated && (
+      EARTH_LAYER_DEBUG.enabled
+        || (!debugActive && !DEBUG_GALAXY_ATMOSPHERE_ISOLATION)
+    )
   );
   earthHorizon.setLayerMode(EARTH_LAYER_DEBUG.mode);
   debugBackdrop.visible = sceneDebugActive;
@@ -257,9 +271,15 @@ export function createUniverseRoot() {
   universeState.gpuGalaxy = gpuGalaxy;
   universeState.galaxyV3 = galaxyV3;
   universeState.galaxyPlanets = galaxyPlanets;
+  if (GALAXY_V3_STATE.heroVersion === 'v4' && typeof window !== 'undefined') {
+    window.__ACTIVE_THEORY_UNIVERSE_COMPOSITION__ = galaxyPlanets.getCompositionStatus();
+  }
   universeState.nodeSystem = nodeSystem;
   universeState.particleField = particleField;
   universeState.earthHorizon = earthHorizon;
+  if (EARTH_V2_ENABLED && typeof window !== 'undefined') {
+    window.__ACTIVE_THEORY_EARTH_V2__ = earthHorizon.getStatus();
+  }
   universeState.debugBackdrop = debugBackdrop;
   universeState.cinematicDebugSignature = cinematicDebug.signature;
   universeState.heroCompositionDebug = heroCompositionDebug;
@@ -578,9 +598,11 @@ export function disposeUniverseRoot() {
   universeState.gpuGalaxy = null;
   universeState.galaxyV3 = null;
   universeState.galaxyPlanets = null;
+  if (typeof window !== 'undefined') delete window.__ACTIVE_THEORY_UNIVERSE_COMPOSITION__;
   universeState.nodeSystem = null;
   universeState.particleField = null;
   universeState.earthHorizon = null;
+  if (typeof window !== 'undefined') delete window.__ACTIVE_THEORY_EARTH_V2__;
   universeState.debugBackdrop = null;
   universeState.cinematicDebugSignature = null;
   universeState.scrollHintDebugState = null;

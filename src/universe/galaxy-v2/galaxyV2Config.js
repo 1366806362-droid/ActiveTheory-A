@@ -36,6 +36,23 @@ export const GPU_GALAXY_V2_CONFIG = Object.freeze({
   })
 });
 
+export const GPU_GALAXY_V4_SUPPORT_CONFIG = Object.freeze({
+  ...GPU_GALAXY_V2_CONFIG,
+  mode: 'support-stars',
+  coreStarCount: 0,
+  armStarCount: 0,
+  haloStarCount: 82000,
+  farStarCount: 68000,
+  midStarCount: 12000,
+  nearStarCount: 2000,
+  armCount: 0,
+  composition: Object.freeze({
+    position: Object.freeze([0.9, -0.08, -0.02]),
+    rotation: Object.freeze([0, 0, 0]),
+    scale: 1.8
+  })
+});
+
 export function readGpuGalaxyV2State(search = readLocationSearch()) {
   const params = new URLSearchParams(search);
 

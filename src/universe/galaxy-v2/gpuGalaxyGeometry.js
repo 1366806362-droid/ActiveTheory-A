@@ -16,6 +16,10 @@ const STAR_COLORS = Object.freeze({
 });
 
 export function createGpuGalaxyGeometry(config) {
+  if (config.mode === 'support-stars') {
+    return createSupportStarsGeometry(config);
+  }
+
   const random = seededRandom(2874107);
   const stars = createStarAttributes(config.starCount);
   const dust = createDustAttributes(config.dustCount);
@@ -67,6 +71,123 @@ export function createGpuGalaxyGeometry(config) {
       total: config.particleCount
     })
   };
+}
+
+function createSupportStarsGeometry(config) {
+  const random = seededRandom(4302197);
+  const stars = createStarAttributes(config.starCount);
+  const dust = createDustAttributes(config.dustCount);
+  const layers = [
+    { id: 'far', count: config.farStarCount, zMin: -0.035, zMax: -0.012, sizeMin: 0.08, sizeMax: 0.22, luminosityMin: 0.004, luminosityMax: 0.018, brightCount: 4 },
+    { id: 'mid', count: config.midStarCount, zMin: 0.025, zMax: 0.075, sizeMin: 0.18, sizeMax: 0.46, luminosityMin: 0.018, luminosityMax: 0.075, brightCount: 8 },
+    { id: 'near', count: config.nearStarCount, zMin: 0.14, zMax: 0.28, sizeMin: 0.34, sizeMax: 0.78, luminosityMin: 0.035, luminosityMax: 0.13, brightCount: 12 }
+  ];
+  let starIndex = 0;
+
+  for (const layer of layers) {
+    for (let index = 0; index < layer.count; index += 1) {
+      writeSupportStar(stars, starIndex, index, layer, random);
+      starIndex += 1;
+    }
+  }
+  for (let index = 0; index < config.dustCount; index += 1) {
+    writeSupportDust(dust, index, random);
+  }
+
+  const starGeometry = new THREE.BufferGeometry();
+  starGeometry.setAttribute('position', new THREE.BufferAttribute(stars.positions, 3));
+  starGeometry.setAttribute('color', new THREE.BufferAttribute(stars.colors, 3));
+  starGeometry.setAttribute('aSize', new THREE.BufferAttribute(stars.sizes, 1));
+  starGeometry.setAttribute('aLuminosity', new THREE.BufferAttribute(stars.luminosities, 1));
+  starGeometry.setAttribute('aSeed', new THREE.BufferAttribute(stars.seeds, 1));
+  starGeometry.setAttribute('aRadius', new THREE.BufferAttribute(stars.radii, 1));
+  starGeometry.setAttribute('aType', new THREE.BufferAttribute(stars.types, 1));
+  starGeometry.setAttribute('aDustAttenuation', new THREE.BufferAttribute(stars.dustAttenuation, 1));
+  starGeometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1.55);
+
+  const dustGeometry = new THREE.BufferGeometry();
+  dustGeometry.setAttribute('position', new THREE.BufferAttribute(dust.positions, 3));
+  dustGeometry.setAttribute('aSize', new THREE.BufferAttribute(dust.sizes, 1));
+  dustGeometry.setAttribute('aOpacity', new THREE.BufferAttribute(dust.opacities, 1));
+  dustGeometry.setAttribute('aSeed', new THREE.BufferAttribute(dust.seeds, 1));
+  dustGeometry.setAttribute('aRadius', new THREE.BufferAttribute(dust.radii, 1));
+  dustGeometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1.55);
+
+  return {
+    starGeometry,
+    dustGeometry,
+    counts: Object.freeze({
+      far: config.farStarCount,
+      mid: config.midStarCount,
+      near: config.nearStarCount,
+      dust: config.dustCount,
+      total: config.particleCount
+    })
+  };
+}
+
+const SUPPORT_PATCHES = Object.freeze([
+  Object.freeze({ x: -0.7, y: 0.28, spreadX: 0.2, spreadY: 0.12 }),
+  Object.freeze({ x: -0.22, y: -0.4, spreadX: 0.25, spreadY: 0.11 }),
+  Object.freeze({ x: -0.08, y: 0.43, spreadX: 0.3, spreadY: 0.1 }),
+  Object.freeze({ x: 0.46, y: 0.38, spreadX: 0.25, spreadY: 0.12 }),
+  Object.freeze({ x: 0.72, y: -0.34, spreadX: 0.24, spreadY: 0.13 }),
+  Object.freeze({ x: 1.02, y: 0.08, spreadX: 0.16, spreadY: 0.19 })
+]);
+
+function writeSupportStar(attributes, index, layerIndex, layer, random) {
+  const point = sampleSupportPoint(random, layer.id === 'near' ? 0.7 : 1);
+  const depthMix = random();
+  const bright = layerIndex < layer.brightCount;
+  const color = new THREE.Color().lerpColors(
+    STAR_COLORS.neutral,
+    STAR_COLORS.cold,
+    0.38 + random() * 0.42
+  );
+  const size = bright
+    ? 0.92 + random() * 0.42
+    : mix(layer.sizeMin, layer.sizeMax, Math.pow(random(), 1.35));
+  const luminosity = bright
+    ? 0.22 + random() * 0.12
+    : mix(layer.luminosityMin, layer.luminosityMax, Math.pow(random(), 1.8));
+
+  writeStar(attributes, index, {
+    x: point.x,
+    y: point.y,
+    z: mix(layer.zMin, layer.zMax, depthMix),
+    color,
+    size,
+    luminosity,
+    seed: random(),
+    radius: Math.hypot(point.x, point.y),
+    type: bright ? 1 : layer.id === 'near' ? 0 : 2,
+    dustAttenuation: 0
+  });
+}
+
+function writeSupportDust(attributes, index, random) {
+  const point = sampleSupportPoint(random, 1.25);
+  const stride = index * 3;
+  attributes.positions[stride] = point.x;
+  attributes.positions[stride + 1] = point.y;
+  attributes.positions[stride + 2] = mix(-0.03, 0.09, random());
+  attributes.sizes[index] = 0.65 + random() * 1.15;
+  attributes.opacities[index] = 0.003 + random() * 0.009;
+  attributes.seeds[index] = random();
+  attributes.radii[index] = Math.hypot(point.x, point.y);
+}
+
+function sampleSupportPoint(random, spreadScale) {
+  const patch = SUPPORT_PATCHES[Math.floor(random() * SUPPORT_PATCHES.length)];
+  let x = patch.x + gaussian(random) * patch.spreadX * spreadScale;
+  let y = patch.y + gaussian(random) * patch.spreadY * spreadScale;
+
+  if (Math.pow((x - 0.28) / 0.3, 2) + Math.pow(y / 0.2, 2) < 1) {
+    y += (y < 0 ? -1 : 1) * (0.2 + random() * 0.13);
+  }
+  x = clamp(x, -1.08, 1.22);
+  y = clamp(y, -0.66, 0.66);
+  return { x, y };
 }
 
 function createStarAttributes(count) {

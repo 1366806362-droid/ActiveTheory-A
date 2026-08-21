@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
-import { BRAND_GROWTH_NEBULAE } from './galaxyPlanets.js';
+import {
+  BRAND_GROWTH_NEBULAE,
+  BRAND_GROWTH_V4_HOME_COMPOSITION
+} from './galaxyPlanets.js';
 import { HERO_GALAXY_V2_CONFIG } from './galaxyPreviewConfig.js';
 import {
   readUniverseRenderDebug,
@@ -28,6 +31,20 @@ test('Business nebulae occupy distinct X, Y, and Z positions', () => {
   for (let axis = 0; axis < 3; axis += 1) {
     assert.equal(new Set(BRAND_GROWTH_NEBULAE.map(({ anchor }) => anchor[axis])).size, 3);
   }
+});
+
+test('V4 home composition preserves depth separation and descending visual weight', () => {
+  const [geo, fiveA, brandMind] = BRAND_GROWTH_V4_HOME_COMPOSITION;
+
+  assert.ok(geo.position[0] > fiveA.position[0]);
+  assert.ok(geo.position[2] > fiveA.position[2]);
+  assert.ok(fiveA.position[1] > geo.position[1]);
+  assert.ok(brandMind.position[1] < 0);
+  assert.ok(brandMind.position[2] < fiveA.position[2]);
+  assert.ok(geo.opacity > fiveA.opacity && fiveA.opacity > brandMind.opacity);
+  assert.ok(geo.layers.core > fiveA.layers.core);
+  assert.ok(fiveA.layers.flow > fiveA.layers.core);
+  assert.ok(brandMind.layers.dust > brandMind.layers.visibleCore);
 });
 
 test('GEO is forward-right, 5A is upper-rear, and Brand Mind is lower-deep', () => {

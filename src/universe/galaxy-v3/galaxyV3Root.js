@@ -48,7 +48,9 @@ export function createGalaxyV3Root({
   function applyVisibility() {
     layers.heroAsset.visible = state.debug.hero;
     heroAsset?.setEnabled(state.debug.hero);
-    layers.gpuStars.visible = state.useGpuStars && state.debug.gpuStars;
+    layers.gpuStars.visible = state.useGpuStars
+      && state.debug.gpuStars
+      && (state.heroVersion !== 'v4' || state.debug.v4.supportStars);
     layers.foregroundDust.visible = state.debug.foreground;
     layers.businessNebula.visible = state.debug.businessNebula;
     if (fallbackGroup) {
@@ -72,6 +74,7 @@ export function createGalaxyV3Root({
       fallbackMode,
       fallbackReason,
       useGpuStars: state.useGpuStars,
+      gpuStarsMode: gpuGalaxy?.diagnostics?.mode ?? null,
       heroAsset: heroAsset?.getStatus?.() ?? null,
       layers: Object.freeze(Object.fromEntries(
         GALAXY_V3_LAYER_ORDER.map(({ id, name, depth, renderOrder }) => [id, Object.freeze({

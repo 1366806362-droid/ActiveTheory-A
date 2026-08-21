@@ -47,12 +47,13 @@ test('V3 debug layers default on and accept explicit zero switches', () => {
   assert.equal(disabled.businessNebula, false);
 });
 
-test('V4 LDI hero is opt-in and exposes five URL debug switches', () => {
-  const state = readGalaxyV3State('?galaxyV3=1&galaxyHero=v4&debugV4Core=0&debugV4Isolated=1');
+test('V4 LDI hero is opt-in and exposes layer and support-star debug switches', () => {
+  const state = readGalaxyV3State('?galaxyV3=1&galaxyHero=v4&debugV4Core=0&debugV4SupportStars=0&debugV4Isolated=1');
   assert.equal(state.heroVersion, 'v4');
   assert.equal(state.isolated, true);
   assert.equal(state.debug.v4.core, false);
   assert.equal(state.debug.v4.nearArm, true);
+  assert.equal(state.debug.v4.supportStars, false);
   assert.equal(readGalaxyV3State('?galaxyV3=1').heroVersion, 'foundation');
 });
 
@@ -62,6 +63,8 @@ test('V4 LDI uses five world-space planes with stable far-to-near ordering', () 
   assert.equal(layers.length, 5);
   assert.deepEqual(layers.map(({ z }) => z), [-0.04, -0.02, 0, 0.02, 0.04]);
   assert.deepEqual(layers.map(({ renderOrder }) => renderOrder), [5, 6, 7, 8, 9]);
+  assert.deepEqual(GALAXY_V3_V4_CONFIG.galaxyHeroAsset.position, [0.58, -0.06, 0]);
+  assert.deepEqual(GALAXY_V3_V4_CONFIG.galaxyHeroAsset.scale, [2.03, 2.03, 1]);
 });
 
 test('Layer order declares far-to-near ownership without a renderer', () => {

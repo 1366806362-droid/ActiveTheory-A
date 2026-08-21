@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
-import { GPU_GALAXY_V2_CONFIG, readGpuGalaxyV2State } from './galaxyV2Config.js';
+import {
+  GPU_GALAXY_V2_CONFIG,
+  GPU_GALAXY_V4_SUPPORT_CONFIG,
+  readGpuGalaxyV2State
+} from './galaxyV2Config.js';
 import { GPU_GALAXY_HYBRID_CONFIG, readGpuGalaxyHybridState } from './galaxyHybridConfig.js';
 import { createGpuGalaxyGeometry } from './gpuGalaxyGeometry.js';
 import { createHybridGalaxyArmGeometry, createHybridGalaxyLayers } from './hybridGalaxyLayers.js';
@@ -52,6 +56,24 @@ test('GPU Galaxy V2 generates four spiral arms and non-flat Z depth', () => {
   assert.equal(generated.counts.halo, 7000);
   assert.equal(generated.counts.dust, 18000);
 
+  generated.starGeometry.dispose();
+  generated.dustGeometry.dispose();
+});
+
+test('V4 support stars preserve the particle budget without galaxy structure', () => {
+  const generated = createGpuGalaxyGeometry(GPU_GALAXY_V4_SUPPORT_CONFIG);
+  const types = generated.starGeometry.getAttribute('aType');
+  let brightCount = 0;
+  for (let index = 0; index < types.count; index += 1) {
+    if (types.getX(index) === 1) brightCount += 1;
+  }
+
+  assert.equal(GPU_GALAXY_V4_SUPPORT_CONFIG.armCount, 0);
+  assert.equal(generated.counts.far, 68000);
+  assert.equal(generated.counts.mid, 12000);
+  assert.equal(generated.counts.near, 2000);
+  assert.equal(generated.counts.total, GPU_GALAXY_V2_CONFIG.particleCount);
+  assert.equal(brightCount, 24);
   generated.starGeometry.dispose();
   generated.dustGeometry.dispose();
 });

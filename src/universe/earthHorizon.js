@@ -12,6 +12,13 @@ const EARTH_CLOUD_ANGULAR_SPEED = EARTH_SURFACE_ANGULAR_SPEED * EARTH_CLOUD_SPEE
 const EARTH_SUN_DIRECTION = new THREE.Vector3(-0.75, 0.55, -0.36).normalize();
 const EARTH_Y_AXIS = new THREE.Vector3(0, 1, 0);
 
+export const EARTH_V2_HERO_COMPOSITION = Object.freeze({
+  position: Object.freeze([-18.3, -12.4, 0.65]),
+  scale: 5.35,
+  rotation: Object.freeze([-0.62, -0.5, 0.18]),
+  atmosphereRadius: 1.93
+});
+
 const EARTH_LAYER_MODES = Object.freeze({
   surfaceOnly: 0,
   landOnly: 1,
@@ -28,7 +35,7 @@ const EARTH_HYBRID_MODES = new Set([
   'combined'
 ]);
 
-export function createEarthHorizon() {
+export function createEarthHorizon({ heroV2 = false } = {}) {
   const group = new THREE.Group();
   const surfaceGroup = new THREE.Group();
   const cityLightsGroup = new THREE.Group();
@@ -38,7 +45,11 @@ export function createEarthHorizon() {
   const surfaceGeometry = new THREE.SphereGeometry(1.85, 64, 40);
   const cityLightsGeometry = new THREE.SphereGeometry(1.859, 64, 40);
   const cloudGeometry = new THREE.SphereGeometry(1.86, 64, 40);
-  const atmosphereGeometry = new THREE.SphereGeometry(1.865, 96, 64);
+  const atmosphereGeometry = new THREE.SphereGeometry(
+    heroV2 ? EARTH_V2_HERO_COMPOSITION.atmosphereRadius : 1.865,
+    96,
+    64
+  );
   const sharedTime = { value: 0 };
   const seamDebug = createEarthSeamDebug();
   const hybridDebug = createEarthHybridDebug();
@@ -48,7 +59,7 @@ export function createEarthHorizon() {
   const surfaceMaterial = createSurfaceMaterial(sharedTime, seamDebug.enabled);
   const cityLightsMaterial = createCityLightsMaterial(sharedTime);
   const cloudMaterial = createCloudMaterial(sharedTime, seamDebug.enabled);
-  const atmosphereMaterial = createAtmosphereMaterial(atmosphereDebug.enabled);
+  const atmosphereMaterial = createAtmosphereMaterial(atmosphereDebug.enabled, heroV2);
   const surface = new THREE.Mesh(surfaceGeometry, surfaceMaterial);
   const cityLights = new THREE.Mesh(cityLightsGeometry, cityLightsMaterial);
   const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
@@ -74,9 +85,13 @@ export function createEarthHorizon() {
   let unsubscribeTextureLoader = null;
 
   group.name = 'EarthRoot';
-  group.position.set(-19.3, -14, -0.35);
-  group.scale.setScalar(5.55);
-  group.rotation.set(-0.62, -0.5, 0.18);
+  group.position.fromArray(
+    heroV2 ? EARTH_V2_HERO_COMPOSITION.position : [-19.3, -14, -0.35]
+  );
+  group.scale.setScalar(heroV2 ? EARTH_V2_HERO_COMPOSITION.scale : 5.55);
+  group.rotation.fromArray(
+    heroV2 ? EARTH_V2_HERO_COMPOSITION.rotation : [-0.62, -0.5, 0.18]
+  );
   surfaceGroup.name = 'SurfaceGroup';
   cityLightsGroup.name = 'CityLightsGroup';
   cloudGroup.name = 'CloudGroup';
@@ -106,6 +121,9 @@ export function createEarthHorizon() {
     textureStatus = status;
     textureLayers.setTextures(status === 'ready' ? textures : null);
     applyHybridMode();
+    if (heroV2 && typeof window !== 'undefined') {
+      window.__ACTIVE_THEORY_EARTH_V2__ = getStatus();
+    }
   });
   void textureLoader.loadEarthTextures();
   if (seamDebug.enabled) {
@@ -199,6 +217,18 @@ export function createEarthHorizon() {
     group.clear();
   }
 
+  function getStatus() {
+    return Object.freeze({
+      heroV2,
+      textureStatus,
+      textureAssets: textureLayers.isReady(),
+      drawCalls: heroV2 ? 4 : null,
+      clouds: heroV2 && textureLayers.isReady(),
+      position: group.position.toArray(),
+      scale: group.scale.x
+    });
+  }
+
   function setLayerMode(mode = 'combined') {
     if (hybridDebug.enabled || textureLayers.isReady()) {
       applyHybridMode();
@@ -252,7 +282,9 @@ export function createEarthHorizon() {
     cityLights.visible = false;
     clouds.visible = false;
     atmosphere.visible = mode === 'combined';
-    textureLayers.setWeights({ surface: 0.96, city: 0.72, clouds: 0.22 });
+    textureLayers.setWeights(heroV2
+      ? { surface: 0.96, city: 0.22, clouds: 0.11 }
+      : { surface: 0.96, city: 0.72, clouds: 0.22 });
     textureLayers.setSurfaceMode(
       mode === 'cityTextureOnly' || mode === 'cloudTextureOnly'
         ? 'reference'
@@ -281,8 +313,18 @@ export function createEarthHorizon() {
     setLayerMode,
     applyHybridMode,
     getTextureStatus: () => textureStatus,
+    getStatus,
     dispose
   };
+}
+
+export function readEarthV2State(search = readLocationSearch()) {
+  const params = new URLSearchParams(search);
+  return Object.freeze({ enabled: params.get('earthV2') === '1' });
+}
+
+function readLocationSearch() {
+  return typeof window === 'undefined' ? '' : window.location.search;
 }
 
 function createSurfaceMaterial(sharedTime, debugSeam = false) {
@@ -1040,11 +1082,12 @@ function createCloudMaterial(sharedTime, debugSeam = false) {
   });
 }
 
-function createAtmosphereMaterial(debugAtmosphere = false) {
+function createAtmosphereMaterial(debugAtmosphere = false, heroV2 = false) {
   return new THREE.ShaderMaterial({
     uniforms: {
       uLayerMode: { value: EARTH_LAYER_MODES.combined },
-      uDebugAtmosphere: { value: debugAtmosphere ? 1 : 0 }
+      uDebugAtmosphere: { value: debugAtmosphere ? 1 : 0 },
+      uHeroV2: { value: heroV2 ? 1 : 0 }
     },
     vertexShader: `
       varying vec3 vNormalView;
@@ -1060,6 +1103,7 @@ function createAtmosphereMaterial(debugAtmosphere = false) {
     fragmentShader: `
       uniform float uLayerMode;
       uniform float uDebugAtmosphere;
+      uniform float uHeroV2;
       varying vec3 vNormalView;
       varying vec3 vViewDirection;
 
@@ -1080,6 +1124,22 @@ function createAtmosphereMaterial(debugAtmosphere = false) {
         float edgeVisibility = mix(0.015, 1.0, litEdge);
         float sunrise = pow(max(lightFacing, 0.0), 28.0)
           * pow(limb, 6.0);
+        if (uHeroV2 > 0.5) {
+          float broadRim = pow(limb, 4.8);
+          float tightRim = pow(limb, 18.0);
+          float blueSide = mix(0.075, 1.0, smoothstep(-0.18, 0.72, lightFacing));
+          float sunriseV2 = pow(max(lightFacing, 0.0), 34.0) * pow(limb, 8.0);
+          vec3 deepBlue = vec3(0.018, 0.09, 0.31);
+          vec3 icyBlue = vec3(0.22, 0.55, 0.88);
+          vec3 atmosphereColor = mix(deepBlue, icyBlue, tightRim);
+          atmosphereColor += vec3(0.22, 0.43, 0.68) * sunriseV2 * 0.34;
+          float atmosphereAlpha = (broadRim * 0.065 + tightRim * 0.24)
+            * blueSide
+            + sunriseV2 * 0.035;
+          if (atmosphereAlpha < 0.002) discard;
+          gl_FragColor = vec4(atmosphereColor, atmosphereAlpha);
+          return;
+        }
         vec3 color = mix(vec3(0.18, 0.28, 0.4), vec3(0.68, 0.79, 0.91), rim);
         vec3 sunriseColor = mix(vec3(0.78, 0.9, 1.0), vec3(1.0, 0.91, 0.78), 0.18);
         color += sunriseColor * sunrise * 0.5;

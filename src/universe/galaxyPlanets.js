@@ -105,6 +105,30 @@ export const BRAND_GROWTH_NEBULAE = Object.freeze([
   }
 ].map(Object.freeze));
 
+export const BRAND_GROWTH_V4_HOME_COMPOSITION = Object.freeze([
+  Object.freeze({
+    name: 'GEO Nebula',
+    position: Object.freeze([0.74, 0.1, 0.46]),
+    scale: 1.18,
+    opacity: 0.72,
+    layers: Object.freeze({ cluster: 1.25, flow: 0.5, dust: 0.55, nodes: 1.2, visibleCore: 1.1, core: 1.1 })
+  }),
+  Object.freeze({
+    name: '5A Nebula',
+    position: Object.freeze([-0.28, 0.58, -0.36]),
+    scale: 1.08,
+    opacity: 0.6,
+    layers: Object.freeze({ cluster: 0.65, flow: 1.35, dust: 1.1, nodes: 0.55, visibleCore: 0.25, core: 0.18 })
+  }),
+  Object.freeze({
+    name: 'Brand Mind Nebula',
+    position: Object.freeze([-1.05, -1.45, -0.72]),
+    scale: 1.45,
+    opacity: 0.58,
+    layers: Object.freeze({ cluster: 0.9, flow: 1.8, dust: 2, nodes: 0.3, visibleCore: 0.25, core: 0.1 })
+  })
+]);
+
 const BUSINESS_NEBULA_POINT_COUNT = BRAND_GROWTH_NEBULAE.reduce((total, config) => (
   total
   + config.coreStars
@@ -117,10 +141,13 @@ const BUSINESS_NEBULA_POINT_COUNT = BRAND_GROWTH_NEBULAE.reduce((total, config) 
   + config.nodeCount
 ), 0);
 
-export function createGalaxyPlanets() {
+export function createGalaxyPlanets({ homeComposition = 'default' } = {}) {
   const group = new THREE.Group();
   const particleTexture = createNebulaParticleTexture();
-  const nebulae = BRAND_GROWTH_NEBULAE.map((config, index) => (
+  const configs = homeComposition === 'v4'
+    ? createV4HomeConfigs()
+    : BRAND_GROWTH_NEBULAE;
+  const nebulae = configs.map((config, index) => (
     createBusinessNebula(config, particleTexture, 9107 + index * 193)
   ));
   const targetPosition = new THREE.Vector3();
@@ -182,10 +209,42 @@ export function createGalaxyPlanets() {
     setLabelsVisible(visible) {
       nebulae.forEach((nebula) => nebula.setLabelVisible(visible));
     },
+    getCompositionStatus() {
+      return Object.freeze({
+        mode: homeComposition,
+        groupPosition: group.position.toArray(),
+        nebulae: Object.freeze(configs.map((config) => Object.freeze({
+          name: config.name,
+          position: [...config.anchor],
+          scale: config.compositionScale ?? 1,
+          opacity: config.compositionOpacity ?? 1,
+          layers: config.compositionLayers ?? null,
+          depth: config.anchor[2]
+        })))
+      });
+    },
     pointCount: BUSINESS_NEBULA_POINT_COUNT,
     update,
     dispose
   };
+}
+
+function createV4HomeConfigs() {
+  const presetByName = new Map(
+    BRAND_GROWTH_V4_HOME_COMPOSITION.map((preset) => [preset.name, preset])
+  );
+
+  return BRAND_GROWTH_NEBULAE.map((config) => {
+    const preset = presetByName.get(config.name);
+    return {
+      ...config,
+      anchor: preset.position,
+      visualScale: config.visualScale.map((value) => value * preset.scale),
+      compositionScale: preset.scale,
+      compositionOpacity: preset.opacity,
+      compositionLayers: preset.layers
+    };
+  });
 }
 
 function createBusinessNebula(config, particleTexture, seed) {
@@ -254,6 +313,13 @@ function createBusinessNebula(config, particleTexture, seed) {
     const hoverBoost = 1 + hover * 0.14;
     const entryBoost = isEntryTarget ? 1 + entryFocus * 0.72 : 1;
     const visualBoost = hoverBoost * entryBoost;
+    const homeBlend = 1 - smoothstep(0.02, 0.18, focusProgress);
+    const compositionOpacity = lerp(1, config.compositionOpacity ?? 1, homeBlend);
+    const layerWeight = (name) => compositionOpacity * lerp(
+      1,
+      config.compositionLayers?.[name] ?? 1,
+      homeBlend
+    );
 
     driftAngle += delta * driftSpeed;
     const driftX = (
@@ -280,12 +346,12 @@ function createBusinessNebula(config, particleTexture, seed) {
       nebulaGroup.position.y + config.labelOffset[1],
       nebulaGroup.position.z + config.labelOffset[2]
     );
-    cluster.update(delta, time, pulse, visibility, entryFocus, visualBoost);
-    nebula.update(delta, time, pulse, visibility, visualBoost);
-    dust.update(delta, time, pulse, visibility, visualBoost);
-    nodes.update(delta, time, pulse, visibility, entryFocus, visualBoost);
-    visibleCore.update(time, pulse, visibility, visualBoost);
-    coreCluster.update(delta, time, pulse, visibility, entryFocus, visualBoost);
+    cluster.update(delta, time, pulse, visibility * layerWeight('cluster'), entryFocus, visualBoost);
+    nebula.update(delta, time, pulse, visibility * layerWeight('flow'), visualBoost);
+    dust.update(delta, time, pulse, visibility * layerWeight('dust'), visualBoost);
+    nodes.update(delta, time, pulse, visibility * layerWeight('nodes'), entryFocus, visualBoost);
+    visibleCore.update(time, pulse, visibility * layerWeight('visibleCore'), visualBoost);
+    coreCluster.update(delta, time, pulse, visibility * layerWeight('core'), entryFocus, visualBoost);
     label.update(labelVisibility, hover);
   }
 
@@ -729,6 +795,10 @@ function smoothstep(edge0, edge1, value) {
   const x = Math.min(Math.max((value - edge0) / (edge1 - edge0), 0), 1);
 
   return x * x * (3 - 2 * x);
+}
+
+function lerp(start, end, amount) {
+  return start + (end - start) * amount;
 }
 
 function createNebulaParticleTexture() {

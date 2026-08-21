@@ -9,6 +9,7 @@ import { readGpuGalaxyHybridState } from './galaxyHybridConfig.js';
 import { createHybridGalaxyLayers } from './hybridGalaxyLayers.js';
 
 export function createGpuGalaxy(config = GPU_GALAXY_V2_CONFIG) {
+  const supportMode = config.mode === 'support-stars';
   const group = new THREE.Group();
   const geometry = createGpuGalaxyGeometry(config);
   const starMaterial = createGpuGalaxyStarMaterial();
@@ -16,15 +17,15 @@ export function createGpuGalaxy(config = GPU_GALAXY_V2_CONFIG) {
   const stars = new THREE.Points(geometry.starGeometry, starMaterial);
   const dust = new THREE.Points(geometry.dustGeometry, dustMaterial);
   const hybridState = readGpuGalaxyHybridState();
-  const hybrid = hybridState.enabled ? createHybridGalaxyLayers(config) : null;
+  const hybrid = !supportMode && hybridState.enabled ? createHybridGalaxyLayers(config) : null;
   starMaterial.uniforms.uHybridMix.value = hybrid ? 1 : 0;
 
-  group.name = 'GpuProceduralGalaxyV2';
+  group.name = supportMode ? 'GpuGalaxyV2SupportStars' : 'GpuProceduralGalaxyV2';
   group.position.fromArray(config.composition.position);
   group.rotation.fromArray(config.composition.rotation);
   group.scale.setScalar(config.composition.scale);
-  stars.name = 'GpuGalaxyV2Stars';
-  dust.name = 'GpuGalaxyV2DustLanes';
+  stars.name = supportMode ? 'GpuGalaxyV2SupportStars' : 'GpuGalaxyV2Stars';
+  dust.name = supportMode ? 'GpuGalaxyV2SupportDust' : 'GpuGalaxyV2DustLanes';
   stars.frustumCulled = false;
   dust.frustumCulled = false;
   stars.renderOrder = 3;
@@ -33,6 +34,7 @@ export function createGpuGalaxy(config = GPU_GALAXY_V2_CONFIG) {
 
   const diagnostics = Object.freeze({
     enabled: true,
+    mode: supportMode ? 'support-stars' : 'galaxy',
     particleCount: geometry.counts.total,
     counts: geometry.counts,
     armCount: config.armCount,

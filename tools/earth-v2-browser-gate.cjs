@@ -2,9 +2,8 @@ const path = require('node:path');
 const { chromium } = require('playwright');
 
 const base = 'http://127.0.0.1:4173/';
-const isolatedQuery = '?galaxyV3=1&galaxyHero=v4&debugV4Isolated=1&v3UseGpuStars=0&debugV3GpuStars=0&debugV3BusinessNebula=0&debugV3Foreground=0';
-const starsQuery = '?galaxyV3=1&galaxyHero=v4&debugV4Isolated=1&v3UseGpuStars=1&debugV3GpuStars=1&debugV4SupportStars=1&debugV3BusinessNebula=0&debugV3Foreground=0';
-const outputRoot = path.resolve('art/visual-gate/galaxy-hero-v4-plate-01');
+const shared = 'galaxyV3=1&galaxyHero=v4&debugV4Isolated=1&v3UseGpuStars=1&debugV3GpuStars=1&debugV4SupportStars=1&debugV3BusinessNebula=0&debugV3Foreground=0';
+const outputRoot = path.resolve('art/visual-gate/earth-v2-blue-atmosphere-01');
 
 async function inspect(browser, name, query, screenshot) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
@@ -49,8 +48,9 @@ async function inspect(browser, name, query, screenshot) {
   });
 
   await page.goto(base + query, { waitUntil: 'networkidle' });
-  if (query.includes('galaxyHero=v4')) {
-    await page.waitForFunction(() => window.__ACTIVE_THEORY_GALAXY_V3__?.heroAsset?.layerCount === 5);
+  await page.waitForFunction(() => window.__ACTIVE_THEORY_GALAXY_V3__?.heroAsset?.layerCount === 5);
+  if (query.includes('earthV2=1')) {
+    await page.waitForFunction(() => window.__ACTIVE_THEORY_EARTH_V2__?.textureStatus === 'ready');
   }
   await page.mouse.move(760, 360);
   await page.waitForTimeout(800);
@@ -61,8 +61,8 @@ async function inspect(browser, name, query, screenshot) {
   const runtime = await page.evaluate(() => ({
     canvasCount: document.querySelectorAll('canvas').length,
     wheelListeners: window.__wheelListeners,
-    gpuDiagnostics: window.__ACTIVE_THEORY_GPU_GALAXY_V2__ ?? null,
-    status: window.__ACTIVE_THEORY_GALAXY_V3__ ?? null
+    earthV2: window.__ACTIVE_THEORY_EARTH_V2__ ?? null,
+    galaxyV3: window.__ACTIVE_THEORY_GALAXY_V3__ ?? null
   }));
   const frames = Math.max(1, after.frames - before.frames);
   await page.close();
@@ -85,10 +85,10 @@ async function inspect(browser, name, query, screenshot) {
     launchOptions.channel = 'msedge';
   }
   const browser = await chromium.launch(launchOptions);
-  const results = [];
-  results.push(await inspect(browser, 'default', '', 'V43_DEFAULT_CHECK.png'));
-  results.push(await inspect(browser, 'isolated', isolatedQuery, 'V43_ISOLATED.png'));
-  results.push(await inspect(browser, 'support-stars', starsQuery, 'V43_SUPPORT_STARS.png'));
+  const results = [
+    await inspect(browser, 'no-earth', `?${shared}&earthV2=0`, 'EARTH_V2_OFF.png'),
+    await inspect(browser, 'earth-v2', `?${shared}&earthV2=1`, 'EARTH_V2_ON.png')
+  ];
   await browser.close();
   console.log(JSON.stringify(results, null, 2));
 })().catch((error) => {
