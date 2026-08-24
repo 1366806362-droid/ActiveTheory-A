@@ -44,8 +44,8 @@ const GALAXY_V4_LDI_LAYERS = Object.freeze([
   Object.freeze({ id: 'background', source: '/assets/galaxy-v3/hero/v4/galaxy-v4-bg.webp', z: -0.04, renderOrder: 5, parallaxFactor: 0 }),
   Object.freeze({ id: 'farArm', source: '/assets/galaxy-v3/hero/v4/galaxy-v4-far-arm.webp', z: -0.02, renderOrder: 6, parallaxFactor: 0.24 }),
   Object.freeze({ id: 'core', source: '/assets/galaxy-v3/hero/v4/galaxy-v4-core.webp', z: 0, renderOrder: 7, parallaxFactor: 0.42 }),
-  Object.freeze({ id: 'nearArm', source: '/assets/galaxy-v3/hero/v4/galaxy-v4-near-arm.webp', z: 0.02, renderOrder: 8, parallaxFactor: 0.7 }),
-  Object.freeze({ id: 'foreground', source: '/assets/galaxy-v3/hero/v4/galaxy-v4-foreground.webp', z: 0.04, renderOrder: 9, parallaxFactor: 1 })
+  Object.freeze({ id: 'nearArm', source: '/assets/galaxy-v3/hero/v4/galaxy-v4-near-arm.webp', z: 0.02, renderOrder: 8, parallaxFactor: 0.56 }),
+  Object.freeze({ id: 'foreground', source: '/assets/galaxy-v3/hero/v4/galaxy-v4-foreground.webp', z: 0.04, renderOrder: 9, parallaxFactor: 0.78 })
 ]);
 
 export const GALAXY_V3_V4_CONFIG = Object.freeze({

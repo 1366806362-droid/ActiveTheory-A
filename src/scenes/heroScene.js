@@ -61,6 +61,12 @@ export function createHeroScene() {
     setPlanetEntryProgress(name, progress) {
       universeRoot.setPlanetEntryProgress(name, progress);
     },
+    setPlanetEntryIntent(name, progress) {
+      universeRoot.setPlanetEntryIntent(name, progress);
+    },
+    getPlanetInteractionTarget(interaction) {
+      return universeRoot.getPlanetInteractionTarget(interaction);
+    },
     update,
     dispose
   };

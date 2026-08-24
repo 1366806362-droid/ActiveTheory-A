@@ -5,7 +5,10 @@ import { createEnergyCore } from './core.js';
 import { createDeepSpaceBackground } from './deepSpaceBackground.js';
 import { createEarthHorizon, readEarthV2State } from './earthHorizon.js';
 import { readGalaxyAssetSelection } from './galaxyAssetProfiles.js';
-import { createGalaxyPlanets } from './galaxyPlanets.js';
+import {
+  BUSINESS_INTERACTION_DEBUG,
+  createGalaxyPlanets
+} from './galaxyPlanets.js';
 import { readGalaxyAtmosphereDebugState } from './galaxyAtmosphere.js';
 import {
   getHeroGalaxyMainFrameQuaternion,
@@ -103,7 +106,11 @@ const HERO_DEBUG = Object.freeze({
   showNebula: DEBUG_MAIN_GALAXY_ACTIVE ? false : readDebugFlag('showNebula', true),
   showDust: DEBUG_MAIN_GALAXY_ACTIVE ? false : readDebugFlag('showDust', true),
   showGlow: DEBUG_MAIN_GALAXY_ONLY ? false : readDebugFlag('showGlow', true),
-  showLabels: DEBUG_MAIN_GALAXY_ACTIVE ? false : readDebugFlag('showLabels', false),
+  showLabels: DEBUG_MAIN_GALAXY_ACTIVE ? false : (
+    GALAXY_V3_STATE.heroVersion === 'v4'
+      ? BUSINESS_INTERACTION_DEBUG.labels
+      : readDebugFlag('showLabels', false)
+  ),
   freezeHeroMotion: DEBUG_MAIN_GALAXY_ACTIVE
     || DEBUG_HERO_COMPOSITION
     || readDebugFlag('freezeHeroMotion', false)
@@ -316,6 +323,12 @@ export function createUniverseRoot() {
     },
     setPlanetEntryProgress(name, progress) {
       galaxyPlanets.setPlanetEntryProgress(name, progress);
+    },
+    setPlanetEntryIntent(name, progress) {
+      galaxyPlanets.setPlanetEntryIntent(name, progress);
+    },
+    getPlanetInteractionTarget(interaction) {
+      return galaxyPlanets.getPlanetInteractionTarget(interaction);
     },
     update: updateUniverseRoot,
     dispose: disposeUniverseRoot

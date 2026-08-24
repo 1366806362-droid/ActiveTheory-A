@@ -16,6 +16,9 @@ const interactionState = {
   targetProximity: 0,
   active: 0,
   targetActive: 0,
+  intentVersion: 0,
+  intentX: 0,
+  intentY: 0,
   trailX,
   trailY,
   trailLife,
@@ -24,13 +27,26 @@ const interactionState = {
 };
 
 let isInitialized = false;
+let pointerDownX = 0;
+let pointerDownY = 0;
+let pointerDownClientX = 0;
+let pointerDownClientY = 0;
 
-function handlePointerMove(event) {
+function normalizePointer(event) {
   const width = window.innerWidth || 1;
   const height = window.innerHeight || 1;
 
-  interactionState.targetX = (event.clientX / width - 0.5) * 2;
-  interactionState.targetY = -(event.clientY / height - 0.5) * 2;
+  return {
+    x: (event.clientX / width - 0.5) * 2,
+    y: -(event.clientY / height - 0.5) * 2
+  };
+}
+
+function handlePointerMove(event) {
+  const pointer = normalizePointer(event);
+
+  interactionState.targetX = pointer.x;
+  interactionState.targetY = pointer.y;
   const distance = Math.min(
     Math.sqrt(
       interactionState.targetX * interactionState.targetX +
@@ -42,6 +58,31 @@ function handlePointerMove(event) {
   interactionState.targetStrength = distance;
   interactionState.targetProximity = 1 - smoothstep(0.18, 0.82, distance);
   interactionState.targetActive = 1;
+}
+
+function handlePointerDown(event) {
+  if (event.button !== 0) return;
+
+  const pointer = normalizePointer(event);
+  pointerDownX = pointer.x;
+  pointerDownY = pointer.y;
+  pointerDownClientX = event.clientX;
+  pointerDownClientY = event.clientY;
+}
+
+function handlePointerUp(event) {
+  if (event.button !== 0) return;
+
+  const travel = Math.hypot(
+    event.clientX - pointerDownClientX,
+    event.clientY - pointerDownClientY
+  );
+
+  if (travel > 8) return;
+
+  interactionState.intentX = pointerDownX;
+  interactionState.intentY = pointerDownY;
+  interactionState.intentVersion += 1;
 }
 
 function handlePointerLeave() {
@@ -56,6 +97,8 @@ export function initializeInteraction() {
   if (!isInitialized) {
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerleave', handlePointerLeave);
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointerup', handlePointerUp);
     isInitialized = true;
   }
 
@@ -63,6 +106,8 @@ export function initializeInteraction() {
     dispose() {
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerleave', handlePointerLeave);
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointerup', handlePointerUp);
       isInitialized = false;
     }
   };

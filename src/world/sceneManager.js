@@ -3,6 +3,7 @@ import { createBrandMindScene } from '../scenes/brandMindScene.js';
 import { createFiveAScene } from '../scenes/fiveAScene.js';
 import { createGeoScene } from '../scenes/geoScene.js';
 import { resolveGeoRuntimeMode } from '../scenes/geo/geoVisualProfiles.js';
+import { getInteractionState } from '../universe/interaction.js';
 import {
   GALAXY_TOUR_ANCHORS,
   getTourAnchor,
@@ -22,6 +23,8 @@ const WHEEL_IDLE_RELEASE_MS = 120;
 const CAMERA_PATH_START_PROGRESS = 0.04;
 const GEO_JOURNEY_WHEEL_STEPS = 7;
 const GEO_JOURNEY_PROGRESS_EPSILON = 0.000001;
+const ENTRY_INTENT_DURATION_MS = 450;
+const POINTER_ENTRY_TRANSITION_MS = 1550;
 const reusablePlanetTarget = new THREE.Vector3();
 const reusableDesiredCamera = new THREE.Vector3();
 const reusableCurrentCamera = new THREE.Vector3();
@@ -70,6 +73,9 @@ const TARGETS = Object.freeze({
     cameraOffset: [0.68, 0.62, 3.66]
   })
 });
+const TARGET_KEY_BY_NEBULA = Object.freeze(Object.fromEntries(
+  Object.values(TARGETS).map(({ key, nebulaName }) => [nebulaName, key])
+));
 
 export function createSceneManager({ heroScene }) {
   const geoJourneyWheelMode = isGeoV3JourneyWheelMode();
@@ -104,6 +110,14 @@ export function createSceneManager({ heroScene }) {
   };
   const diagnostics = createTourDiagnostics(state, geoJourneyWheelMode);
   let lastTargetKey = getTourAnchor(initialRouteIndex).target;
+  let lastIntentVersion = getInteractionState().intentVersion;
+  const pointerEntry = {
+    name: null,
+    targetKey: null,
+    startedAt: 0,
+    transitionStartedAt: 0,
+    drivingTransition: false
+  };
 
   root.name = 'ActiveTheorySceneManager';
   scenes.forEach((scene) => {
@@ -255,6 +269,7 @@ export function createSceneManager({ heroScene }) {
   }
 
   function update(renderState, delta, time) {
+    updatePointerEntryIntent();
     updateTransitionProgress(delta);
     const view = getTourView(state);
     const targetConfig = view.targetKey ? TARGETS[view.targetKey] : null;
@@ -316,6 +331,84 @@ export function createSceneManager({ heroScene }) {
       ? state.routeIndex + state.transition.direction * state.localProgress
       : state.routeIndex;
     diagnostics.update(synchronizedView, readVideoCurrentTime());
+  }
+
+  function updatePointerEntryIntent() {
+    const interaction = getInteractionState();
+    const now = performance.now();
+
+    if (interaction.intentVersion !== lastIntentVersion) {
+      lastIntentVersion = interaction.intentVersion;
+      const anchor = getTourAnchor(state.routeIndex);
+      const interactionTarget = anchor?.scene === 'HeroScene' && !state.transition
+        ? heroScene.getPlanetInteractionTarget({
+          x: interaction.intentX,
+          y: interaction.intentY,
+          active: 1
+        })
+        : null;
+
+      if (interactionTarget) {
+        pointerEntry.name = interactionTarget;
+        pointerEntry.targetKey = TARGET_KEY_BY_NEBULA[interactionTarget] ?? null;
+        pointerEntry.startedAt = now;
+        pointerEntry.transitionStartedAt = 0;
+        pointerEntry.drivingTransition = false;
+      }
+    }
+
+    if (!pointerEntry.name) return;
+
+    if (!pointerEntry.drivingTransition) {
+      const intentProgress = clamp(
+        (now - pointerEntry.startedAt) / ENTRY_INTENT_DURATION_MS,
+        0,
+        1
+      );
+      heroScene.setPlanetEntryIntent(pointerEntry.name, intentProgress);
+
+      if (intentProgress < 1) return;
+
+      heroScene.setPlanetEntryIntent(pointerEntry.name, 0);
+      const nextSegment = getTourSegment(state.routeIndex, state.routeIndex + 1);
+      if (
+        nextSegment?.target === pointerEntry.targetKey
+        && !state.transition
+        && startTransition(1)
+      ) {
+        pointerEntry.drivingTransition = true;
+        pointerEntry.transitionStartedAt = now;
+        state.targetLocalProgress = 0.001;
+        return;
+      }
+
+      clearPointerEntry();
+      return;
+    }
+
+    if (!state.transition) {
+      clearPointerEntry();
+      return;
+    }
+
+    const transitionProgress = Math.max(0.001, smootherstep(
+      0,
+      1,
+      clamp((now - pointerEntry.transitionStartedAt) / POINTER_ENTRY_TRANSITION_MS, 0, 1)
+    ));
+    state.targetLocalProgress = transitionProgress;
+    if (isDirectGeoJourneyTransition()) {
+      state.transitionUnits = transitionProgress * GEO_JOURNEY_WHEEL_STEPS;
+    }
+  }
+
+  function clearPointerEntry() {
+    if (pointerEntry.name) heroScene.setPlanetEntryIntent(pointerEntry.name, 0);
+    pointerEntry.name = null;
+    pointerEntry.targetKey = null;
+    pointerEntry.startedAt = 0;
+    pointerEntry.transitionStartedAt = 0;
+    pointerEntry.drivingTransition = false;
   }
 
   function updateTransitionProgress(delta) {

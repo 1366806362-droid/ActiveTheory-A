@@ -3,6 +3,34 @@ import { createGalaxyCoreCluster } from './galaxyCoreCluster.js';
 import { UNIVERSE_RENDER_DEBUG } from './universeRenderDebug.js';
 
 const TAU = Math.PI * 2;
+export const BUSINESS_INTERACTION_DEBUG_PARAMS = Object.freeze({
+  labels: 'debugBusinessLabels',
+  hover: 'debugBusinessHover'
+});
+
+export function readBusinessInteractionDebug(search = readLocationSearch()) {
+  const params = new URLSearchParams(search);
+
+  return Object.freeze(Object.fromEntries(
+    Object.entries(BUSINESS_INTERACTION_DEBUG_PARAMS).map(([key, parameter]) => (
+      [key, params.get(parameter) !== '0']
+    ))
+  ));
+}
+
+export function readBusinessHoverTarget(search = readLocationSearch()) {
+  const value = new URLSearchParams(search).get(BUSINESS_INTERACTION_DEBUG_PARAMS.hover);
+  const targets = {
+    geo: 'GEO Nebula',
+    '5a': '5A Nebula',
+    brandMind: 'Brand Mind Nebula'
+  };
+
+  return targets[value] ?? null;
+}
+
+export const BUSINESS_INTERACTION_DEBUG = readBusinessInteractionDebug();
+
 export const BRAND_GROWTH_NEBULAE = Object.freeze([
   {
     name: 'GEO Nebula',
@@ -108,24 +136,46 @@ export const BRAND_GROWTH_NEBULAE = Object.freeze([
 export const BRAND_GROWTH_V4_HOME_COMPOSITION = Object.freeze([
   Object.freeze({
     name: 'GEO Nebula',
-    position: Object.freeze([0.74, 0.1, 0.46]),
-    scale: 1.18,
-    opacity: 0.72,
-    layers: Object.freeze({ cluster: 1.25, flow: 0.5, dust: 0.55, nodes: 1.2, visibleCore: 1.1, core: 1.1 })
+    position: Object.freeze([0.72, 0.16, 0.46]),
+    hover: Object.freeze([0.82, 0.2]),
+    labelScale: 0.42,
+    scale: 1.22,
+    opacity: 0.78,
+    layers: Object.freeze({ cluster: 1.4, flow: 0.9, dust: 0.65, nodes: 1.45, visibleCore: 1.3, core: 1.25 }),
+    identity: Object.freeze({
+      mode: 'signal',
+      coreConcentration: 0.62,
+      railCount: 4,
+      pointSizes: Object.freeze({ cluster: 0.018, dust: 0.007, flow: 0.048, nodes: 0.028, core: 0.026, highlights: 0.05 })
+    })
   }),
   Object.freeze({
     name: '5A Nebula',
     position: Object.freeze([-0.28, 0.58, -0.36]),
-    scale: 1.08,
-    opacity: 0.6,
-    layers: Object.freeze({ cluster: 0.65, flow: 1.35, dust: 1.1, nodes: 0.55, visibleCore: 0.25, core: 0.18 })
+    hover: Object.freeze([0.22, 0.51]),
+    labelScale: 0.56,
+    scale: 1.12,
+    opacity: 0.64,
+    layers: Object.freeze({ cluster: 0.58, flow: 1.65, dust: 1.25, nodes: 0.48, visibleCore: 0.12, core: 0.04 }),
+    identity: Object.freeze({
+      mode: 'flow',
+      flowClusters: 4,
+      pointSizes: Object.freeze({ cluster: 0.028, dust: 0.012, flow: 0.09, nodes: 0.04, core: 0.034, highlights: 0.062 })
+    })
   }),
   Object.freeze({
     name: 'Brand Mind Nebula',
-    position: Object.freeze([-1.05, -1.45, -0.72]),
-    scale: 1.45,
-    opacity: 0.58,
-    layers: Object.freeze({ cluster: 0.9, flow: 1.8, dust: 2, nodes: 0.3, visibleCore: 0.25, core: 0.1 })
+    position: Object.freeze([-1.03, -1.42, -0.72]),
+    hover: Object.freeze([-0.04, -0.36]),
+    labelScale: 0.66,
+    scale: 1.48,
+    opacity: 0.59,
+    layers: Object.freeze({ cluster: 0.9, flow: 1.55, dust: 2.6, nodes: 0.22, visibleCore: 0.08, core: 0.025 }),
+    identity: Object.freeze({
+      mode: 'memory',
+      haloSpread: 1.65,
+      pointSizes: Object.freeze({ cluster: 0.023, dust: 0.022, flow: 0.18, nodes: 0.045, core: 0.04, highlights: 0.075 })
+    })
   })
 ]);
 
@@ -144,14 +194,23 @@ const BUSINESS_NEBULA_POINT_COUNT = BRAND_GROWTH_NEBULAE.reduce((total, config) 
 export function createGalaxyPlanets({ homeComposition = 'default' } = {}) {
   const group = new THREE.Group();
   const particleTexture = createNebulaParticleTexture();
+  const businessInteraction = {
+    labels: homeComposition === 'v4' && BUSINESS_INTERACTION_DEBUG.labels,
+    hover: homeComposition === 'v4' && BUSINESS_INTERACTION_DEBUG.hover,
+    forcedHoverTarget: homeComposition === 'v4' ? readBusinessHoverTarget() : null
+  };
   const configs = homeComposition === 'v4'
     ? createV4HomeConfigs()
     : BRAND_GROWTH_NEBULAE;
   const nebulae = configs.map((config, index) => (
-    createBusinessNebula(config, particleTexture, 9107 + index * 193)
+    createBusinessNebula(config, particleTexture, 9107 + index * 193, businessInteraction)
   ));
   const targetPosition = new THREE.Vector3();
   const entryState = {
+    name: null,
+    progress: 0
+  };
+  const intentState = {
     name: null,
     progress: 0
   };
@@ -178,7 +237,8 @@ export function createGalaxyPlanets({ homeComposition = 'default' } = {}) {
         isEntryTarget ? entryState.progress : 0,
         entryState.progress,
         isEntryTarget,
-        interaction
+        interaction,
+        nebula.name === intentState.name ? intentState.progress : 0
       );
     });
   }
@@ -206,6 +266,24 @@ export function createGalaxyPlanets({ homeComposition = 'default' } = {}) {
       entryState.name = name;
       entryState.progress = Math.min(Math.max(progress, 0), 1);
     },
+    setPlanetEntryIntent(name, progress) {
+      intentState.name = name;
+      intentState.progress = Math.min(Math.max(progress, 0), 1);
+    },
+    getPlanetInteractionTarget(interaction) {
+      if (!businessInteraction.hover || !interaction) return null;
+
+      let bestMatch = null;
+      let bestStrength = 0.42;
+      nebulae.forEach((nebula, index) => {
+        const strength = calculateHoverStrength(configs[index], interaction);
+        if (strength > bestStrength) {
+          bestMatch = nebula.name;
+          bestStrength = strength;
+        }
+      });
+      return bestMatch;
+    },
     setLabelsVisible(visible) {
       nebulae.forEach((nebula) => nebula.setLabelVisible(visible));
     },
@@ -219,6 +297,8 @@ export function createGalaxyPlanets({ homeComposition = 'default' } = {}) {
           scale: config.compositionScale ?? 1,
           opacity: config.compositionOpacity ?? 1,
           layers: config.compositionLayers ?? null,
+          identity: config.homeIdentity?.mode ?? null,
+          label: config.label,
           depth: config.anchor[2]
         })))
       });
@@ -239,15 +319,19 @@ function createV4HomeConfigs() {
     return {
       ...config,
       anchor: preset.position,
+      hoverX: preset.hover[0],
+      hoverY: preset.hover[1],
+      labelScale: preset.labelScale,
       visualScale: config.visualScale.map((value) => value * preset.scale),
       compositionScale: preset.scale,
       compositionOpacity: preset.opacity,
-      compositionLayers: preset.layers
+      compositionLayers: preset.layers,
+      homeIdentity: preset.identity
     };
   });
 }
 
-function createBusinessNebula(config, particleTexture, seed) {
+function createBusinessNebula(config, particleTexture, seed, businessInteraction) {
   const orbitalGroup = new THREE.Group();
   const nebulaGroup = new THREE.Group();
   const visualGroup = new THREE.Group();
@@ -273,14 +357,17 @@ function createBusinessNebula(config, particleTexture, seed) {
   });
   const label = createNebulaLabel(config);
   const anchorPosition = new THREE.Vector3(...config.anchor);
+  const baseVisualScale = new THREE.Vector3(...config.visualScale);
   let driftAngle = config.driftPhase;
+  let hoverAmount = 0;
+  let labelVisible = false;
 
   orbitalGroup.name = `${config.name.replace(/\s+/g, '')}Orbit`;
   orbitalGroup.visible = isBusinessNebulaVisible(config.name);
   orbitalGroup.rotation.set(0, 0, 0);
   nebulaGroup.name = config.name.replace(/\s+/g, '');
   visualGroup.name = `${config.name.replace(/\s+/g, '')}VisualEnvelope`;
-  visualGroup.scale.fromArray(config.visualScale);
+  visualGroup.scale.copy(baseVisualScale);
   visualGroup.rotation.z = config.visualRotation;
   visualGroup.add(
     nebula.points,
@@ -293,7 +380,16 @@ function createBusinessNebula(config, particleTexture, seed) {
   nebulaGroup.add(visualGroup);
   orbitalGroup.add(nebulaGroup, label.sprite);
 
-  function update(delta, time, index, entryProgress, focusProgress, isEntryTarget, interaction) {
+  function update(
+    delta,
+    time,
+    index,
+    entryProgress,
+    focusProgress,
+    isEntryTarget,
+    interaction,
+    intentProgress
+  ) {
     const freeze = smoothstep(0.05, 0.24, entryProgress);
     const entryFocus = smoothstep(0.16, 0.66, entryProgress);
     const driftSpeed = TAU / config.driftPeriod * config.driftDirection * (1 - freeze);
@@ -309,10 +405,18 @@ function createBusinessNebula(config, particleTexture, seed) {
     const labelVisibility = isEntryTarget
       ? visibility * (1 - smoothstep(0.44, 0.68, entryProgress))
       : visibility;
-    const hover = calculateHoverStrength(config, interaction);
-    const hoverBoost = 1 + hover * 0.14;
+    const hoverTarget = businessInteraction.forcedHoverTarget
+      ? Number(config.name === businessInteraction.forcedHoverTarget)
+      : businessInteraction.hover
+        ? calculateHoverStrength(config, interaction)
+        : 0;
+    const hoverFollow = 1 - Math.exp(-8 * delta);
+    hoverAmount += (hoverTarget - hoverAmount) * hoverFollow;
+    const intentPulse = Math.sin(Math.min(Math.max(intentProgress, 0), 1) * Math.PI);
+    const hoverProfile = getBusinessHoverProfile(config, hoverAmount, time);
+    const intentBoost = 1 + intentPulse * 0.16;
     const entryBoost = isEntryTarget ? 1 + entryFocus * 0.72 : 1;
-    const visualBoost = hoverBoost * entryBoost;
+    const transitionBoost = intentBoost * entryBoost;
     const homeBlend = 1 - smoothstep(0.02, 0.18, focusProgress);
     const compositionOpacity = lerp(1, config.compositionOpacity ?? 1, homeBlend);
     const layerWeight = (name) => compositionOpacity * lerp(
@@ -338,7 +442,9 @@ function createBusinessNebula(config, particleTexture, seed) {
       anchorPosition.z + driftZ
     );
     nebulaGroup.scale.setScalar(isEntryTarget ? targetScale : backgroundScale);
-    nebulaGroup.rotation.z += delta * config.spin * 0.28 * (1 + hover * 0.12);
+    nebulaGroup.rotation.z += delta * config.spin * 0.28 * (
+      1 + (hoverProfile.motion - 1) * 0.32 + intentPulse * 0.16
+    );
     nebulaGroup.rotation.x = 0;
     nebulaGroup.rotation.y = 0;
     label.sprite.position.set(
@@ -346,13 +452,61 @@ function createBusinessNebula(config, particleTexture, seed) {
       nebulaGroup.position.y + config.labelOffset[1],
       nebulaGroup.position.z + config.labelOffset[2]
     );
-    cluster.update(delta, time, pulse, visibility * layerWeight('cluster'), entryFocus, visualBoost);
-    nebula.update(delta, time, pulse, visibility * layerWeight('flow'), visualBoost);
-    dust.update(delta, time, pulse, visibility * layerWeight('dust'), visualBoost);
-    nodes.update(delta, time, pulse, visibility * layerWeight('nodes'), entryFocus, visualBoost);
-    visibleCore.update(time, pulse, visibility * layerWeight('visibleCore'), visualBoost);
-    coreCluster.update(delta, time, pulse, visibility * layerWeight('core'), entryFocus, visualBoost);
-    label.update(labelVisibility, hover);
+    visualGroup.scale.copy(baseVisualScale).multiplyScalar(1 - intentPulse * 0.025);
+    cluster.update(
+      delta,
+      time,
+      pulse,
+      visibility * layerWeight('cluster'),
+      entryFocus,
+      transitionBoost * hoverProfile.cluster,
+      homeBlend,
+      hoverProfile.motion
+    );
+    nebula.update(
+      delta,
+      time,
+      pulse,
+      visibility * layerWeight('flow'),
+      transitionBoost * hoverProfile.flow,
+      homeBlend,
+      hoverProfile.motion
+    );
+    dust.update(
+      delta,
+      time,
+      pulse,
+      visibility * layerWeight('dust'),
+      transitionBoost * hoverProfile.dust,
+      homeBlend,
+      hoverProfile.motion
+    );
+    nodes.update(
+      delta,
+      time,
+      pulse,
+      visibility * layerWeight('nodes'),
+      entryFocus,
+      transitionBoost * hoverProfile.nodes,
+      homeBlend,
+      hoverProfile.motion
+    );
+    visibleCore.update(
+      time,
+      pulse,
+      visibility * layerWeight('visibleCore'),
+      transitionBoost * hoverProfile.core,
+      homeBlend
+    );
+    coreCluster.update(
+      delta,
+      time,
+      pulse,
+      visibility * layerWeight('core'),
+      entryFocus,
+      transitionBoost * hoverProfile.core
+    );
+    label.update(delta, labelVisibility, hoverAmount, intentPulse, labelVisible);
   }
 
   function dispose() {
@@ -371,7 +525,8 @@ function createBusinessNebula(config, particleTexture, seed) {
     group: orbitalGroup,
     nebulaGroup,
     setLabelVisible(visible) {
-      label.sprite.visible = false;
+      labelVisible = Boolean(visible && businessInteraction.labels);
+      label.sprite.visible = labelVisible;
     },
     update,
     dispose
@@ -426,7 +581,8 @@ function createNebulaCluster(config, texture, seed) {
     colors[i3 + 2] = color.b * brightness;
   }
 
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const identityPositions = createHomeIdentityPositions(config, 'cluster', count, seed + 401);
+  geometry.setAttribute('position', new THREE.BufferAttribute(identityPositions?.slice() ?? positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geometry.computeBoundingSphere();
 
@@ -446,11 +602,14 @@ function createNebulaCluster(config, texture, seed) {
 
   points.name = `${config.name.replace(/\s+/g, '')}SpiralCluster`;
 
-  function update(delta, time, pulse, visibility, entryProgress, hoverBoost) {
-    points.rotation.z += delta * config.spin * 0.38;
+  function update(delta, time, pulse, visibility, entryProgress, hoverBoost, homeBlend, motionBoost = 1) {
+    applyHomeIdentityPositions(geometry, positions, identityPositions, homeBlend);
+    points.rotation.z += delta * config.spin * 0.38 * motionBoost;
     points.rotation.y = Math.sin(time * 0.08 + config.phase) * 0.08;
     material.opacity = (0.64 + pulse * 0.1 + entryProgress * 0.08) * visibility * hoverBoost * config.brightness;
-    material.size = (0.026 + pulse * 0.002 + entryProgress * 0.005) * (0.98 + (hoverBoost - 1) * 0.25);
+    const legacySize = 0.026 + pulse * 0.002 + entryProgress * 0.005;
+    const identitySize = (config.homeIdentity?.pointSizes.cluster ?? legacySize) * (1 + pulse * 0.04);
+    material.size = lerp(legacySize, identitySize, homeBlend) * (0.98 + (hoverBoost - 1) * 0.25);
   }
 
   function dispose() {
@@ -484,7 +643,8 @@ function createNebulaDust(config, texture, seed) {
     colors[i3 + 2] = color.b * brightness;
   }
 
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const identityPositions = createHomeIdentityPositions(config, 'dust', count, seed + 409);
+  geometry.setAttribute('position', new THREE.BufferAttribute(identityPositions?.slice() ?? positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
   const material = new THREE.PointsMaterial({
@@ -501,9 +661,11 @@ function createNebulaDust(config, texture, seed) {
   });
   const points = new THREE.Points(geometry, material);
 
-  function update(delta, time, pulse, visibility, hoverBoost) {
-    points.rotation.z -= delta * config.spin * 0.12;
+  function update(delta, time, pulse, visibility, hoverBoost, homeBlend, motionBoost = 1) {
+    applyHomeIdentityPositions(geometry, positions, identityPositions, homeBlend);
+    points.rotation.z -= delta * config.spin * 0.12 * motionBoost;
     material.opacity = (0.3 + pulse * 0.12) * visibility * (0.96 + (hoverBoost - 1) * 0.5) * config.brightness;
+    material.size = lerp(0.011, config.homeIdentity?.pointSizes.dust ?? 0.011, homeBlend);
   }
 
   function dispose() {
@@ -543,7 +705,8 @@ function createLocalNebula(config, texture, seed) {
     colors[stride + 2] = color.b;
   }
 
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const identityPositions = createHomeIdentityPositions(config, 'flow', count, seed + 419);
+  geometry.setAttribute('position', new THREE.BufferAttribute(identityPositions?.slice() ?? positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   const material = new THREE.PointsMaterial({
     size: 0.075,
@@ -561,10 +724,14 @@ function createLocalNebula(config, texture, seed) {
 
   points.name = `${config.name.replace(/\s+/g, '')}LocalNebula`;
   points.renderOrder = -1;
-  function update(delta, time, pulse, visibility, hoverBoost) {
-    points.rotation.z += delta * config.spin * 0.18;
+  function update(delta, time, pulse, visibility, hoverBoost, homeBlend, motionBoost = 1) {
+    applyHomeIdentityPositions(geometry, positions, identityPositions, homeBlend);
+    points.rotation.z += delta * config.spin * 0.18 * motionBoost;
     material.opacity = (0.16 + pulse * 0.045) * visibility * hoverBoost;
-    material.size = 0.072 + Math.sin(time * 0.18 + config.phase) * 0.003;
+    const legacySize = 0.072 + Math.sin(time * 0.18 + config.phase) * 0.003;
+    const identitySize = (config.homeIdentity?.pointSizes.flow ?? legacySize)
+      + Math.sin(time * 0.18 + config.phase) * 0.002;
+    material.size = lerp(legacySize, identitySize, homeBlend);
   }
 
   function dispose() {
@@ -597,7 +764,8 @@ function createNebulaNodes(config, texture, seed) {
     colors[i3 + 2] = accent.b;
   }
 
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const identityPositions = createHomeIdentityPositions(config, 'nodes', count, seed + 431);
+  geometry.setAttribute('position', new THREE.BufferAttribute(identityPositions?.slice() ?? positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
   const material = new THREE.PointsMaterial({
@@ -614,10 +782,13 @@ function createNebulaNodes(config, texture, seed) {
   });
   const points = new THREE.Points(geometry, material);
 
-  function update(delta, time, pulse, visibility, entryProgress, hoverBoost) {
-    points.rotation.z += delta * config.spin * 0.54;
+  function update(delta, time, pulse, visibility, entryProgress, hoverBoost, homeBlend, motionBoost = 1) {
+    applyHomeIdentityPositions(geometry, positions, identityPositions, homeBlend);
+    points.rotation.z += delta * config.spin * 0.54 * motionBoost;
     material.opacity = (0.52 + pulse * 0.3 + entryProgress * 0.12) * visibility * hoverBoost * config.brightness;
-    material.size = (0.04 + pulse * 0.01 + entryProgress * 0.012) * (0.98 + (hoverBoost - 1) * 0.4);
+    const legacySize = 0.04 + pulse * 0.01 + entryProgress * 0.012;
+    const identitySize = (config.homeIdentity?.pointSizes.nodes ?? legacySize) * (1 + pulse * 0.1);
+    material.size = lerp(legacySize, identitySize, homeBlend) * (0.98 + (hoverBoost - 1) * 0.4);
   }
 
   function dispose() {
@@ -654,7 +825,16 @@ function createVisibleCore(config, texture, seed) {
     starColors[stride + 2] = color.b * config.brightness;
   }
 
-  starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+  const identityStarPositions = createHomeIdentityPositions(
+    config,
+    'core',
+    config.visibleCoreCount,
+    seed + 443
+  );
+  starGeometry.setAttribute(
+    'position',
+    new THREE.BufferAttribute(identityStarPositions?.slice() ?? starPositions, 3)
+  );
   starGeometry.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
   const starMaterial = new THREE.PointsMaterial({
     size: 0.034,
@@ -686,7 +866,11 @@ function createVisibleCore(config, texture, seed) {
     highlightColors[stride + 2] = accent.b;
   }
 
-  highlightGeometry.setAttribute('position', new THREE.BufferAttribute(highlightPositions, 3));
+  const identityHighlightPositions = createHomeIdentityPositions(config, 'highlights', 3, seed + 449);
+  highlightGeometry.setAttribute(
+    'position',
+    new THREE.BufferAttribute(identityHighlightPositions?.slice() ?? highlightPositions, 3)
+  );
   highlightGeometry.setAttribute('color', new THREE.BufferAttribute(highlightColors, 3));
   const highlightMaterial = new THREE.PointsMaterial({
     size: 0.064,
@@ -704,12 +888,25 @@ function createVisibleCore(config, texture, seed) {
 
   group.name = `${config.name.replace(/\s+/g, '')}VisibleCore`;
   group.add(stars, highlights);
-  function update(time, pulse, visibility, hoverBoost) {
+  function update(time, pulse, visibility, hoverBoost, homeBlend) {
+    applyHomeIdentityPositions(starGeometry, starPositions, identityStarPositions, homeBlend);
+    applyHomeIdentityPositions(
+      highlightGeometry,
+      highlightPositions,
+      identityHighlightPositions,
+      homeBlend
+    );
     const scale = 0.985 + Math.sin(time * 0.22 + config.phase) * 0.015;
 
     group.scale.setScalar(scale);
     starMaterial.opacity = (0.78 + pulse * 0.12) * visibility * hoverBoost;
     highlightMaterial.opacity = (0.7 + pulse * 0.16) * visibility * hoverBoost;
+    starMaterial.size = lerp(0.034, config.homeIdentity?.pointSizes.core ?? 0.034, homeBlend);
+    highlightMaterial.size = lerp(
+      0.064,
+      config.homeIdentity?.pointSizes.highlights ?? 0.064,
+      homeBlend
+    );
   }
 
   function dispose() {
@@ -725,28 +922,62 @@ function createVisibleCore(config, texture, seed) {
 
 function createNebulaLabel(config) {
   const texture = createLabelTexture(config.label, config.accent);
+  const markerTexture = createLabelMarkerTexture(config.accent);
+  const width = config.labelScale ?? 0.4;
   const material = new THREE.SpriteMaterial({
     map: texture,
     color: 0xffffff,
     transparent: true,
-    opacity: 0.36,
+    opacity: 0,
     depthWrite: false,
     depthTest: false,
     fog: false
   });
-  const sprite = new THREE.Sprite(material);
+  const markerMaterial = new THREE.SpriteMaterial({
+    map: markerTexture,
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    depthTest: false,
+    fog: false
+  });
+  const textSprite = new THREE.Sprite(material);
+  const marker = new THREE.Sprite(markerMaterial);
+  const sprite = new THREE.Group();
+  let opacity = 0;
+  let markerOpacity = 0;
 
   sprite.name = `${config.name.replace(/\s+/g, '')}Label`;
-  sprite.scale.set(0.48, 0.12, 1);
+  textSprite.scale.set(width, width * 0.25, 1);
+  marker.scale.set(width * 0.48, width * 0.12, 1);
+  marker.position.set(0, -width * 0.15, 0.001);
+  textSprite.raycast = () => {};
+  marker.raycast = () => {};
+  sprite.add(textSprite, marker);
 
-  function update(visibility, hover) {
-    material.opacity = (0.68 + hover * 0.16) * visibility;
-    sprite.scale.set(0.48 + hover * 0.03, 0.12 + hover * 0.008, 1);
+  function update(delta, visibility, hover, intentPulse, visible) {
+    const targetOpacity = visible
+      ? (0.48 + hover * 0.52) * visibility
+      : 0;
+    const targetMarkerOpacity = visible
+      ? Math.max(hover, intentPulse * 0.9) * visibility
+      : 0;
+    const follow = 1 - Math.exp(-8 * delta);
+    opacity += (targetOpacity - opacity) * follow;
+    markerOpacity += (targetMarkerOpacity - markerOpacity) * follow;
+    material.opacity = opacity;
+    material.color.setScalar(0.82 + hover * 0.18);
+    markerMaterial.opacity = markerOpacity;
+    marker.visible = markerOpacity > 0.01;
   }
 
   function dispose() {
     texture.dispose();
+    markerTexture.dispose();
     material.dispose();
+    markerMaterial.dispose();
+    sprite.clear();
   }
 
   return { sprite, update, dispose };
@@ -762,19 +993,46 @@ function createLabelTexture(text, color) {
   canvas.width = width;
   canvas.height = height;
   context.clearRect(0, 0, width, height);
-  context.font = '700 42px Inter, Arial, sans-serif';
+  context.font = '500 38px Inter, Arial, sans-serif';
   context.textAlign = 'center';
   context.textBaseline = 'middle';
-  context.letterSpacing = '4px';
-  context.shadowColor = `rgba(${Math.round(labelColor.r * 255)}, ${Math.round(labelColor.g * 255)}, ${Math.round(labelColor.b * 255)}, 0.45)`;
-  context.shadowBlur = 10;
-  context.fillStyle = `rgba(${Math.round(labelColor.r * 235 + 20)}, ${Math.round(labelColor.g * 235 + 20)}, ${Math.round(labelColor.b * 235 + 20)}, 0.9)`;
+  context.letterSpacing = '5px';
+  context.shadowColor = `rgba(${Math.round(labelColor.r * 255)}, ${Math.round(labelColor.g * 255)}, ${Math.round(labelColor.b * 255)}, 0.22)`;
+  context.shadowBlur = 4;
+  context.fillStyle = `rgba(${Math.round(labelColor.r * 220 + 35)}, ${Math.round(labelColor.g * 220 + 35)}, ${Math.round(labelColor.b * 220 + 35)}, 0.82)`;
   context.fillText(text, width * 0.5, height * 0.5);
 
   const texture = new THREE.CanvasTexture(canvas);
 
   texture.colorSpace = THREE.SRGBColorSpace;
 
+  return texture;
+}
+
+function createLabelMarkerTexture(color) {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  const markerColor = new THREE.Color(color);
+  const red = Math.round(markerColor.r * 255);
+  const green = Math.round(markerColor.g * 255);
+  const blue = Math.round(markerColor.b * 255);
+
+  canvas.width = 128;
+  canvas.height = 32;
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.strokeStyle = `rgba(${red}, ${green}, ${blue}, 0.96)`;
+  context.lineWidth = 2;
+  context.beginPath();
+  context.moveTo(18, 16);
+  context.lineTo(88, 16);
+  context.stroke();
+  context.fillStyle = `rgba(${red}, ${green}, ${blue}, 0.95)`;
+  context.beginPath();
+  context.arc(101, 16, 4, 0, TAU);
+  context.fill();
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
 }
 
@@ -791,6 +1049,43 @@ function calculateHoverStrength(config, interaction) {
   return hover * interaction.active;
 }
 
+function getBusinessHoverProfile(config, hover, time) {
+  const mode = config.homeIdentity?.mode;
+
+  if (mode === 'signal') {
+    const nodePulse = 0.5 + Math.sin(time * 3.2 + config.phase) * 0.5;
+    return {
+      cluster: 1 + hover * 0.3,
+      flow: 1 + hover * 0.48,
+      dust: 1 + hover * 0.22,
+      nodes: 1 + hover * (0.55 + nodePulse * 0.12),
+      core: 1 + hover * 0.3,
+      motion: 1 + hover * 0.28
+    };
+  }
+
+  if (mode === 'flow') {
+    return {
+      cluster: 1 + hover * 0.18,
+      flow: 1 + hover * 0.78,
+      dust: 1 + hover * 0.4,
+      nodes: 1 + hover * 0.24,
+      core: 1 + hover * 0.1,
+      motion: 1 + hover * 0.4
+    };
+  }
+
+  const breathing = 0.5 + Math.sin(time * 0.72 + config.phase) * 0.5;
+  return {
+    cluster: 1 + hover * 0.16,
+    flow: 1 + hover * (0.58 + breathing * 0.1),
+    dust: 1 + hover * (0.68 + breathing * 0.12),
+    nodes: 1 + hover * (0.5 + breathing * 0.08),
+    core: 1 + hover * 0.5,
+    motion: 1 + hover * 0.1
+  };
+}
+
 function smoothstep(edge0, edge1, value) {
   const x = Math.min(Math.max((value - edge0) / (edge1 - edge0), 0), 1);
 
@@ -799,6 +1094,104 @@ function smoothstep(edge0, edge1, value) {
 
 function lerp(start, end, amount) {
   return start + (end - start) * amount;
+}
+
+function readLocationSearch() {
+  return typeof window === 'undefined' ? '' : window.location.search;
+}
+
+function createHomeIdentityPositions(config, layer, count, seed) {
+  const identity = config.homeIdentity;
+  if (!identity) return null;
+
+  const random = seededRandom(seed);
+  const positions = new Float32Array(count * 3);
+  const size = config.size;
+
+  for (let index = 0; index < count; index += 1) {
+    const stride = index * 3;
+    const gaussianX = clampGaussian(gaussianRandom(random));
+    const gaussianY = clampGaussian(gaussianRandom(random));
+    const gaussianZ = clampGaussian(gaussianRandom(random));
+    let x;
+    let y;
+    let z;
+
+    if (identity.mode === 'signal') {
+      const coreLayer = layer === 'core' || layer === 'highlights';
+      const concentration = layer === 'cluster'
+        ? identity.coreConcentration
+        : layer === 'nodes'
+          ? 0.35
+          : 0.12;
+      const concentrated = coreLayer || index / Math.max(count, 1) < concentration;
+      if (concentrated) {
+        const spread = coreLayer ? 0.11 : 0.2;
+        x = gaussianX * size * spread;
+        y = gaussianY * size * spread * 0.48;
+        z = gaussianZ * size * spread * 0.28;
+      } else {
+        const railIndex = index % identity.railCount;
+        const railAngle = -2.65 + railIndex * (3.2 / Math.max(identity.railCount - 1, 1));
+        const railProgress = 0.18 + random() * 0.82;
+        const railLength = size * (layer === 'dust' ? 0.62 : 0.52) * railProgress;
+        x = Math.cos(railAngle) * railLength - Math.sin(railAngle) * gaussianY * size * 0.012;
+        y = Math.sin(railAngle) * railLength + Math.cos(railAngle) * gaussianY * size * 0.012;
+        z = gaussianZ * size * 0.035;
+      }
+    } else if (identity.mode === 'flow') {
+      const clusterCount = identity.flowClusters;
+      const clusterIndex = index % clusterCount;
+      const bridgeParticle = layer === 'flow' && index % 3 === 0;
+      const progress = bridgeParticle
+        ? random()
+        : clusterIndex / Math.max(clusterCount - 1, 1);
+      const scatter = layer === 'dust' ? 0.1 : layer === 'flow' ? 0.075 : 0.052;
+      x = (progress - 0.5) * size * 1.5 + gaussianX * size * scatter;
+      y = Math.sin((progress * 0.9 + 0.05) * Math.PI) * size * 0.38
+        - size * 0.1
+        + gaussianY * size * scatter * 0.72;
+      z = gaussianZ * size * scatter * 0.75;
+    } else {
+      const layerSpread = layer === 'flow'
+        ? 1.2
+        : layer === 'dust'
+          ? 1
+          : layer === 'core' || layer === 'highlights'
+            ? 0.46
+            : 0.78;
+      const angle = random() * TAU;
+      const irregularity = 0.78 + Math.sin(angle * 3 + 0.9) * 0.14 + random() * 0.12;
+      const radius = Math.pow(random(), 0.58)
+        * size
+        * identity.haloSpread
+        * layerSpread
+        * irregularity;
+      x = Math.cos(angle) * radius + gaussianX * size * 0.04;
+      y = Math.sin(angle) * radius * 0.7 + gaussianY * size * 0.035;
+      z = gaussianZ * size * 0.17 * layerSpread;
+    }
+
+    positions[stride] = x;
+    positions[stride + 1] = y;
+    positions[stride + 2] = z;
+  }
+
+  return positions;
+}
+
+function applyHomeIdentityPositions(geometry, legacyPositions, identityPositions, homeBlend) {
+  if (!identityPositions) return;
+
+  const blend = Math.min(Math.max(homeBlend, 0), 1);
+  if (geometry.userData.homeIdentityBlend === blend) return;
+
+  const attribute = geometry.getAttribute('position');
+  for (let index = 0; index < attribute.array.length; index += 1) {
+    attribute.array[index] = lerp(legacyPositions[index], identityPositions[index], blend);
+  }
+  attribute.needsUpdate = true;
+  geometry.userData.homeIdentityBlend = blend;
 }
 
 function createNebulaParticleTexture() {

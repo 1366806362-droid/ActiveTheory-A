@@ -7,6 +7,10 @@ const output = path.resolve(
   process.env.ACTIVETHEORY_COMPOSITION_SCREENSHOT
     || 'art/visual-gate/universe-composition-v1/UNIVERSE_COMPOSITION_V11.png'
 );
+const pointerX = Number(process.env.ACTIVETHEORY_POINTER_X ?? 760);
+const pointerY = Number(process.env.ACTIVETHEORY_POINTER_Y ?? 360);
+const clickEntry = process.env.ACTIVETHEORY_CLICK_ENTRY === '1';
+const verifyReturn = process.env.ACTIVETHEORY_VERIFY_RETURN === '1';
 
 (async () => {
   const launchOptions = { headless: true };
@@ -59,8 +63,19 @@ const output = path.resolve(
     window.__ACTIVE_THEORY_GALAXY_V3__?.heroAsset?.layerCount === 5
       && window.__ACTIVE_THEORY_EARTH_V2__?.textureStatus === 'ready'
   ));
-  await page.mouse.move(760, 360);
+  await page.mouse.move(pointerX, pointerY);
   await page.waitForTimeout(800);
+  if (clickEntry) {
+    await page.mouse.click(pointerX, pointerY);
+    await page.waitForTimeout(2300);
+    if (verifyReturn) {
+      for (let step = 0; step < 7; step += 1) {
+        await page.mouse.wheel(0, 120);
+        await page.waitForTimeout(45);
+      }
+      await page.waitForTimeout(1600);
+    }
+  }
   const before = await page.evaluate(() => ({ draws: window.__drawCalls, frames: window.__rafCallbacks }));
   await page.waitForTimeout(1500);
   const after = await page.evaluate(() => ({ draws: window.__drawCalls, frames: window.__rafCallbacks }));
@@ -70,12 +85,14 @@ const output = path.resolve(
     wheelListeners: window.__wheelListeners,
     earthV2: window.__ACTIVE_THEORY_EARTH_V2__ ?? null,
     galaxyV3: window.__ACTIVE_THEORY_GALAXY_V3__ ?? null,
-    composition: window.__ACTIVE_THEORY_UNIVERSE_COMPOSITION__ ?? null
+    composition: window.__ACTIVE_THEORY_UNIVERSE_COMPOSITION__ ?? null,
+    tour: window.__HERO_GEO_SCROLL_STATUS__ ?? null
   }));
   const frames = Math.max(1, after.frames - before.frames);
   await browser.close();
   console.log(JSON.stringify({
     url,
+    pointer: { x: pointerX, y: pointerY, clickEntry, verifyReturn },
     screenshot: output,
     fps: Number((frames / 1.5).toFixed(1)),
     averageDrawCalls: Number(((after.draws - before.draws) / frames).toFixed(1)),

@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import {
   BRAND_GROWTH_NEBULAE,
-  BRAND_GROWTH_V4_HOME_COMPOSITION
+  BRAND_GROWTH_V4_HOME_COMPOSITION,
+  BUSINESS_INTERACTION_DEBUG_PARAMS,
+  readBusinessHoverTarget,
+  readBusinessInteractionDebug
 } from './galaxyPlanets.js';
 import { HERO_GALAXY_V2_CONFIG } from './galaxyPreviewConfig.js';
 import {
@@ -47,6 +50,23 @@ test('V4 home composition preserves depth separation and descending visual weigh
   assert.ok(brandMind.layers.dust > brandMind.layers.visibleCore);
 });
 
+test('V1.2 assigns distinct signal, flow, and memory identities without adding systems', () => {
+  const [geo, fiveA, brandMind] = BRAND_GROWTH_V4_HOME_COMPOSITION;
+
+  assert.deepEqual(
+    BRAND_GROWTH_V4_HOME_COMPOSITION.map(({ identity }) => identity.mode),
+    ['signal', 'flow', 'memory']
+  );
+  assert.ok(geo.identity.coreConcentration > 0.6);
+  assert.ok(geo.identity.railCount >= 3 && geo.identity.railCount <= 5);
+  assert.ok(fiveA.identity.flowClusters >= 4);
+  assert.ok(brandMind.identity.haloSpread > 1.5);
+  assert.ok(geo.identity.pointSizes.cluster < fiveA.identity.pointSizes.cluster);
+  assert.ok(brandMind.identity.pointSizes.flow > fiveA.identity.pointSizes.flow);
+  assert.ok(brandMind.layers.visibleCore < 0.1);
+  assert.ok(brandMind.layers.core < 0.05);
+});
+
 test('GEO is forward-right, 5A is upper-rear, and Brand Mind is lower-deep', () => {
   const [geo, fiveA, brandMind] = BRAND_GROWTH_NEBULAE;
 
@@ -80,6 +100,33 @@ test('Business nebula particle budget stays realtime-friendly', () => {
   ), 0);
 
   assert.ok(total < 2000, `Expected fewer than 2000 business-nebula points, received ${total}.`);
+});
+
+test('V1.4 business labels stay minimal and bound to the existing nebulae', () => {
+  assert.deepEqual(
+    BRAND_GROWTH_NEBULAE.map(({ label }) => label),
+    ['GEO', '5A', 'BRAND MIND']
+  );
+  BRAND_GROWTH_NEBULAE.forEach(({ labelOffset }) => {
+    assert.equal(labelOffset.length, 3);
+  });
+});
+
+test('V1.4 labels and hover can be disabled independently by URL flags', () => {
+  assert.deepEqual(readBusinessInteractionDebug(''), { labels: true, hover: true });
+  Object.entries(BUSINESS_INTERACTION_DEBUG_PARAMS).forEach(([target, parameter]) => {
+    const state = readBusinessInteractionDebug(`?${parameter}=0`);
+    Object.entries(state).forEach(([key, enabled]) => {
+      assert.equal(enabled, key !== target, `${parameter} changed ${key}`);
+    });
+  });
+});
+
+test('V1.4.1 browser gate can force one existing hover target without changing layout', () => {
+  assert.equal(readBusinessHoverTarget('?debugBusinessHover=geo'), 'GEO Nebula');
+  assert.equal(readBusinessHoverTarget('?debugBusinessHover=5a'), '5A Nebula');
+  assert.equal(readBusinessHoverTarget('?debugBusinessHover=brandMind'), 'Brand Mind Nebula');
+  assert.equal(readBusinessHoverTarget('?debugBusinessHover=0'), null);
 });
 
 test('V1.1 composition shrinks the main galaxy without changing the camera', () => {
