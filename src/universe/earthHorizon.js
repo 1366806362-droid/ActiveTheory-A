@@ -19,6 +19,20 @@ export const EARTH_V2_HERO_COMPOSITION = Object.freeze({
   atmosphereRadius: 1.93
 });
 
+export const EARTH_V2_RESPONSIVE_COMPOSITION = Object.freeze({
+  desktop: EARTH_V2_HERO_COMPOSITION,
+  mobilePortrait: Object.freeze({
+    position: Object.freeze([-4.2, -5.6, 0.65]),
+    scale: 2.6,
+    rotation: EARTH_V2_HERO_COMPOSITION.rotation
+  }),
+  mobileLandscape: Object.freeze({
+    position: Object.freeze([-15.4, -11.4, 0.65]),
+    scale: 4.55,
+    rotation: EARTH_V2_HERO_COMPOSITION.rotation
+  })
+});
+
 const EARTH_LAYER_MODES = Object.freeze({
   surfaceOnly: 0,
   landOnly: 1,
@@ -229,6 +243,15 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
     });
   }
 
+  function setResponsiveComposition(mode = 'desktop') {
+    if (!heroV2) return;
+    const preset = EARTH_V2_RESPONSIVE_COMPOSITION[mode]
+      ?? EARTH_V2_RESPONSIVE_COMPOSITION.desktop;
+    group.position.fromArray(preset.position);
+    group.scale.setScalar(preset.scale);
+    group.rotation.fromArray(preset.rotation);
+  }
+
   function setLayerMode(mode = 'combined') {
     if (hybridDebug.enabled || textureLayers.isReady()) {
       applyHybridMode();
@@ -310,6 +333,7 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
     atmosphereGroup,
     sunriseGlow,
     update,
+    setResponsiveComposition,
     setLayerMode,
     applyHybridMode,
     getTextureStatus: () => textureStatus,

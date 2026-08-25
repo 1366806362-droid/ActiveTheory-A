@@ -10,12 +10,14 @@ import {
   prepareGeoCinematicGradeScene,
   resolveGeoCinematicGrade
 } from '../scenes/geo/geoCinematicGrade.js';
+import { readViewportMetrics, subscribeViewport } from './viewport.js';
 
 export function createPostProcessing({ renderer, scene, camera }) {
+  const initialViewport = readViewportMetrics();
   const composer = new EffectComposer(renderer);
   const renderPass = new RenderPass(scene, camera);
   const bloomPass = new UnrealBloomPass(
-    new THREE.Vector2(window.innerWidth, window.innerHeight),
+    new THREE.Vector2(initialViewport.width, initialViewport.height),
     0.3,
     0.11,
     0.78
@@ -48,8 +50,8 @@ export function createPostProcessing({ renderer, scene, camera }) {
   bloomPass.strength = 0.3;
   bloomPass.radius = 0.11;
 
-  composer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-  composer.setSize(window.innerWidth, window.innerHeight);
+  composer.setPixelRatio(initialViewport.pixelRatio);
+  composer.setSize(initialViewport.width, initialViewport.height);
   composer.addPass(renderPass);
   composer.addPass(bloomPass);
   if (gradePass) composer.addPass(gradePass);
@@ -61,17 +63,15 @@ export function createPostProcessing({ renderer, scene, camera }) {
   }
   resizeGradeTarget();
 
-  function resizePostProcessing() {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-
-    composer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  function resizePostProcessing(viewport) {
+    const { width, height, pixelRatio } = viewport;
+    composer.setPixelRatio(pixelRatio);
     composer.setSize(width, height);
     bloomPass.setSize(width, height);
-    resizeGradeTarget();
+    resizeGradeTarget(viewport);
   }
 
-  window.addEventListener('resize', resizePostProcessing);
+  const disposeViewport = subscribeViewport(resizePostProcessing);
 
   return {
     composer,
@@ -85,7 +85,7 @@ export function createPostProcessing({ renderer, scene, camera }) {
       composer.render();
     },
     dispose() {
-      window.removeEventListener('resize', resizePostProcessing);
+      disposeViewport();
       gradeController.dispose();
       gradePass?.material.dispose();
       gradeTarget?.dispose();
@@ -93,11 +93,11 @@ export function createPostProcessing({ renderer, scene, camera }) {
     }
   };
 
-  function resizeGradeTarget() {
+  function resizeGradeTarget(viewport = readViewportMetrics()) {
     if (!gradeTarget || !gradePass) return;
     const pixelRatio = Math.min(renderer.getPixelRatio(), 1.25);
-    const width = Math.max(1, Math.floor(window.innerWidth * 0.5 * pixelRatio));
-    const height = Math.max(1, Math.floor(window.innerHeight * 0.5 * pixelRatio));
+    const width = Math.max(1, Math.floor(viewport.width * 0.5 * pixelRatio));
+    const height = Math.max(1, Math.floor(viewport.height * 0.5 * pixelRatio));
 
     gradeTarget.setSize(width, height);
     gradePass.uniforms.uBloomTexel.value.set(1 / width, 1 / height);

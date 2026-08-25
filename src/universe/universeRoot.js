@@ -4,6 +4,8 @@ import { createCinematicGalaxy } from './cinematicGalaxy.js';
 import { createEnergyCore } from './core.js';
 import { createDeepSpaceBackground } from './deepSpaceBackground.js';
 import { createEarthHorizon, readEarthV2State } from './earthHorizon.js';
+import { readViewportMetrics, VIEWPORT_MODES } from '../engine/viewport.js';
+import { resolveUniverseV4Composition } from './universeResponsiveComposition.js';
 import { readGalaxyAssetSelection } from './galaxyAssetProfiles.js';
 import {
   BUSINESS_INTERACTION_DEBUG,
@@ -140,7 +142,8 @@ const universeState = {
   debugBackdrop: null,
   cinematicDebugSignature: null,
   scrollHintDebugState: null,
-  heroCompositionDebug: null
+  heroCompositionDebug: null,
+  responsiveMode: null
 };
 const mouseParallaxState = { x: 0, y: 0 };
 const backgroundUpdateState = {
@@ -284,6 +287,7 @@ export function createUniverseRoot() {
   universeState.nodeSystem = nodeSystem;
   universeState.particleField = particleField;
   universeState.earthHorizon = earthHorizon;
+  syncResponsiveComposition(true);
   if (EARTH_V2_ENABLED && typeof window !== 'undefined') {
     window.__ACTIVE_THEORY_EARTH_V2__ = earthHorizon.getStatus();
   }
@@ -341,6 +345,8 @@ export function updateUniverseRoot(renderState, delta, time, journeyProgress = 0
   }
 
   const cinematicDebug = CINEMATIC_GALAXY_DEBUG;
+
+  syncResponsiveComposition();
 
   syncCinematicGalaxyDebugState(cinematicDebug);
   updateGalaxyRuntimePerformance(delta, journeyProgress);
@@ -479,7 +485,7 @@ export function updateUniverseRoot(renderState, delta, time, journeyProgress = 0
 }
 
 function applyGalaxyComposition(galaxyGroup, cinematicDebugEnabled) {
-  const compactViewport = window.innerWidth < 700;
+  const viewportMode = readViewportMetrics().mode;
 
   if (HERO_GALAXY_VERSION_STATE.isV2) {
     galaxyGroup.position.fromArray(
@@ -497,12 +503,54 @@ function applyGalaxyComposition(galaxyGroup, cinematicDebugEnabled) {
     return;
   }
 
-  galaxyGroup.position.set(
-    compactViewport ? -0.3 : 0.12,
-    compactViewport ? 0.04 : 0.4,
-    0
-  );
+  if (GALAXY_V3_STATE.heroVersion === 'v4') {
+    const composition = resolveUniverseV4Composition(viewportMode).galaxyRoot;
+    galaxyGroup.position.fromArray(composition.position);
+    galaxyGroup.scale.setScalar(composition.scale);
+    return;
+  }
+
+  const compactViewport = viewportMode !== VIEWPORT_MODES.DESKTOP;
+  galaxyGroup.position.set(compactViewport ? -0.3 : 0.12, compactViewport ? 0.04 : 0.4, 0);
   galaxyGroup.scale.setScalar(compactViewport ? 1.02 : 1.42);
+}
+
+function syncResponsiveComposition(force = false) {
+  if (!universeState.galaxyGroup) return;
+  const viewport = readViewportMetrics();
+  if (!force && universeState.responsiveMode === viewport.mode) return;
+
+  universeState.responsiveMode = viewport.mode;
+  if (GALAXY_V3_STATE.heroVersion === 'v4') {
+    const composition = resolveUniverseV4Composition(viewport.mode);
+    applyGroupComposition(universeState.galaxyV3?.layers.heroAsset, composition.heroAssetLayer);
+    applyGroupComposition(universeState.galaxyV3?.layers.gpuStars, composition.gpuStarsLayer);
+    universeState.galaxyPlanets?.setResponsiveComposition(viewport.mode);
+    universeState.earthHorizon?.setResponsiveComposition(viewport.mode);
+  }
+  applyGalaxyComposition(universeState.galaxyGroup, false);
+
+  if (typeof window !== 'undefined') {
+    const diagnostics = Object.freeze({
+      mode: viewport.mode,
+      width: viewport.width,
+      height: viewport.height,
+      aspect: viewport.aspect,
+      galaxy: resolveUniverseV4Composition(viewport.mode),
+      business: universeState.galaxyPlanets?.getCompositionStatus() ?? null,
+      earth: universeState.earthHorizon?.getStatus() ?? null
+    });
+    window.__ACTIVE_THEORY_MOBILE_COMPOSITION__ = diagnostics;
+    if (import.meta.env.DEV) {
+      document.documentElement.dataset.mobileComposition = JSON.stringify(diagnostics);
+    }
+  }
+}
+
+function applyGroupComposition(group, composition) {
+  if (!group || !composition) return;
+  group.position.fromArray(composition.position);
+  group.scale.setScalar(composition.scale);
 }
 
 function applyMainGalaxyComposition(mainGalaxyFrame) {
@@ -620,6 +668,11 @@ export function disposeUniverseRoot() {
   universeState.cinematicDebugSignature = null;
   universeState.scrollHintDebugState = null;
   universeState.heroCompositionDebug = null;
+  universeState.responsiveMode = null;
+  if (typeof window !== 'undefined') {
+    delete window.__ACTIVE_THEORY_MOBILE_COMPOSITION__;
+    delete document.documentElement.dataset.mobileComposition;
+  }
 }
 
 export const universeRootManager = {

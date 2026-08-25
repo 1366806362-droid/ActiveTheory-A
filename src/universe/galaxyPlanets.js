@@ -179,6 +179,27 @@ export const BRAND_GROWTH_V4_HOME_COMPOSITION = Object.freeze([
   })
 ]);
 
+export const BRAND_GROWTH_V4_MOBILE_COMPOSITION = Object.freeze({
+  mobilePortrait: Object.freeze({
+    groupPosition: Object.freeze([0.04, 0.08, 0.02]),
+    groupScale: 1,
+    nebulae: Object.freeze({
+      'GEO Nebula': Object.freeze({ position: [0.08, 0.28, 0.46], scale: 0.72, labelScale: 0.46 }),
+      '5A Nebula': Object.freeze({ position: [-0.64, 0.34, -0.36], scale: 0.7, labelScale: 0.55 }),
+      'Brand Mind Nebula': Object.freeze({ position: [-0.48, -0.72, -0.72], scale: 0.72, labelScale: 0.5 })
+    })
+  }),
+  mobileLandscape: Object.freeze({
+    groupPosition: Object.freeze([-0.04, 0.24, 0.02]),
+    groupScale: 1,
+    nebulae: Object.freeze({
+      'GEO Nebula': Object.freeze({ position: [0.85, -0.05, 0.46], scale: 0.84, labelScale: 0.52 }),
+      '5A Nebula': Object.freeze({ position: [-0.26, 0.58, -0.36], scale: 0.82, labelScale: 0.56 }),
+      'Brand Mind Nebula': Object.freeze({ position: [-0.46, -0.58, -0.72], scale: 0.82, labelScale: 0.6 })
+    })
+  })
+});
+
 const BUSINESS_NEBULA_POINT_COUNT = BRAND_GROWTH_NEBULAE.reduce((total, config) => (
   total
   + config.coreStars
@@ -253,6 +274,14 @@ export function createGalaxyPlanets({ homeComposition = 'default' } = {}) {
 
   return {
     group,
+    setResponsiveComposition(mode = 'desktop') {
+      const mobilePreset = BRAND_GROWTH_V4_MOBILE_COMPOSITION[mode];
+      group.position.fromArray(mobilePreset?.groupPosition ?? [0.64, 0.39, 0.02]);
+      group.scale.setScalar(mobilePreset?.groupScale ?? 1);
+      nebulae.forEach((nebula) => {
+        nebula.setResponsiveComposition(mobilePreset?.nebulae?.[nebula.name] ?? null);
+      });
+    },
     getPlanetWorldPosition(name, target = targetPosition) {
       const nebula = nebulae.find((candidate) => candidate.name === name);
 
@@ -291,15 +320,15 @@ export function createGalaxyPlanets({ homeComposition = 'default' } = {}) {
       return Object.freeze({
         mode: homeComposition,
         groupPosition: group.position.toArray(),
-        nebulae: Object.freeze(configs.map((config) => Object.freeze({
-          name: config.name,
-          position: [...config.anchor],
-          scale: config.compositionScale ?? 1,
-          opacity: config.compositionOpacity ?? 1,
-          layers: config.compositionLayers ?? null,
-          identity: config.homeIdentity?.mode ?? null,
-          label: config.label,
-          depth: config.anchor[2]
+        nebulae: Object.freeze(nebulae.map((nebula, index) => Object.freeze({
+          name: nebula.name,
+          position: nebula.getCompositionStatus().position,
+          scale: nebula.getCompositionStatus().scale,
+          opacity: configs[index].compositionOpacity ?? 1,
+          layers: configs[index].compositionLayers ?? null,
+          identity: configs[index].homeIdentity?.mode ?? null,
+          label: configs[index].label,
+          depth: nebula.getCompositionStatus().position[2]
         })))
       });
     },
@@ -527,6 +556,17 @@ function createBusinessNebula(config, particleTexture, seed, businessInteraction
     setLabelVisible(visible) {
       labelVisible = Boolean(visible && businessInteraction.labels);
       label.sprite.visible = labelVisible;
+    },
+    setResponsiveComposition(preset) {
+      anchorPosition.fromArray(preset?.position ?? config.anchor);
+      baseVisualScale.fromArray(config.visualScale).multiplyScalar(preset?.scale ?? 1);
+      label.setScale(preset?.labelScale ?? config.labelScale ?? 0.4);
+    },
+    getCompositionStatus() {
+      return {
+        position: anchorPosition.toArray(),
+        scale: baseVisualScale.x / config.visualScale[0]
+      };
     },
     update,
     dispose
@@ -923,7 +963,7 @@ function createVisibleCore(config, texture, seed) {
 function createNebulaLabel(config) {
   const texture = createLabelTexture(config.label, config.accent);
   const markerTexture = createLabelMarkerTexture(config.accent);
-  const width = config.labelScale ?? 0.4;
+  let width = config.labelScale ?? 0.4;
   const material = new THREE.SpriteMaterial({
     map: texture,
     color: 0xffffff,
@@ -949,9 +989,7 @@ function createNebulaLabel(config) {
   let markerOpacity = 0;
 
   sprite.name = `${config.name.replace(/\s+/g, '')}Label`;
-  textSprite.scale.set(width, width * 0.25, 1);
-  marker.scale.set(width * 0.48, width * 0.12, 1);
-  marker.position.set(0, -width * 0.15, 0.001);
+  applyScale(width);
   textSprite.raycast = () => {};
   marker.raycast = () => {};
   sprite.add(textSprite, marker);
@@ -972,6 +1010,13 @@ function createNebulaLabel(config) {
     marker.visible = markerOpacity > 0.01;
   }
 
+  function applyScale(nextWidth) {
+    width = nextWidth;
+    textSprite.scale.set(width, width * 0.25, 1);
+    marker.scale.set(width * 0.48, width * 0.12, 1);
+    marker.position.set(0, -width * 0.15, 0.001);
+  }
+
   function dispose() {
     texture.dispose();
     markerTexture.dispose();
@@ -980,7 +1025,7 @@ function createNebulaLabel(config) {
     sprite.clear();
   }
 
-  return { sprite, update, dispose };
+  return { sprite, update, setScale: applyScale, dispose };
 }
 
 function createLabelTexture(text, color) {

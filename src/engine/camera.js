@@ -1,11 +1,15 @@
 import * as THREE from 'three';
+import { readViewportMetrics, subscribeViewport } from './viewport.js';
 
 let camera = null;
+let disposeViewport = null;
 
 export function initializeCamera(renderer) {
+  disposeViewport?.();
+  const viewport = readViewportMetrics();
   camera = new THREE.PerspectiveCamera(
     60,
-    window.innerWidth / window.innerHeight,
+    viewport.aspect,
     0.1,
     1000
   );
@@ -13,10 +17,18 @@ export function initializeCamera(renderer) {
   camera.position.set(0, 2, 5);
   camera.lookAt(0, 0, 0);
 
-  window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
+  disposeViewport = subscribeViewport((nextViewport) => {
+    camera.aspect = nextViewport.aspect;
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(nextViewport.pixelRatio);
+    renderer.setSize(nextViewport.width, nextViewport.height);
+    if (import.meta.env.DEV) {
+      window.__ACTIVE_THEORY_VIEWPORT__ = Object.freeze({
+        ...nextViewport,
+        cameraAspect: camera.aspect,
+        cameraFov: camera.fov
+      });
+    }
   });
 
   return camera;
@@ -24,4 +36,11 @@ export function initializeCamera(renderer) {
 
 export function getCamera() {
   return camera;
+}
+
+export function disposeCamera() {
+  disposeViewport?.();
+  disposeViewport = null;
+  camera = null;
+  if (typeof window !== 'undefined') delete window.__ACTIVE_THEORY_VIEWPORT__;
 }

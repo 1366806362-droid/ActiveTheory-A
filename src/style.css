@@ -8,6 +8,19 @@ body,
   background: #000;
 }
 
+html[data-active-theory-viewport^='mobile'] body,
+html[data-active-theory-viewport^='mobile'] #app {
+  width: var(--active-viewport-width, 100dvw);
+  height: var(--active-viewport-height, 100dvh);
+  min-height: 100dvh;
+  overscroll-behavior: none;
+}
+
+html[data-active-theory-viewport^='mobile'] canvas {
+  width: var(--active-viewport-width, 100dvw) !important;
+  height: var(--active-viewport-height, 100dvh) !important;
+}
+
 #app {
   position: relative;
 }
@@ -118,9 +131,67 @@ canvas {
 }
 
 @media (max-width: 680px) {
+  .hero-copy {
+    top: calc(env(safe-area-inset-top, 0px) + 18px);
+    left: calc(env(safe-area-inset-left, 0px) + 18px);
+    max-width: calc(
+      100dvw
+      - env(safe-area-inset-left, 0px)
+      - env(safe-area-inset-right, 0px)
+      - 36px
+    );
+  }
+
+  .hero-copy__eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+  }
+
+  .hero-copy__title {
+    margin-top: 9px;
+    font-size: clamp(25px, 8.5vw, 36px);
+    line-height: 1.02;
+  }
+
+  .hero-copy__subtitle {
+    margin-top: 9px;
+    font-size: 11px;
+    letter-spacing: 0.11em;
+  }
+
+  .hero-copy__meta {
+    margin-top: 16px;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+  }
+
   .hero-copy__status-list {
     grid-template-columns: 1fr;
     gap: 8px;
     max-width: 230px;
+  }
+
+  .hero-scroll-hint {
+    left: calc(env(safe-area-inset-left, 0px) + 18px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .hero-copy {
+    top: calc(env(safe-area-inset-top, 0px) + 14px);
+    left: calc(env(safe-area-inset-left, 0px) + 18px);
+    max-width: min(310px, 42vw);
+  }
+
+  .hero-copy__eyebrow { font-size: 9px; }
+  .hero-copy__title { margin-top: 6px; font-size: 27px; }
+  .hero-copy__subtitle { margin-top: 6px; font-size: 9px; }
+  .hero-copy__meta { margin-top: 10px; font-size: 8px; }
+  .hero-copy__meta::before { margin-bottom: 9px; }
+  .hero-copy__status-list { display: none; }
+  .hero-scroll-hint {
+    left: calc(env(safe-area-inset-left, 0px) + 18px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
   }
 }

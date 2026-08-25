@@ -7,7 +7,7 @@ import {
   startCameraEmotion,
   updateCameraEmotion
 } from './cameraEmotion.js';
-import { getCamera, initializeCamera } from './camera.js';
+import { disposeCamera, getCamera, initializeCamera } from './camera.js';
 import {
   initializeCohesionSystem,
   updateCohesion
@@ -120,6 +120,7 @@ export function initializeEngine() {
       sceneManager.dispose();
       environmentMap.dispose();
       postProcessing.dispose();
+      disposeCamera();
       renderer.dispose();
       renderer.domElement.remove();
     }
