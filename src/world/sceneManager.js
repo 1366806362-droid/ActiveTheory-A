@@ -6,6 +6,7 @@ import { resolveGeoRuntimeMode } from '../scenes/geo/geoVisualProfiles.js';
 import { getInteractionState } from '../universe/interaction.js';
 import {
   GALAXY_TOUR_ANCHORS,
+  getDirectEntryContract,
   getTourAnchor,
   getTourRouteDefinition,
   getTourSegment
@@ -118,6 +119,7 @@ export function createSceneManager({ heroScene }) {
     transitionStartedAt: 0,
     drivingTransition: false
   };
+  let directEntrySession = null;
 
   root.name = 'ActiveTheorySceneManager';
   scenes.forEach((scene) => {
@@ -236,6 +238,13 @@ export function createSceneManager({ heroScene }) {
   }
 
   function startTransition(direction) {
+    if (
+      directEntrySession
+      && state.routeIndex === directEntrySession.activeIndex
+    ) {
+      return startDirectReturn(direction);
+    }
+
     const toIndex = state.routeIndex + direction;
     const fromAnchor = getTourAnchor(state.routeIndex);
     const toAnchor = getTourAnchor(toIndex);
@@ -250,14 +259,34 @@ export function createSceneManager({ heroScene }) {
       return false;
     }
 
-    state.transition = {
+    return beginTransition({
       segment,
       direction,
       fromIndex: state.routeIndex,
       toIndex,
       fromAnchor,
+      toAnchor
+    });
+  }
+
+  function beginTransition({
+    segment,
+    direction,
+    fromIndex,
+    toIndex,
+    fromAnchor,
+    toAnchor,
+    directPhase = null
+  }) {
+    state.transition = {
+      segment,
+      direction,
+      fromIndex,
+      toIndex,
+      fromAnchor,
       toAnchor,
-      needsCapture: fromAnchor.scene === 'HeroScene'
+      needsCapture: fromAnchor.scene === 'HeroScene',
+      directPhase
     };
     state.transitionStartedAt = performance.now();
     state.localProgress = 0;
@@ -266,6 +295,58 @@ export function createSceneManager({ heroScene }) {
     state.direction = direction;
     state.nextScene = toAnchor.scene;
     return true;
+  }
+
+  function requestDirectEntry(targetKey) {
+    const contract = getDirectEntryContract(targetKey);
+    const originIndex = state.routeIndex;
+    const fromAnchor = getTourAnchor(originIndex);
+    const toAnchor = getTourAnchor(contract?.activeIndex);
+
+    if (
+      !contract
+      || !fromAnchor
+      || fromAnchor.scene !== 'HeroScene'
+      || !toAnchor
+      || state.transition
+      || directEntrySession
+    ) {
+      return false;
+    }
+
+    directEntrySession = {
+      targetKey,
+      originIndex,
+      activeIndex: contract.activeIndex,
+      returnSegment: contract.returnSegment
+    };
+
+    return beginTransition({
+      segment: contract.entrySegment,
+      direction: 1,
+      fromIndex: originIndex,
+      toIndex: contract.activeIndex,
+      fromAnchor,
+      toAnchor,
+      directPhase: 'entry'
+    });
+  }
+
+  function startDirectReturn(direction) {
+    const fromAnchor = getTourAnchor(directEntrySession.activeIndex);
+    const toAnchor = getTourAnchor(directEntrySession.originIndex);
+
+    if (!fromAnchor || !toAnchor || state.transition) return false;
+
+    return beginTransition({
+      segment: directEntrySession.returnSegment,
+      direction,
+      fromIndex: directEntrySession.activeIndex,
+      toIndex: directEntrySession.originIndex,
+      fromAnchor,
+      toAnchor,
+      directPhase: 'return'
+    });
   }
 
   function update(renderState, delta, time) {
@@ -328,7 +409,11 @@ export function createSceneManager({ heroScene }) {
     state.activeScene = synchronizedView.activeScene;
     state.nextScene = state.transition?.toAnchor.scene ?? null;
     state.scrollProgress = state.transition
-      ? state.routeIndex + state.transition.direction * state.localProgress
+      ? lerp(
+        state.transition.fromIndex,
+        state.transition.toIndex,
+        state.localProgress
+      )
       : state.routeIndex;
     diagnostics.update(synchronizedView, readVideoCurrentTime());
   }
@@ -371,11 +456,10 @@ export function createSceneManager({ heroScene }) {
 
       heroScene.setPlanetEntryIntent(pointerEntry.name, 0);
       const nextSegment = getTourSegment(state.routeIndex, state.routeIndex + 1);
-      if (
-        nextSegment?.target === pointerEntry.targetKey
-        && !state.transition
-        && startTransition(1)
-      ) {
+      const transitionStarted = nextSegment?.target === pointerEntry.targetKey
+        ? !state.transition && startTransition(1)
+        : requestDirectEntry(pointerEntry.targetKey);
+      if (transitionStarted) {
         pointerEntry.drivingTransition = true;
         pointerEntry.transitionStartedAt = now;
         state.targetLocalProgress = 0.001;
@@ -442,8 +526,9 @@ export function createSceneManager({ heroScene }) {
 
   function completeTransition() {
     const now = performance.now();
+    const completedTransition = state.transition;
 
-    state.routeIndex = state.transition.toIndex;
+    state.routeIndex = completedTransition.toIndex;
     state.transition = null;
     state.localProgress = 1;
     state.targetLocalProgress = 1;
@@ -456,11 +541,15 @@ export function createSceneManager({ heroScene }) {
     state.transitionUnits = getTourAnchor(state.routeIndex).scene === 'GeoScene'
       ? GEO_JOURNEY_WHEEL_STEPS
       : 0;
+    if (completedTransition.directPhase === 'return') {
+      directEntrySession = null;
+    }
     synchronizeGeoJourneyUxEndpoint(state, geoJourneyWheelMode);
   }
 
   function cancelTransition() {
     const now = performance.now();
+    const cancelledTransition = state.transition;
 
     state.transition = null;
     state.localProgress = 1;
@@ -474,6 +563,9 @@ export function createSceneManager({ heroScene }) {
     state.transitionUnits = getTourAnchor(state.routeIndex).scene === 'GeoScene'
       ? GEO_JOURNEY_WHEEL_STEPS
       : 0;
+    if (cancelledTransition.directPhase === 'entry') {
+      directEntrySession = null;
+    }
     synchronizeGeoJourneyUxEndpoint(state, geoJourneyWheelMode);
   }
 

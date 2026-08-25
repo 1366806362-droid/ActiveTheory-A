@@ -70,6 +70,16 @@ export const GALAXY_TOUR_SEGMENTS = Object.freeze([
   })
 ]);
 
+const GALAXY_DIRECT_ENTRY_TARGETS = Object.freeze(['fiveA', 'brandMind']);
+const GALAXY_DIRECT_RETURN_SEGMENTS = Object.freeze({
+  brandMind: Object.freeze({
+    id: 'BRAND_MIND_RETURN',
+    from: 'BRAND_MIND_ACTIVE',
+    to: 'HERO_START',
+    target: 'brandMind'
+  })
+});
+
 export function getTourAnchor(index) {
   return GALAXY_TOUR_ANCHORS[index] ?? null;
 }
@@ -85,4 +95,24 @@ export function getTourRouteDefinition() {
     anchors: GALAXY_TOUR_ANCHORS.map((anchor, index) => ({ index, ...anchor })),
     segments: GALAXY_TOUR_SEGMENTS.map((segment, index) => ({ index, ...segment }))
   };
+}
+
+export function getDirectEntryContract(target) {
+  if (!GALAXY_DIRECT_ENTRY_TARGETS.includes(target)) return null;
+
+  const entryIndex = GALAXY_TOUR_SEGMENTS.findIndex((segment) => (
+    segment.target === target && segment.id.endsWith('_ENTER')
+  ));
+  const returnSegment = GALAXY_TOUR_SEGMENTS.find((segment) => (
+    segment.target === target && segment.id.endsWith('_RETURN')
+  )) ?? GALAXY_DIRECT_RETURN_SEGMENTS[target];
+
+  if (entryIndex < 0 || !returnSegment) return null;
+
+  return Object.freeze({
+    target,
+    activeIndex: entryIndex + 1,
+    entrySegment: GALAXY_TOUR_SEGMENTS[entryIndex],
+    returnSegment
+  });
 }
