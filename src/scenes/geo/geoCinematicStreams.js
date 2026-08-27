@@ -10,6 +10,17 @@ const CINEMATIC_BODY_PARTICLES = 656;
 const CINEMATIC_HIGHLIGHT_NODES = 64;
 const CINEMATIC_FLOW_PARTICLES = CINEMATIC_BODY_PARTICLES + CINEMATIC_HIGHLIGHT_NODES;
 
+export const GEO_CINEMATIC_STREAM_ART_PROFILE = Object.freeze({
+  version: 'v1-final',
+  bodyParticles: CINEMATIC_BODY_PARTICLES,
+  highlightParticles: CINEMATIC_HIGHLIGHT_NODES,
+  totalParticles: CINEMATIC_FLOW_PARTICLES,
+  brightnessRatio: Object.freeze({ lowMid: 0.85, brighter: 0.12, hero: 0.03 }),
+  signalClumps: Object.freeze({ answer: 4, citation: 5, keyword: 4 }),
+  particleLanguage: 'radial-soft-signal',
+  trajectoryLanguage: 'broken-secondary-guides'
+});
+
 const STREAM_STYLES = Object.freeze([
   Object.freeze({
     id: 'answer',
@@ -19,7 +30,7 @@ const STREAM_STYLES = Object.freeze([
     width: 0.088,
     speed: 0.041,
     phase: 0.08,
-    fieldOpacity: 0.048,
+    fieldOpacity: 0.025,
     filamentCount: 3,
     bodyCount: 244,
     nodeCount: 26
@@ -27,12 +38,12 @@ const STREAM_STYLES = Object.freeze([
   Object.freeze({
     id: 'citation',
     color: '#d8efff',
-    highlight: '#b9acd5',
+    highlight: '#f5fbff',
     bow: [-0.1, 0.2, -0.32],
     width: 0.07,
     speed: 0.022,
     phase: 0.36,
-    fieldOpacity: 0.038,
+    fieldOpacity: 0.019,
     filamentCount: 3,
     bodyCount: 192,
     nodeCount: 18
@@ -45,7 +56,7 @@ const STREAM_STYLES = Object.freeze([
     width: 0.076,
     speed: 0.029,
     phase: 0.62,
-    fieldOpacity: 0.041,
+    fieldOpacity: 0.021,
     filamentCount: 2,
     bodyCount: 220,
     nodeCount: 20
@@ -108,7 +119,7 @@ export function createGeoCinematicStreams(resources, clusterConfigs, visualProfi
 function configureBaseLayer(group) {
   group.traverse((object) => {
     if (object.name === 'Broken Semantic Data Lines' && object.material?.isShaderMaterial) {
-      object.material.uniforms.uLayerOpacity = { value: 0.42 };
+      object.material.uniforms.uLayerOpacity = { value: 0.14 };
       object.material.fragmentShader = `
         uniform float uLayerOpacity;
       ${object.material.fragmentShader.replace(
@@ -169,10 +180,10 @@ function createCinematicLayers(pointTexture, clusterConfigs) {
         : [1, 1, 1];
       const streamHeads = journey ? streamReveal : [1, 1, 1];
 
-      directionField.material.uniforms.uOpacity.value = reveal;
+      directionField.material.uniforms.uOpacity.value = reveal * 0.56;
       directionField.material.uniforms.uTime.value = time;
       directionField.material.uniforms.uStreamReveal.value.fromArray(streamReveal);
-      filaments.material.uniforms.uOpacity.value = reveal * 0.54;
+      filaments.material.uniforms.uOpacity.value = reveal * 0.2;
       filaments.material.uniforms.uStreamReveal.value.fromArray(streamReveal);
       filaments.material.uniforms.uStreamHeads.value.fromArray(streamHeads);
       particles.update(time, progress, journey);
@@ -599,6 +610,8 @@ function createParticleLayer(pointTexture, curves, highlightLayer) {
   const branchIndices = new Int8Array(totalCount);
   const baseSizes = new Float32Array(totalCount);
   const baseOpacities = new Float32Array(totalCount);
+  const energies = new Float32Array(totalCount);
+  const seeds = new Float32Array(totalCount);
   const random = seededRandom(highlightLayer ? 34129 : 3907);
   const point = new THREE.Vector3();
   const tangent = new THREE.Vector3();
@@ -622,6 +635,13 @@ function createParticleLayer(pointTexture, curves, highlightLayer) {
         : style.id === 'keyword'
           ? (localIndex % 2 === 0 ? -1 : 1)
           : localIndex % 5 - 2;
+      const heroSignal = localIndex % 37 === 0;
+      const brighterSignal = !heroSignal && localIndex % 8 === 0;
+      const streamSizeScale = style.id === 'answer'
+        ? 1.08
+        : style.id === 'citation'
+          ? 0.9
+          : 0.78;
 
       streamIndices[cursor] = curveIndex;
       branchIndices[cursor] = branch;
@@ -631,14 +651,14 @@ function createParticleLayer(pointTexture, curves, highlightLayer) {
         * (style.id === 'answer' ? 1.34 : style.id === 'citation' ? 1.5 : 1.16);
       depthOffsets[cursor] = (random() - 0.5)
         * style.width
-        * (style.id === 'citation' ? 2.15 : 1.9);
+        * (style.id === 'citation' ? 2.45 : style.id === 'keyword' ? 2.25 : 2.12);
       colors[stride] = color.r;
       colors[stride + 1] = color.g;
       colors[stride + 2] = color.b;
 
       if (highlightLayer) {
-        baseSizes[cursor] = 1.36 + random() * 0.92;
-        baseOpacities[cursor] = 0.58 + random() * 0.28;
+        baseSizes[cursor] = (1.18 + random() * 0.8) * streamSizeScale;
+        baseOpacities[cursor] = 0.48 + random() * 0.24;
       } else {
         const tier = localIndex % 20;
         baseSizes[cursor] = tier < 15
@@ -646,10 +666,17 @@ function createParticleLayer(pointTexture, curves, highlightLayer) {
           : tier < 19
             ? 0.86 + random() * 0.28
             : 1.08 + random() * 0.18;
+        baseSizes[cursor] *= streamSizeScale;
         baseOpacities[cursor] = tier < 15
           ? 0.46 + random() * 0.18
           : 0.62 + random() * 0.18;
       }
+      energies[cursor] = heroSignal
+        ? 1.36
+        : brighterSignal
+          ? 0.86 + random() * 0.12
+          : (highlightLayer ? 0.54 : 0.24) + random() * (highlightLayer ? 0.2 : 0.28);
+      seeds[cursor] = random() * Math.PI * 2;
       sizes[cursor] = baseSizes[cursor];
       opacities[cursor] = baseOpacities[cursor];
       cursor += 1;
@@ -661,6 +688,8 @@ function createParticleLayer(pointTexture, curves, highlightLayer) {
   geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
   geometry.setAttribute('aOpacity', new THREE.BufferAttribute(opacities, 1));
   geometry.setAttribute('aStream', new THREE.BufferAttribute(streamIndices, 1));
+  geometry.setAttribute('aEnergy', new THREE.BufferAttribute(energies, 1));
+  geometry.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
   const material = createCinematicPointMaterial(pointTexture, highlightLayer);
   const points = new THREE.Points(geometry, material);
 
@@ -678,6 +707,8 @@ function createParticleLayer(pointTexture, curves, highlightLayer) {
       const positionAttribute = geometry.getAttribute('position');
       const sizeAttribute = geometry.getAttribute('aSize');
       const opacityAttribute = geometry.getAttribute('aOpacity');
+
+      material.uniforms.uTime.value = effectiveTime;
 
       for (let index = 0; index < totalCount; index += 1) {
         const curveIndex = streamIndices[index];
@@ -700,6 +731,7 @@ function createParticleLayer(pointTexture, curves, highlightLayer) {
         const coreShield = smootherstep(0.75, 0.91, t)
           * (1 - smootherstep(0.94, 1, t));
         const entryLift = smootherstep(0.94, 1, t);
+        const signalClump = getSignalClumpGain(style.id, t);
 
         curve.getPointAt(t, point);
         curve.getTangentAt(t, tangent);
@@ -708,7 +740,7 @@ function createParticleLayer(pointTexture, curves, highlightLayer) {
           side,
           lateralOffsets[index] * spread + getBranchOffset(style.id, branchIndices[index], t)
         );
-        point.z += depthOffsets[index] * spread;
+        point.z += depthOffsets[index] * (0.3 + spread * 0.7);
         point.z -= smootherstep(0.72, 0.91, t) * 0.075;
         point.z += entryLift * 0.052;
 
@@ -717,13 +749,15 @@ function createParticleLayer(pointTexture, curves, highlightLayer) {
         positionAttribute.array[stride + 2] = point.z;
         sizeAttribute.array[index] = baseSizes[index]
           * (1 - coreShield * 0.1)
-          * (1 + entryLift * (highlightLayer ? 0.14 : 0.07));
+          * (1 + entryLift * (highlightLayer ? 0.14 : 0.07))
+          * (0.94 + signalClump * (highlightLayer ? 0.18 : 0.1));
         opacityAttribute.array[index] = baseOpacities[index]
           * reveal
           * journeyReveal
           * pathMask
           * (1 - coreShield * 0.14)
-          * (1 + entryLift * (highlightLayer ? 0.18 : 0.1));
+          * (1 + entryLift * (highlightLayer ? 0.18 : 0.1))
+          * (0.74 + signalClump * 0.46);
       }
 
       positionAttribute.needsUpdate = true;
@@ -760,6 +794,22 @@ function applyDensityWarp(streamId, t) {
   return (t + Math.sin(t * Math.PI * 5) * 0.014 + 1) % 1;
 }
 
+function getSignalClumpGain(streamId, t) {
+  const centers = streamId === 'answer'
+    ? [0.16, 0.38, 0.59, 0.82]
+    : streamId === 'citation'
+      ? [0.1, 0.27, 0.46, 0.68, 0.86]
+      : [0.14, 0.36, 0.63, 0.84];
+  const width = streamId === 'citation' ? 0.055 : streamId === 'keyword' ? 0.062 : 0.07;
+  let gain = 0;
+
+  centers.forEach((center) => {
+    const distance = Math.abs(t - center);
+    gain = Math.max(gain, Math.exp(-(distance * distance) / (width * width)));
+  });
+  return gain;
+}
+
 function getSpreadEnvelope(streamId, t, branchIndex) {
   if (streamId === 'answer') {
     const branchPulse = Math.sin(Math.PI * smootherstep(0.18, 0.62, t));
@@ -791,16 +841,23 @@ function createCinematicPointMaterial(pointTexture, highlightLayer) {
     uniforms: {
       uPointTexture: { value: pointTexture },
       uGlobalOpacity: { value: 0 },
-      uDebugStream: { value: 0 }
+      uDebugStream: { value: 0 },
+      uTime: { value: 0 }
     },
     vertexShader: `
       attribute vec3 color;
       attribute float aSize;
       attribute float aOpacity;
       attribute float aStream;
+      attribute float aEnergy;
+      attribute float aSeed;
       uniform float uDebugStream;
+      uniform float uTime;
       varying vec3 vColor;
       varying float vOpacity;
+      varying float vEnergy;
+      varying float vShimmer;
+      varying float vDepthFade;
 
       void main() {
         float streamVisible = uDebugStream < 0.5
@@ -810,7 +867,11 @@ function createCinematicPointMaterial(pointTexture, highlightLayer) {
         vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
         vColor = color;
         vOpacity = aOpacity * streamVisible;
-        gl_PointSize = aSize * ${highlightLayer ? '18.0' : '15.0'} / max(-viewPosition.z, 1.0);
+        vEnergy = aEnergy;
+        vShimmer = 0.94 + sin(uTime * (0.36 + aEnergy * 0.16) + aSeed) * (0.025 + aEnergy * 0.035);
+        vDepthFade = clamp(1.16 - max(-viewPosition.z - 2.4, 0.0) * 0.09, 0.56, 1.0);
+        float perspective = clamp(${highlightLayer ? '20.0' : '17.0'} / max(-viewPosition.z, 1.0), 0.82, 5.2);
+        gl_PointSize = max(1.0, aSize * perspective * (0.88 + aEnergy * 0.18));
         gl_Position = projectionMatrix * viewPosition;
       }
     `,
@@ -819,13 +880,29 @@ function createCinematicPointMaterial(pointTexture, highlightLayer) {
       uniform float uGlobalOpacity;
       varying vec3 vColor;
       varying float vOpacity;
+      varying float vEnergy;
+      varying float vShimmer;
+      varying float vDepthFade;
 
       void main() {
-        float alpha = texture2D(uPointTexture, gl_PointCoord).a
+        float radius = length(gl_PointCoord - vec2(0.5));
+        float textureAlpha = texture2D(uPointTexture, gl_PointCoord).a;
+        float softPoint = 1.0 - smoothstep(0.08, 0.5, radius);
+        float brightCenter = 1.0 - smoothstep(0.0, 0.115, radius);
+        float heroSignal = smoothstep(1.1, 1.32, vEnergy);
+        float alpha = min(textureAlpha, softPoint)
           * vOpacity
-          * uGlobalOpacity;
+          * uGlobalOpacity
+          * vShimmer
+          * vDepthFade;
         if (alpha < 0.01) discard;
-        gl_FragColor = vec4(vColor, alpha);
+        vec3 luminousColor = vColor * (
+          0.7
+          + vEnergy * 0.58
+          + brightCenter * min(vEnergy, 0.9) * 0.34
+          + heroSignal * 0.34
+        );
+        gl_FragColor = vec4(luminousColor, alpha * (0.84 + brightCenter * 0.16));
       }
     `,
     transparent: true,

@@ -143,6 +143,14 @@ export const GEO_CLUSTER_CONFIGS_V2 = Object.freeze([
   })
 ]);
 
+export const GEO_BUSINESS_TEXT_ART_PROFILE = Object.freeze({
+  version: 'v1-final',
+  primaryLabelScale: 0.82,
+  primaryLabelOpacity: 0.52,
+  auxiliaryLabelOpacity: 0.2,
+  perceivedTextReduction: 0.42
+});
+
 export function createGeoBusinessClusters(resources, visualProfile = null) {
   const group = new THREE.Group();
   const configs = visualProfile?.cinematic ? GEO_CLUSTER_CONFIGS_V2 : GEO_CLUSTER_CONFIGS;
@@ -248,6 +256,10 @@ function createBusinessCluster(config, resources) {
     config.cinematic === true
   );
 
+  if (config.cinematic) {
+    label.sprite.scale.multiplyScalar(GEO_BUSINESS_TEXT_ART_PROFILE.primaryLabelScale);
+  }
+
   group.name = config.name;
   visualGroup.name = `${config.name} Data Cluster`;
   points.name = `${config.name} Particles`;
@@ -290,11 +302,15 @@ function createBusinessCluster(config, resources) {
       material.uniforms.uScale.value = config.cinematic
         ? 0.94 + reveal * 0.16
         : 0.86 + reveal * 0.14;
-      label.material.opacity = labelReveal * (config.cinematic ? 0.7 : 0.82);
-      if (sourceConnections) sourceConnections.material.opacity = reveal * (config.cinematic ? 0.16 : 0.115);
+      label.material.opacity = labelReveal * (
+        config.cinematic ? GEO_BUSINESS_TEXT_ART_PROFILE.primaryLabelOpacity : 0.82
+      );
+      if (sourceConnections) sourceConnections.material.opacity = reveal * (config.cinematic ? 0.08 : 0.115);
       if (annotations) {
         const annotationReveal = smootherstep(0.62, 0.9, progress);
-        annotations.material.opacity = labelReveal * annotationReveal * 0.42;
+        annotations.material.opacity = labelReveal
+          * annotationReveal
+          * GEO_BUSINESS_TEXT_ART_PROFILE.auxiliaryLabelOpacity;
       }
 
       // Keep the final anchor exact while only the visual particles drift inside it.

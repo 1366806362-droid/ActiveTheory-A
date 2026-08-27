@@ -8,9 +8,14 @@ import {
 } from './geoSignalCore.js';
 
 const DATA_SEED_PARTICLES = 560;
-const DATA_SEED_RADIUS = 0.195;
+const DATA_SEED_RADIUS = 0.255;
 const ENTRY_RESPONSE_PARTICLES = 180;
 const PROCESSING_FRAGMENT_PARTICLES = 132;
+const DATA_SEED_CLUMPS = Object.freeze([
+  Object.freeze([-0.12, 0.065, 0.035]),
+  Object.freeze([0.105, 0.08, -0.055]),
+  Object.freeze([0.065, -0.105, 0.075])
+]);
 
 const BAND_DEFINITIONS = Object.freeze([
   Object.freeze({
@@ -205,34 +210,46 @@ function createDataSeed(texture) {
   const colors = new Float32Array(DATA_SEED_PARTICLES * 3);
   const sizes = new Float32Array(DATA_SEED_PARTICLES);
   const phases = new Float32Array(DATA_SEED_PARTICLES);
+  const energies = new Float32Array(DATA_SEED_PARTICLES);
   const random = seededRandom(230411);
-  const center = new THREE.Color('#eafcff');
-  const edge = new THREE.Color('#68d8f1');
+  const center = new THREE.Color('#bceaf5');
+  const edge = new THREE.Color('#3a8dad');
+  const hero = new THREE.Color('#edfaff');
   const color = new THREE.Color();
 
   for (let index = 0; index < DATA_SEED_PARTICLES; index += 1) {
     const stride = index * 3;
-    const ratio = Math.pow(random(), 2.15);
-    const radius = DATA_SEED_RADIUS * ratio;
+    const ratio = Math.pow(random(), 1.62);
+    const clump = index % 7 < 3 ? DATA_SEED_CLUMPS[index % DATA_SEED_CLUMPS.length] : null;
+    const radius = DATA_SEED_RADIUS * ratio * (clump ? 0.48 : 1);
     const azimuth = random() * Math.PI * 2;
     const cosine = random() * 2 - 1;
     const sine = Math.sqrt(1 - cosine * cosine);
 
-    positions[stride] = Math.cos(azimuth) * sine * radius;
-    positions[stride + 1] = cosine * radius * 0.86;
-    positions[stride + 2] = Math.sin(azimuth) * sine * radius;
-    color.copy(center).lerp(edge, ratio * 0.78);
+    positions[stride] = Math.cos(azimuth) * sine * radius * 1.18 + (clump?.[0] ?? 0);
+    positions[stride + 1] = cosine * radius * 0.82 + (clump?.[1] ?? 0);
+    positions[stride + 2] = Math.sin(azimuth) * sine * radius * 1.08 + (clump?.[2] ?? 0);
+    if (index % 11 === 0) {
+      positions[stride] += (random() - 0.5) * 0.22;
+      positions[stride + 2] += (random() - 0.5) * 0.18;
+    }
+    const heroSignal = index % 47 === 0;
+    const brighterSignal = !heroSignal && index % 9 === 0;
+    color.copy(center).lerp(edge, 0.24 + ratio * 0.64);
+    if (heroSignal) color.lerp(hero, 0.72);
     colors[stride] = color.r;
     colors[stride + 1] = color.g;
     colors[stride + 2] = color.b;
-    sizes[index] = index % 41 === 0 ? 1.78 : index % 9 === 0 ? 1.2 : 0.68;
+    sizes[index] = heroSignal ? 1.58 : brighterSignal ? 0.98 : 0.48 + random() * 0.2;
     phases[index] = random() * Math.PI * 2;
+    energies[index] = heroSignal ? 1.28 : brighterSignal ? 0.82 : 0.28 + random() * 0.28;
   }
 
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
   geometry.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1));
+  geometry.setAttribute('aEnergy', new THREE.BufferAttribute(energies, 1));
   const material = new THREE.ShaderMaterial({
     uniforms: {
       uOpacity: { value: 0 },
@@ -244,10 +261,13 @@ function createDataSeed(texture) {
     vertexShader: `
       attribute float aSize;
       attribute float aPhase;
+      attribute float aEnergy;
       uniform float uProgress;
       uniform float uStable;
       uniform float uTime;
       varying vec3 vColor;
+      varying float vEnergy;
+      varying float vShimmer;
 
       void main() {
         vec3 animated = position * mix(0.24, 1.0, uProgress);
@@ -255,7 +275,9 @@ function createDataSeed(texture) {
         animated += normalize(position + vec3(0.0001)) * reorganize;
         vec4 viewPosition = modelViewMatrix * vec4(animated, 1.0);
         vColor = color;
-        gl_PointSize = aSize * (15.0 / max(-viewPosition.z, 1.0));
+        vEnergy = aEnergy;
+        vShimmer = 0.94 + sin(uTime * (0.3 + aEnergy * 0.12) + aPhase) * (0.025 + aEnergy * 0.03);
+        gl_PointSize = max(1.0, aSize * (17.0 / max(-viewPosition.z, 1.0)) * (0.9 + aEnergy * 0.16));
         gl_Position = projectionMatrix * viewPosition;
       }
     `,
@@ -263,11 +285,21 @@ function createDataSeed(texture) {
       uniform float uOpacity;
       uniform sampler2D uPointTexture;
       varying vec3 vColor;
+      varying float vEnergy;
+      varying float vShimmer;
 
       void main() {
-        float alpha = texture2D(uPointTexture, gl_PointCoord).a * uOpacity;
+        float radius = length(gl_PointCoord - vec2(0.5));
+        float softPoint = 1.0 - smoothstep(0.08, 0.5, radius);
+        float brightCenter = 1.0 - smoothstep(0.0, 0.11, radius);
+        float alpha = min(texture2D(uPointTexture, gl_PointCoord).a, softPoint)
+          * uOpacity
+          * vShimmer;
         if (alpha < 0.012) discard;
-        gl_FragColor = vec4(vColor, alpha);
+        gl_FragColor = vec4(
+          vColor * (0.72 + vEnergy * 0.58 + brightCenter * min(vEnergy, 0.82) * 0.28),
+          alpha
+        );
       }
     `,
     transparent: true,

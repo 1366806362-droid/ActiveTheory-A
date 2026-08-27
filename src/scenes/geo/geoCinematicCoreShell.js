@@ -4,9 +4,19 @@ import { smootherstep } from './geoSignalCore.js';
 
 const SHELL_FRAGMENT_COUNT = 5;
 const SHELL_NODE_COUNT = 72;
-const TITLE_OPACITY_FACTOR = 0.89;
-const DATA_SEED_OPACITY_FACTOR = 0.95;
-const PROCESSING_DISK_OPACITY_FACTOR = 1.12;
+const TITLE_OPACITY_FACTOR = 0.6;
+const DATA_SEED_OPACITY_FACTOR = 1.06;
+const PROCESSING_DISK_OPACITY_FACTOR = 0.82;
+
+export const GEO_CINEMATIC_CORE_ART_PROFILE = Object.freeze({
+  version: 'v1-final',
+  shellFragments: SHELL_FRAGMENT_COUNT,
+  shellNodes: SHELL_NODE_COUNT,
+  processingBandScale: 0.68,
+  titleOpacityFactor: TITLE_OPACITY_FACTOR,
+  coreLanguage: 'irregular-particle-convergence',
+  shellLanguage: 'broken-secondary-fragments'
+});
 const SHELL_FRAGMENTS = Object.freeze([
   Object.freeze({
     id: 'answer-chamber',
@@ -95,7 +105,10 @@ export function createGeoCinematicCoreShell(resources, visualProfile) {
   baseCore.group.traverse((object) => {
     if (object.material?.transparent) object.renderOrder = Math.max(object.renderOrder, 9);
   });
-  if (labelSprite) labelSprite.position.y -= 0.065;
+  if (labelSprite) {
+    labelSprite.position.y -= 0.065;
+    labelSprite.scale.multiplyScalar(0.78);
+  }
   shell.group.position.z = -0.02;
   group.add(shell.group, baseCore.group);
 
@@ -117,14 +130,16 @@ export function createGeoCinematicCoreShell(resources, visualProfile) {
       const coreProgress = journey?.baseTimeline ?? progress;
       const chamberProgress = journey?.chamber ?? progress;
       const intensity = baseCore.update(time, coreProgress);
-      dataSeed?.scale.setScalar(1.06);
+      dataSeed?.scale.setScalar(1.38);
       if (dataSeed?.material?.uniforms?.uOpacity) {
         dataSeed.material.uniforms.uOpacity.value *= DATA_SEED_OPACITY_FACTOR;
       }
       processingBands.forEach((band) => {
-        band.scale.multiplyScalar(0.59);
+        band.scale.setScalar(GEO_CINEMATIC_CORE_ART_PROFILE.processingBandScale);
         band.traverse((child) => {
-          if (child.material?.uniforms?.uOpacity) {
+          if (child.isLineSegments && child.material?.transparent) {
+            child.material.opacity *= 0.22;
+          } else if (child.material?.uniforms?.uOpacity) {
             child.material.uniforms.uOpacity.value *= PROCESSING_DISK_OPACITY_FACTOR;
           } else if (child.material?.transparent) {
             child.material.opacity = Math.min(
@@ -134,8 +149,8 @@ export function createGeoCinematicCoreShell(resources, visualProfile) {
           }
         });
       });
-      processingFragments?.scale.setScalar(0.68);
-      entryResponses?.scale.setScalar(0.61);
+      processingFragments?.scale.setScalar(0.72);
+      entryResponses?.scale.setScalar(0.65);
       shell.update(time, chamberProgress, journey);
       if (labelSprite) labelSprite.material.opacity *= TITLE_OPACITY_FACTOR;
       if (journey) labelSprite.material.opacity *= journey.label;
@@ -423,7 +438,7 @@ function appendLineVertex(positions, colors, alphas, fragmentIds, point, color, 
 
 function createShellSurfaceMaterial() {
   return new THREE.ShaderMaterial({
-    uniforms: createShellUniforms(0.32),
+    uniforms: createShellUniforms(0.1),
     vertexShader: `
       attribute float aAlpha;
       attribute float aFragment;
@@ -490,7 +505,7 @@ function createShellSurfaceMaterial() {
 
 function createShellEdgeMaterial() {
   return new THREE.ShaderMaterial({
-    uniforms: createShellUniforms(0.68),
+    uniforms: createShellUniforms(0.22),
     vertexShader: `
       attribute float aAlpha;
       attribute float aFragment;
@@ -545,7 +560,7 @@ function createShellEdgeMaterial() {
 }
 
 function createShellNodeMaterial(pointTexture) {
-  const uniforms = createShellUniforms(0.66);
+  const uniforms = createShellUniforms(0.74);
   uniforms.uPointTexture = { value: pointTexture };
   return new THREE.ShaderMaterial({
     uniforms,
