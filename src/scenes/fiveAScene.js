@@ -9,65 +9,200 @@ const FIVE_A_STAGES = [
     height: -0.76,
     color: 0x245dff,
     particleCount: 72,
-    speed: 0.09
+    speed: 0.09,
+    depthOffset: -0.42,
+    nodeRadius: 0.09,
+    nodeParticleCount: 24,
+    nodeScale: 0.48,
+    nodeBrightness: 0.34,
+    populationOpacity: 0.3,
+    populationSizeScale: 0.72,
+    populationSpread: 0.55
   },
   {
     id: 'A1',
     label: 'AWARE',
     value: '486K',
-    radius: 1.12,
-    height: -0.46,
+    radius: 1.13,
+    height: -0.62,
     color: 0x1b8dff,
     particleCount: 62,
-    speed: 0.078
+    speed: 0.078,
+    depthOffset: -0.62,
+    nodeRadius: 0.115,
+    nodeParticleCount: 68,
+    gpuParticleCount: 780,
+    nodeScale: 0.82,
+    nodeBrightness: 0.8,
+    visualRadiusScale: 1.34,
+    shellVisibility: 1.22,
+    innerEnergyScale: 1.16,
+    angleOffset: -0.22,
+    wireBrightness: 0.66,
+    populationOpacity: 0.68,
+    populationSizeScale: 0.85,
+    populationSpread: 0.85
   },
   {
     id: 'A2',
     label: 'APPEAL',
     value: '216K',
-    radius: 1.42,
-    height: -0.14,
+    radius: 1.45,
+    height: -0.12,
     color: 0x00b7ff,
     particleCount: 52,
-    speed: 0.066
+    speed: 0.066,
+    depthOffset: 0.44,
+    nodeRadius: 0.13,
+    nodeParticleCount: 84,
+    gpuParticleCount: 980,
+    nodeScale: 0.94,
+    nodeBrightness: 0.96,
+    visualRadiusScale: 1.15,
+    shellVisibility: 1.12,
+    innerEnergyScale: 1.16,
+    angleOffset: -0.18,
+    wireBrightness: 0.9,
+    populationOpacity: 0.82,
+    populationSizeScale: 1,
+    populationSpread: 1.05
   },
   {
     id: 'A3',
     label: 'ASK',
     value: '92K',
-    radius: 1.72,
-    height: 0.18,
+    radius: 2,
+    height: 0.32,
     color: 0x00dcff,
     particleCount: 42,
-    speed: 0.058
+    speed: 0.058,
+    depthOffset: 0.82,
+    nodeRadius: 0.15,
+    nodeParticleCount: 104,
+    gpuParticleCount: 1180,
+    nodeScale: 1.08,
+    nodeBrightness: 1.08,
+    visualRadiusScale: 1.12,
+    shellVisibility: 1.16,
+    innerEnergyScale: 1.18,
+    angleOffset: 0.24,
+    wireBrightness: 1,
+    populationOpacity: 0.95,
+    populationSizeScale: 1.12,
+    populationSpread: 1.15
   },
   {
     id: 'A4',
     label: 'ACT',
     value: '31K',
-    radius: 2.02,
-    height: 0.52,
+    radius: 2.15,
+    height: 0.72,
     color: 0x74f7ff,
     particleCount: 34,
-    speed: 0.05
+    speed: 0.05,
+    depthOffset: -0.12,
+    nodeRadius: 0.148,
+    nodeParticleCount: 76,
+    gpuParticleCount: 880,
+    nodeScale: 1.11,
+    nodeBrightness: 0.86,
+    visualRadiusScale: 2.22,
+    shellVisibility: 1.42,
+    innerEnergyScale: 1.2,
+    angleOffset: 0.22,
+    wireBrightness: 0.82,
+    populationOpacity: 0.78,
+    populationSizeScale: 0.92,
+    populationSpread: 1
   },
   {
     id: 'A5',
     label: 'ADVOCATE',
     value: '8.6K',
-    radius: 2.32,
-    height: 0.9,
+    radius: 2.48,
+    height: 1.18,
     color: 0xd8fbff,
     particleCount: 26,
-    speed: 0.044
+    speed: 0.044,
+    depthOffset: -0.86,
+    nodeRadius: 0.136,
+    nodeParticleCount: 64,
+    gpuParticleCount: 680,
+    nodeScale: 0.87,
+    nodeBrightness: 0.7,
+    visualRadiusScale: 2.42,
+    shellVisibility: 1.48,
+    innerEnergyScale: 1.24,
+    angleOffset: 0.2,
+    wireBrightness: 0.58,
+    populationOpacity: 0.62,
+    populationSizeScale: 0.82,
+    populationSpread: 0.78
   }
 ];
 
 const BACKGROUND_DUST_COUNT = 260;
 const TRANSFER_PARTICLE_COUNT = 432;
+const FIVE_A_CORE_RADIUS = 0.56;
+const FIVE_A_CORE_PARTICLE_COUNT = 2200;
+const FIVE_A_STAGE_GPU_PARTICLE_COUNT = FIVE_A_STAGES
+  .slice(1)
+  .reduce((total, stage) => total + stage.gpuParticleCount, 0);
 const FIVE_A_FINAL_POSITION = Object.freeze([-2.35, -0.22, -2.08]);
 const FIVE_A_FINAL_SCALE = 0.94;
+const FIVE_A_STAGE_GROUP_CORE_PULL = -0.13;
 const STABLE_DRIFT_START = 0.72;
+
+export const FIVE_A_VISUAL_V2 = Object.freeze({
+  version: '2.0',
+  stageCount: FIVE_A_STAGES.length,
+  primaryStageCount: FIVE_A_STAGES.length - 1,
+  opportunityIsSecondary: true,
+  coreRadius: FIVE_A_CORE_RADIUS,
+  coreParticleCount: FIVE_A_CORE_PARTICLE_COUNT,
+  stageParticleCount: FIVE_A_STAGE_GPU_PARTICLE_COUNT,
+  stageParticleDrawCalls: 1,
+  coreParticleDrawCalls: 1,
+  transferParticleCount: TRANSFER_PARTICLE_COUNT,
+  backgroundDustCount: BACKGROUND_DUST_COUNT,
+  brokenOrbits: true,
+  labelsIncludeValues: false,
+  stageProfiles: Object.freeze(FIVE_A_STAGES.map((stage) => Object.freeze({
+    id: stage.id,
+    depthOffset: stage.depthOffset,
+    nodeParticleCount: stage.nodeParticleCount,
+    gpuParticleCount: stage.gpuParticleCount ?? 0,
+    nodeScale: stage.nodeScale,
+    nodeBrightness: stage.nodeBrightness,
+    visualRadiusScale: stage.visualRadiusScale ?? 1,
+    shellVisibility: stage.shellVisibility ?? 1,
+    innerEnergyScale: stage.innerEnergyScale ?? 1,
+    angleOffset: stage.angleOffset ?? 0,
+    nodeRadius: stage.nodeRadius,
+    radius: stage.radius,
+    height: stage.height
+  }))),
+  depthLayers: Object.freeze({ near: ['A2', 'A3'], mid: ['A4'], far: ['A1', 'A5'] }),
+  coreActivityGain: 1.18,
+  flowOpacityGain: 1.25,
+  flowHasShortTrails: true,
+  flowHasGaps: true,
+  gpuParticleAttributes: Object.freeze(['nodeId', 'seed', 'radius', 'size', 'brightness', 'depthBias']),
+  selectiveEnergyRatios: Object.freeze({ lowMid: 0.9, brighter: 0.08, hero: 0.02 }),
+  coreActivitySpread: 1.22,
+  journeyEnergyPacketStride: 53,
+  stageGroupCorePull: FIVE_A_STAGE_GROUP_CORE_PULL,
+  wireframeVisualWeight: 0.075,
+  stageNodeComposition: Object.freeze(['particle-shell', 'soft-inner-glow', 'sparse-wireframe', 'soft-fresnel-edge']),
+  stageRootContract: 'single-orbit-stage-root',
+  stageRootVisualChildren: Object.freeze(['particle-sphere', 'inner-glow', 'halo-fresnel', 'sparse-wireframe', 'label-anchor']),
+  journeyUsesStageRoot: true,
+  compositionReference: '137b3de-original-five-a',
+  palette: Object.freeze(['deep-navy', 'icy-blue', 'cyan-blue', 'silver-white'])
+});
+
+// Kept as a compatibility alias for existing diagnostics and external review scripts.
+export const FIVE_A_VISUAL_V1 = FIVE_A_VISUAL_V2;
 
 export function createFiveAScene() {
   const group = new THREE.Group();
@@ -109,7 +244,7 @@ export function createFiveAScene() {
 
     dust.update(delta, time, motionProgress);
     orbitSystem.update(delta, time, motionProgress);
-    transferFlow.update(delta, time, motionProgress, motion);
+    transferFlow.update(delta, time, motionProgress, motion, orbitSystem.getJourneyStagePositions());
     core.update(delta, time, motion);
     title.update(time, motionProgress);
     diagnostics.update(motionProgress, motion, direction);
@@ -136,40 +271,76 @@ export function createFiveAScene() {
 
 function createFiveACore() {
   const group = new THREE.Group();
-  const geometry = new THREE.IcosahedronGeometry(0.38, 2);
+  const geometry = new THREE.SphereGeometry(FIVE_A_CORE_RADIUS, 40, 28);
   const material = new THREE.MeshPhysicalMaterial({
-    color: 0x061a32,
-    emissive: 0x007da8,
-    emissiveIntensity: 0.42,
-    metalness: 0.12,
-    roughness: 0.22,
-    envMapIntensity: 0.65,
-    clearcoat: 1,
-    clearcoatRoughness: 0.08,
+    color: 0x031126,
+    emissive: 0x063d68,
+    emissiveIntensity: 0.24,
+    metalness: 0.08,
+    roughness: 0.38,
+    envMapIntensity: 0.18,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.28,
     transparent: true,
-    opacity: 0.58,
-    transmission: 0.18,
-    thickness: 0.6,
+    opacity: 0.72,
+    transmission: 0.06,
+    thickness: 0.82,
     depthWrite: false
   });
   const mesh = new THREE.Mesh(geometry, material);
-  const haloGeometry = new THREE.RingGeometry(0.58, 0.6, 64);
-  const haloMaterial = new THREE.MeshBasicMaterial({
-    color: 0x64eeff,
+  const atmosphereMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      uOpacity: { value: 0 },
+      uDeep: { value: new THREE.Color(0x08325a) },
+      uIce: { value: new THREE.Color(0x78c9ed) }
+    },
+    vertexShader: `
+      varying vec3 vNormal;
+      varying vec3 vViewDirection;
+
+      void main() {
+        vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+        vNormal = normalize(normalMatrix * normal);
+        vViewDirection = normalize(-viewPosition.xyz);
+        gl_Position = projectionMatrix * viewPosition;
+      }
+    `,
+    fragmentShader: `
+      uniform float uOpacity;
+      uniform vec3 uDeep;
+      uniform vec3 uIce;
+      varying vec3 vNormal;
+      varying vec3 vViewDirection;
+
+      void main() {
+        float fresnel = pow(1.0 - max(dot(vNormal, vViewDirection), 0.0), 3.2);
+        vec3 color = mix(uDeep, uIce, fresnel * 0.46);
+        gl_FragColor = vec4(color, fresnel * uOpacity);
+      }
+    `,
     transparent: true,
-    opacity: 0.16,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
-    side: THREE.DoubleSide,
     fog: false
   });
-  const haloA = new THREE.Mesh(haloGeometry, haloMaterial);
-  const haloB = new THREE.Mesh(haloGeometry, haloMaterial.clone());
+  const atmosphere = new THREE.Mesh(geometry, atmosphereMaterial);
+  const internalParticles = createFiveACoreParticles();
+  const haloGeometry = createBrokenCoreHaloGeometry(FIVE_A_CORE_RADIUS * 1.46);
+  const haloMaterial = new THREE.LineBasicMaterial({
+    color: 0x559bc5,
+    transparent: true,
+    opacity: 0,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    fog: false
+  });
+  const halo = new THREE.LineSegments(haloGeometry, haloMaterial);
 
   group.name = 'FiveACore';
-  haloA.rotation.x = Math.PI * 0.5;
-  haloB.rotation.y = Math.PI * 0.5;
-  group.add(mesh, haloA, haloB);
+  atmosphere.name = 'FiveACoreAtmosphere';
+  atmosphere.scale.setScalar(1.055);
+  halo.name = 'FiveACoreBrokenHalo';
+  group.add(atmosphere, mesh, internalParticles.points, halo);
 
   function update(delta, time, motion) {
     const chargeWave = Math.sin(motion.charge * Math.PI);
@@ -180,35 +351,231 @@ function createFiveACore() {
     group.rotation.z = -motion.release * 0.11 - time * 0.004 * motion.stable;
     mesh.rotation.x = time * 0.026 * motion.stable;
     mesh.rotation.y = time * 0.041 * motion.stable;
-    haloA.rotation.z = time * 0.018 * motion.stable;
-    haloB.rotation.x = time * -0.013 * motion.stable;
-    material.emissiveIntensity = 0.2 + motion.release * 0.34 + chargeWave * 0.09 + stableSparkle * 0.025;
-    haloMaterial.opacity = 0.035 + motion.release * 0.19 + chargeWave * 0.1;
-    haloB.material.opacity = 0.025 + motion.release * 0.15 + chargeWave * 0.075;
-    haloA.scale.setScalar(1 + chargeWave * 0.72);
-    haloB.scale.setScalar(1 + chargeWave * 0.48);
+    atmosphere.rotation.y = -time * 0.015 * motion.stable;
+    halo.rotation.y = time * 0.009 * motion.stable;
+    halo.rotation.z = Math.sin(time * 0.022) * 0.08 * motion.stable;
+    material.emissiveIntensity = 0.12 + motion.release * 0.17 + chargeWave * 0.04 + stableSparkle * 0.015;
+    atmosphereMaterial.uniforms.uOpacity.value = 0.015 + motion.release * 0.075 + chargeWave * 0.025;
+    haloMaterial.opacity = 0.008 + motion.release * 0.034 + chargeWave * 0.018;
+    internalParticles.update(time, motion);
   }
 
   function dispose() {
     geometry.dispose();
     material.dispose();
+    atmosphereMaterial.dispose();
+    internalParticles.dispose();
     haloGeometry.dispose();
     haloMaterial.dispose();
-    haloB.material.dispose();
   }
 
   return { group, update, dispose };
+}
+
+function createFiveACoreParticles() {
+  const random = seededRandom(7319);
+  const geometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(FIVE_A_CORE_PARTICLE_COUNT * 3);
+  const colors = new Float32Array(FIVE_A_CORE_PARTICLE_COUNT * 3);
+  const sizes = new Float32Array(FIVE_A_CORE_PARTICLE_COUNT);
+  const alphas = new Float32Array(FIVE_A_CORE_PARTICLE_COUNT);
+  const seeds = new Float32Array(FIVE_A_CORE_PARTICLE_COUNT);
+  const radii = new Float32Array(FIVE_A_CORE_PARTICLE_COUNT);
+  const brightness = new Float32Array(FIVE_A_CORE_PARTICLE_COUNT);
+  const layers = new Float32Array(FIVE_A_CORE_PARTICLE_COUNT);
+  const deep = new THREE.Color(0x174d7c);
+  const ice = new THREE.Color(0x8fbcd4);
+  const silver = new THREE.Color(0xb8ccd7);
+  const clumps = [
+    new THREE.Vector3(0.22, 0.058, -0.092),
+    new THREE.Vector3(-0.1, -0.115, 0.127),
+    new THREE.Vector3(0.06, 0.184, 0.04),
+    new THREE.Vector3(0, 0.035, -0.184)
+  ];
+  const voidCenter = new THREE.Vector3(0.045, -0.03, 0.025);
+
+  for (let index = 0; index < FIVE_A_CORE_PARTICLE_COUNT; index += 1) {
+    const stride = index * 3;
+    const layer = random() < 0.7 ? 0 : random() < 0.88 ? 1 : 2;
+    const radius = layer === 0
+      ? Math.pow(random(), 0.58) * FIVE_A_CORE_RADIUS * 1.02
+      : layer === 1
+        ? (0.55 + Math.pow(random(), 0.78) * 0.55) * FIVE_A_CORE_RADIUS
+        : (0.9 + random() * 0.32) * FIVE_A_CORE_RADIUS;
+    const theta = random() * Math.PI * 2;
+    const phi = Math.acos(2 * random() - 1);
+    const position = new THREE.Vector3(
+      Math.sin(phi) * Math.cos(theta) * radius,
+      Math.cos(phi) * radius,
+      Math.sin(phi) * Math.sin(theta) * radius
+    );
+    const clump = clumps[Math.floor(random() * clumps.length)];
+    const isHighlight = index % 131 === 0;
+    const color = deep.clone().lerp(ice, 0.16 + random() * (layer === 0 ? 0.36 : 0.24));
+
+    if (layer < 2) position.lerp(clump, 0.12 + random() * 0.28);
+    if (position.distanceToSquared(voidCenter) < 0.011) {
+      position.multiplyScalar(1.46);
+    }
+    position.x += (0.012 + random() * 0.022) * (layer === 2 ? 0.55 : 1);
+    if (isHighlight) color.lerp(silver, 0.48);
+    positions[stride] = position.x;
+    positions[stride + 1] = position.y;
+    positions[stride + 2] = position.z;
+    colors[stride] = color.r;
+    colors[stride + 1] = color.g;
+    colors[stride + 2] = color.b;
+    sizes[index] = layer === 2
+      ? 0.008 + random() * 0.012
+      : isHighlight
+        ? 0.024 + random() * 0.012
+        : 0.006 + random() * 0.015;
+    alphas[index] = layer === 2 ? 0.13 + random() * 0.18 : 0.205 + random() * 0.37;
+    seeds[index] = random() * Math.PI * 2;
+    radii[index] = radius / FIVE_A_CORE_RADIUS;
+    brightness[index] = isHighlight ? 0.74 : 0.24 + random() * 0.42;
+    layers[index] = layer;
+  }
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+  geometry.setAttribute('aAlpha', new THREE.BufferAttribute(alphas, 1));
+  geometry.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
+  geometry.setAttribute('aRadius', new THREE.BufferAttribute(radii, 1));
+  geometry.setAttribute('aBrightness', new THREE.BufferAttribute(brightness, 1));
+  geometry.setAttribute('aLayer', new THREE.BufferAttribute(layers, 1));
+  const material = createSoftParticleMaterial();
+  const points = new THREE.Points(geometry, material);
+
+  points.name = 'FiveACoreInternalParticles';
+  return {
+    points,
+    update(time, motion) {
+      points.rotation.y = time * 0.018 * motion.stable;
+      points.rotation.x = Math.sin(time * 0.024) * 0.09 * motion.stable;
+      material.uniforms.uTime.value = time;
+      material.uniforms.uStable.value = motion.stable;
+      material.uniforms.uOpacity.value = motion.release * (
+        0.232 + motion.stable * 0.097 + Math.sin(time * 0.18) * 0.0155
+      );
+    },
+    dispose() {
+      geometry.dispose();
+      material.dispose();
+    }
+  };
+}
+
+function createBrokenCoreHaloGeometry(radius) {
+  const positions = [];
+
+  for (let arc = 0; arc < 3; arc += 1) {
+    const segments = 54;
+    const phase = arc * 0.83;
+
+    for (let segment = 0; segment < segments; segment += 1) {
+      if ((segment + arc * 3) % 11 >= 6 || (segment > 20 + arc * 3 && segment < 29 + arc * 2)) continue;
+      const a0 = phase + segment / segments * Math.PI * 2;
+      const a1 = phase + (segment + 1) / segments * Math.PI * 2;
+      const point0 = getCoreHaloPoint(arc, a0, radius);
+      const point1 = getCoreHaloPoint(arc, a1, radius);
+
+      positions.push(...point0, ...point1);
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  return geometry;
+}
+
+function getCoreHaloPoint(arc, angle, radius) {
+  const x = Math.cos(angle) * radius;
+  const y = Math.sin(angle) * radius * 0.72;
+
+  if (arc === 0) return [x, y, Math.sin(angle * 1.7) * 0.035];
+  if (arc === 1) return [x * 0.64, Math.sin(angle * 1.3) * 0.04, y];
+  return [Math.sin(angle * 1.5) * 0.04, x * 0.7, y];
+}
+
+function createSoftParticleMaterial() {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uOpacity: { value: 0 },
+      uTime: { value: 0 },
+      uStable: { value: 0 }
+    },
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    fog: false,
+    vertexColors: true,
+    vertexShader: `
+      attribute float aSize;
+      attribute float aAlpha;
+      attribute float aSeed;
+      attribute float aRadius;
+      attribute float aBrightness;
+      attribute float aLayer;
+      uniform float uTime;
+      uniform float uStable;
+      varying vec3 vColor;
+      varying float vAlpha;
+      varying float vBrightness;
+
+      void main() {
+        vec3 animated = position;
+        float flow = uTime * (0.045 + fract(aSeed * 1.37) * 0.035) * uStable;
+        float drift = (0.0025 + aRadius * 0.0035) * uStable;
+        animated.x += sin(flow + aSeed) * drift;
+        animated.y += cos(flow * 0.83 + aSeed * 1.7) * drift * 0.7;
+        animated.z += sin(flow * 0.67 + aSeed * 2.1) * drift;
+        vec4 viewPosition = modelViewMatrix * vec4(animated, 1.0);
+        float perspective = clamp(170.0 / max(1.0, -viewPosition.z), 0.82, 4.8);
+        float depthScale = mix(0.78, 1.12, clamp(0.5 - viewPosition.z * 0.06, 0.0, 1.0));
+        gl_PointSize = max(1.0, aSize * perspective * 44.0 * depthScale);
+        gl_Position = projectionMatrix * viewPosition;
+        vColor = color;
+        vAlpha = aAlpha * mix(1.0, 0.58, step(1.5, aLayer));
+        vBrightness = aBrightness;
+      }
+    `,
+    fragmentShader: `
+      uniform float uOpacity;
+      varying vec3 vColor;
+      varying float vAlpha;
+      varying float vBrightness;
+
+      void main() {
+        float radius = length(gl_PointCoord - vec2(0.5));
+        float softPoint = 1.0 - smoothstep(0.06, 0.5, radius);
+        float tinyCore = 1.0 - smoothstep(0.0, 0.13, radius);
+        if (softPoint <= 0.001) discard;
+        vec3 luminousColor = vColor * (0.72 + vBrightness * 0.5 + tinyCore * 0.12);
+        gl_FragColor = vec4(luminousColor, softPoint * (0.78 + tinyCore * 0.16) * vAlpha * uOpacity);
+      }
+    `
+  });
 }
 
 function createFiveAOrbitSystem() {
   const group = new THREE.Group();
   const orbits = FIVE_A_STAGES.map((stage, index) => createFiveAOrbit(stage, index));
   const labels = FIVE_A_STAGES.map((stage, index) => createFiveALabel(stage, index));
+  const stageParticleSpheres = createBatchedStageParticleSpheres();
+  const stageRoots = FIVE_A_STAGES.map(() => ({
+    matrix: new THREE.Matrix4(),
+    localPosition: new THREE.Vector3(),
+    journeyPosition: new THREE.Vector3()
+  }));
+  const journeyStagePositions = stageRoots.map(({ journeyPosition }) => journeyPosition);
   let lastMotions = FIVE_A_STAGES.map((stage, index) => evaluateStageMotion(stage, index, 0, 0));
 
   group.name = 'FiveAOrbitSystem';
   orbits.forEach((orbit) => group.add(orbit.group));
   labels.forEach((label) => group.add(label.group));
+  group.add(stageParticleSpheres.points);
 
   function update(delta, time, entrance) {
     const stable = getGlobalMotionState(entrance).stable;
@@ -220,13 +587,21 @@ function createFiveAOrbitSystem() {
 
       lastMotions[index] = motion;
       orbit.update(delta, time, motion);
-      labels[index].update(time, motion);
+      orbit.getParticleMatrix(stageRoots[index].matrix);
+      stageRoots[index].localPosition.setFromMatrixPosition(stageRoots[index].matrix);
     });
+    group.updateMatrix();
+    stageRoots.forEach((stageRoot, index) => {
+      stageRoot.journeyPosition.copy(stageRoot.localPosition).applyMatrix4(group.matrix);
+      labels[index].update(time, lastMotions[index], stageRoot.localPosition);
+    });
+    stageParticleSpheres.update(time, stable, stageRoots, lastMotions);
   }
 
   function dispose() {
     orbits.forEach((orbit) => orbit.dispose());
     labels.forEach((label) => label.dispose());
+    stageParticleSpheres.dispose();
     group.clear();
   }
 
@@ -234,6 +609,9 @@ function createFiveAOrbitSystem() {
     group,
     update,
     dispose,
+    getJourneyStagePositions() {
+      return journeyStagePositions;
+    },
     getStatus() {
       return orbits.map((orbit, index) => orbit.getStatus(lastMotions[index]));
     }
@@ -253,6 +631,8 @@ function createFiveAOrbit(stage, index) {
 
   function update(delta, time, motion) {
     group.rotation.y = motion.orbitRotationY;
+    group.position.x = index === 0 ? 0 : FIVE_A_STAGE_GROUP_CORE_PULL * motion.release;
+    group.position.z = stage.depthOffset * motion.release;
     group.scale.setScalar(1);
     orbitLines.update(time, motion);
     population.update(delta, time, motion);
@@ -270,6 +650,11 @@ function createFiveAOrbit(stage, index) {
     group,
     update,
     dispose,
+    getParticleMatrix(target) {
+      group.updateMatrix();
+      stageNode.group.updateMatrix();
+      return target.multiplyMatrices(group.matrix, stageNode.group.matrix);
+    },
     getStatus(motion) {
       return stageNode.getStatus(motion, orbitLines.getDrawProgress());
     }
@@ -290,6 +675,7 @@ function createBrokenOrbitLines(stage, index) {
     const segmentCount = 14 + ((index + arcIndex * 3) % 8);
 
     for (let segment = 0; segment < segmentCount; segment += 1) {
+      if ((segment + index + arcIndex * 2) % 7 >= 4) continue;
       const t0 = segment / segmentCount;
       const t1 = (segment + 1) / segmentCount;
       const a0 = finalAngle + THREE.MathUtils.lerp(arc.start, arc.end, t0);
@@ -349,7 +735,7 @@ function createBrokenOrbitLines(stage, index) {
     drawProgress = motion.drawProgress;
     geometry.setDrawRange(0, Math.max(0, Math.min(vertexCount, visibleVertices)));
     material.opacity = motion.drawProgress * (
-      0.018 + motion.capture * 0.105 + flowingHighlight
+      0.008 + motion.capture * 0.058 + flowingHighlight * 0.5
     );
   }
 
@@ -412,7 +798,7 @@ function createOrbitPopulationParticles(stage, index) {
     phases[i] = random();
     angles[i] = getStageFinalAngle(index) + THREE.MathUtils.lerp(arc.start, arc.end, random());
     lanes[i] = (random() - 0.5) * (0.024 + index * 0.004);
-    sizes[i] = sizeRoll < 0.76 ? 0.022 : sizeRoll < 0.96 ? 0.035 : 0.053;
+    sizes[i] = (sizeRoll < 0.76 ? 0.019 : sizeRoll < 0.96 ? 0.031 : 0.047) * stage.populationSizeScale;
     alphas[i] = 0;
     color.set(stage.color).lerp(white, i % 13 === 0 ? 0.44 : 0.08);
     if (i % 41 === 0) color.lerp(purpleBlue, 0.18);
@@ -478,13 +864,13 @@ function createOrbitPopulationParticles(stage, index) {
       const flow = time * stage.speed * (0.038 + index * 0.003) * motion.stable;
       const angle = angles[i] + flow + (1 - motion.release) * (phases[i] - 0.5) * 0.28;
       const radius = stage.radius * (0.05 + easeOutCubic(motion.release) * 0.95) + lanes[i] * motion.release;
-      const depthCurl = Math.sin(angles[i] * 3.2 + i * 0.37) * motion.depthArc * 0.13;
+      const depthCurl = Math.sin(angles[i] * 3.2 + i * 0.37) * motion.depthArc * 0.13 * stage.populationSpread;
       const captureCluster = Math.exp(-Math.pow((angles[i] - getStageFinalAngle(index)) * 1.35, 2));
 
       positionArray[i3] = Math.cos(angle) * radius;
-      positionArray[i3 + 1] = stage.height * motion.release + Math.sin(angle * 2 + i) * 0.025 * motion.release;
+      positionArray[i3 + 1] = stage.height * motion.release + Math.sin(angle * 2 + i) * 0.025 * motion.release * stage.populationSpread;
       positionArray[i3 + 2] = Math.sin(angle) * radius * 0.42 + depthCurl;
-      alphaArray[i] = motion.release * (
+      alphaArray[i] = motion.release * stage.populationOpacity * (
         0.1 + motion.capture * (0.2 + captureCluster * 0.2) + motion.stable * 0.08
       );
     }
@@ -502,58 +888,312 @@ function createOrbitPopulationParticles(stage, index) {
   return { points, update, dispose };
 }
 
+function createBatchedStageParticleSpheres() {
+  const primaryStages = FIVE_A_STAGES.slice(1);
+  const random = seededRandom(14731);
+  const geometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(FIVE_A_STAGE_GPU_PARTICLE_COUNT * 3);
+  const colors = new Float32Array(FIVE_A_STAGE_GPU_PARTICLE_COUNT * 3);
+  const nodeIds = new Float32Array(FIVE_A_STAGE_GPU_PARTICLE_COUNT);
+  const seeds = new Float32Array(FIVE_A_STAGE_GPU_PARTICLE_COUNT);
+  const radii = new Float32Array(FIVE_A_STAGE_GPU_PARTICLE_COUNT);
+  const sizes = new Float32Array(FIVE_A_STAGE_GPU_PARTICLE_COUNT);
+  const brightness = new Float32Array(FIVE_A_STAGE_GPU_PARTICLE_COUNT);
+  const depthBias = new Float32Array(FIVE_A_STAGE_GPU_PARTICLE_COUNT);
+  const layers = new Float32Array(FIVE_A_STAGE_GPU_PARTICLE_COUNT);
+  const alphas = new Float32Array(FIVE_A_STAGE_GPU_PARTICLE_COUNT);
+  const ice = new THREE.Color(0xa8d6e8);
+  const silver = new THREE.Color(0xd1dce2);
+  let cursor = 0;
+
+  primaryStages.forEach((stage, nodeIndex) => {
+    const visualRadius = stage.nodeRadius * stage.visualRadiusScale;
+    const base = new THREE.Color(stage.color).lerp(new THREE.Color(0x163b5d), 0.36);
+    const clumps = Array.from({ length: 2 + (nodeIndex % 3) }, () => {
+      const theta = random() * Math.PI * 2;
+      const phi = Math.acos(2 * random() - 1);
+      const radius = visualRadius * (0.12 + random() * 0.28);
+
+      return new THREE.Vector3(
+        Math.sin(phi) * Math.cos(theta) * radius,
+        Math.cos(phi) * radius,
+        Math.sin(phi) * Math.sin(theta) * radius
+      );
+    });
+
+    for (let localIndex = 0; localIndex < stage.gpuParticleCount; localIndex += 1) {
+      const stride = cursor * 3;
+      const roll = random();
+      const layer = roll < 0.68 ? 0 : roll < 0.91 ? 1 : 2;
+      const theta = random() * Math.PI * 2;
+      const phi = Math.acos(2 * random() - 1);
+      const unit = new THREE.Vector3(
+        Math.sin(phi) * Math.cos(theta),
+        Math.cos(phi),
+        Math.sin(phi) * Math.sin(theta)
+      );
+      const isHeroHighlight = localIndex % (47 + nodeIndex * 2) === 0;
+      const isEnergyHighlight = !isHeroHighlight && (localIndex + nodeIndex * 3) % 10 === 0;
+      const radius = layer === 0
+        ? visualRadius * (0.78 + random() * 0.3 + Math.sin(theta * 3 + phi * 2) * 0.035)
+        : layer === 1
+          ? Math.pow(random(), 0.68) * visualRadius * 0.48 * stage.innerEnergyScale
+          : visualRadius * (1.16 + Math.pow(random(), 1.8) * 0.58);
+      const position = unit.multiplyScalar(radius);
+
+      if (layer === 1) {
+        const clump = clumps[Math.floor(random() * clumps.length)];
+        position.lerp(clump, 0.34 + random() * 0.38);
+      }
+
+      const color = base.clone().lerp(
+        layer === 1 ? silver : ice,
+        isHeroHighlight
+          ? 0.72
+          : isEnergyHighlight
+            ? 0.46 + random() * 0.16
+            : layer === 1
+              ? 0.32 + random() * 0.24
+              : 0.14 + random() * 0.24
+      );
+
+      positions[stride] = position.x;
+      positions[stride + 1] = position.y;
+      positions[stride + 2] = position.z;
+      colors[stride] = color.r;
+      colors[stride + 1] = color.g;
+      colors[stride + 2] = color.b;
+      nodeIds[cursor] = nodeIndex;
+      seeds[cursor] = random() * Math.PI * 2;
+      radii[cursor] = radius / visualRadius;
+      sizes[cursor] = layer === 2
+        ? 0.008 + random() * 0.012
+        : isHeroHighlight
+          ? 0.028 + random() * 0.012
+          : isEnergyHighlight
+            ? 0.016 + random() * 0.01
+          : layer === 1
+            ? 0.011 + random() * 0.017
+            : 0.008 + random() * 0.015;
+      brightness[cursor] = isHeroHighlight
+        ? 1.35
+        : isEnergyHighlight
+          ? 0.78 + random() * 0.18
+          : layer === 1
+            ? 0.52 + random() * 0.32
+            : 0.22 + random() * 0.42;
+      depthBias[cursor] = random() * 2 - 1;
+      layers[cursor] = layer;
+      const baseAlpha = layer === 2 ? 0.1 + random() * 0.18 : 0.26 + random() * 0.48;
+
+      const energyAlpha = isHeroHighlight ? 1.25 : isEnergyHighlight ? 1.12 : 1;
+
+      alphas[cursor] = (layer === 1 ? baseAlpha : baseAlpha * stage.shellVisibility) * energyAlpha;
+      cursor += 1;
+    }
+  });
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute('aNodeId', new THREE.BufferAttribute(nodeIds, 1));
+  geometry.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
+  geometry.setAttribute('aRadius', new THREE.BufferAttribute(radii, 1));
+  geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+  geometry.setAttribute('aBrightness', new THREE.BufferAttribute(brightness, 1));
+  geometry.setAttribute('aDepthBias', new THREE.BufferAttribute(depthBias, 1));
+  geometry.setAttribute('aLayer', new THREE.BufferAttribute(layers, 1));
+  geometry.setAttribute('aAlpha', new THREE.BufferAttribute(alphas, 1));
+
+  const nodeMatrices = Array.from({ length: 5 }, () => new THREE.Matrix4());
+  const nodeOpacities = new Float32Array(5);
+  const nodeScales = new Float32Array(5);
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uStable: { value: 0 },
+      uNodeMatrices: { value: nodeMatrices },
+      uNodeOpacities: { value: nodeOpacities },
+      uNodeScales: { value: nodeScales }
+    },
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    fog: false,
+    vertexColors: true,
+    vertexShader: `
+      attribute float aNodeId;
+      attribute float aSeed;
+      attribute float aRadius;
+      attribute float aSize;
+      attribute float aBrightness;
+      attribute float aDepthBias;
+      attribute float aLayer;
+      attribute float aAlpha;
+      uniform float uTime;
+      uniform float uStable;
+      uniform mat4 uNodeMatrices[5];
+      uniform float uNodeOpacities[5];
+      uniform float uNodeScales[5];
+      varying vec3 vColor;
+      varying float vAlpha;
+      varying float vBrightness;
+      varying float vLayer;
+      varying float vEdgeEnergy;
+
+      mat4 getNodeMatrix(float nodeId) {
+        if (nodeId < 0.5) return uNodeMatrices[0];
+        if (nodeId < 1.5) return uNodeMatrices[1];
+        if (nodeId < 2.5) return uNodeMatrices[2];
+        if (nodeId < 3.5) return uNodeMatrices[3];
+        return uNodeMatrices[4];
+      }
+
+      float getNodeOpacity(float nodeId) {
+        if (nodeId < 0.5) return uNodeOpacities[0];
+        if (nodeId < 1.5) return uNodeOpacities[1];
+        if (nodeId < 2.5) return uNodeOpacities[2];
+        if (nodeId < 3.5) return uNodeOpacities[3];
+        return uNodeOpacities[4];
+      }
+
+      float getNodeScale(float nodeId) {
+        if (nodeId < 0.5) return uNodeScales[0];
+        if (nodeId < 1.5) return uNodeScales[1];
+        if (nodeId < 2.5) return uNodeScales[2];
+        if (nodeId < 3.5) return uNodeScales[3];
+        return uNodeScales[4];
+      }
+
+      void main() {
+        float activity = sin(uTime * (0.22 + fract(aSeed * 1.71) * 0.16) + aSeed);
+        vec3 localPosition = position;
+        float innerLayer = 1.0 - step(0.5, aLayer);
+        float drift = innerLayer * (0.0015 + aRadius * 0.0015) * uStable;
+        localPosition += vec3(
+          sin(aSeed * 1.3 + uTime * 0.13),
+          cos(aSeed * 1.7 + uTime * 0.11),
+          sin(aSeed * 2.1 + uTime * 0.09)
+        ) * drift;
+        vec4 localWorld = getNodeMatrix(aNodeId) * vec4(localPosition, 1.0);
+        vec4 worldPosition = modelMatrix * localWorld;
+        vec4 viewPosition = viewMatrix * worldPosition;
+        vec3 worldNormal = normalize(mat3(modelMatrix * getNodeMatrix(aNodeId)) * normalize(localPosition));
+        vec3 viewDirection = normalize(cameraPosition - worldPosition.xyz);
+        float perspective = clamp(178.0 / max(1.0, -viewPosition.z), 0.82, 5.2);
+        float depthVariation = mix(0.86, 1.14, aDepthBias * 0.5 + 0.5);
+        float shimmer = 1.0 + activity * (0.025 + aBrightness * 0.035) * uStable;
+
+        gl_PointSize = max(1.0, aSize * perspective * 44.0 * getNodeScale(aNodeId) * depthVariation);
+        gl_Position = projectionMatrix * viewPosition;
+        vColor = color;
+        vAlpha = aAlpha * getNodeOpacity(aNodeId) * shimmer;
+        vBrightness = aBrightness;
+        vLayer = aLayer;
+        float rimGap = smoothstep(0.38, 0.72, fract(aSeed * 1.618 + aNodeId * 0.173));
+        vEdgeEnergy = (1.0 - step(0.5, aLayer))
+          * pow(1.0 - abs(dot(worldNormal, viewDirection)), 2.35)
+          * rimGap;
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vColor;
+      varying float vAlpha;
+      varying float vBrightness;
+      varying float vLayer;
+      varying float vEdgeEnergy;
+
+      void main() {
+        float radius = length(gl_PointCoord - vec2(0.5));
+        float softFalloff = 1.0 - smoothstep(0.06, 0.5, radius);
+        float brightCore = 1.0 - smoothstep(0.0, 0.105, radius);
+        float haloLayer = step(1.5, vLayer);
+        float alpha = softFalloff * mix(1.0, 0.58, haloLayer) * vAlpha;
+        if (alpha <= 0.001) discard;
+        float heroGain = smoothstep(1.08, 1.32, vBrightness);
+        vec3 luminous = vColor * (
+          0.74
+          + vBrightness * 0.74
+          + brightCore * min(vBrightness, 0.84) * 0.26
+          + vEdgeEnergy * 0.34
+          + heroGain * 0.46
+        );
+        gl_FragColor = vec4(luminous, alpha * (0.78 + brightCore * 0.18 + vEdgeEnergy * 0.14));
+      }
+    `
+  });
+  const points = new THREE.Points(geometry, material);
+
+  points.name = 'FiveAStageGpuParticleSpheres';
+  points.frustumCulled = false;
+
+  return {
+    points,
+    update(time, stable, stageRoots, motions) {
+      material.uniforms.uTime.value = time;
+      material.uniforms.uStable.value = stable;
+      primaryStages.forEach((stage, nodeIndex) => {
+        const motion = motions[nodeIndex + 1];
+        const sparkle = (0.5 + Math.sin(time * (0.5 + nodeIndex * 0.06) + nodeIndex) * 0.5) * motion.stable;
+
+        nodeMatrices[nodeIndex].copy(stageRoots[nodeIndex + 1].matrix);
+        nodeOpacities[nodeIndex] = motion.release * stage.nodeBrightness * (
+          0.22 + motion.capture * 0.34 + sparkle * 0.035
+        );
+        nodeScales[nodeIndex] = motion.scale * motion.depthScale * stage.nodeScale;
+      });
+    },
+    dispose() {
+      geometry.dispose();
+      material.dispose();
+    }
+  };
+}
+
 function createStageNode(stage, index) {
   const group = new THREE.Group();
   const angle = getStageFinalAngle(index);
-  const geometry = new THREE.IcosahedronGeometry(0.08 + index * 0.006, 1);
-  const material = new THREE.MeshBasicMaterial({
-    color: stage.color,
-    transparent: true,
-    opacity: 0.68,
-    blending: THREE.AdditiveBlending,
-    wireframe: true,
-    depthWrite: false,
-    fog: false
-  });
-  const haloGeometry = new THREE.RingGeometry(
-    0.16,
-    0.17,
-    40,
-    1,
-    0.32 + index * 0.47,
-    Math.PI * (1.12 + (index % 3) * 0.14)
-  );
-  const haloMaterial = new THREE.MeshBasicMaterial({
-    color: stage.color,
-    transparent: true,
-    opacity: 0.16,
-    blending: THREE.AdditiveBlending,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-    fog: false
-  });
-  const mesh = new THREE.Mesh(geometry, material);
-  const halo = new THREE.Mesh(haloGeometry, haloMaterial);
+  const particleNode = index === 0 ? createStageNodeParticles(stage, index) : null;
+  const wireGeometry = index === 0
+    ? null
+    : new THREE.IcosahedronGeometry(stage.nodeRadius * 0.94, 1);
+  const wireMaterial = index === 0
+    ? null
+    : new THREE.MeshBasicMaterial({
+      color: stage.color,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      wireframe: true,
+      depthWrite: false,
+      fog: false
+    });
+  const wire = wireGeometry ? new THREE.Mesh(wireGeometry, wireMaterial) : null;
 
   group.position.set(Math.cos(angle) * stage.radius, stage.height, Math.sin(angle) * stage.radius * 0.42);
-  halo.rotation.x = Math.PI * 0.5;
-  group.add(mesh, halo);
+  group.name = `FiveAStageNode${stage.id}`;
+  if (particleNode) group.add(particleNode.points);
+  if (wire) group.add(wire);
 
   function update(time, motion) {
     const sparkle = (0.5 + Math.sin(time * (0.5 + index * 0.06) + index) * 0.5) * motion.stable;
 
     group.position.set(motion.position.x, motion.position.y, motion.position.z);
     group.rotation.set(motion.rotation.x, motion.rotation.y, motion.rotation.z);
-    group.scale.setScalar(motion.scale * motion.depthScale);
-    material.opacity = motion.release * (0.22 + motion.capture * 0.5 + sparkle * 0.12);
-    haloMaterial.opacity = motion.release * (0.018 + motion.capture * 0.11 + sparkle * 0.035);
+    group.scale.setScalar(motion.scale * motion.depthScale * stage.nodeScale);
+    particleNode?.update(time, motion, sparkle);
+    if (wireMaterial) {
+      wire.rotation.y = time * (0.018 + index * 0.0015) * motion.stable;
+      wire.rotation.x = Math.sin(time * 0.024 + index) * 0.12 * motion.stable;
+      wireMaterial.opacity = motion.release * stage.wireBrightness * (
+        0.0025 + motion.capture * 0.008 + sparkle * 0.0015
+      );
+    }
   }
 
   function dispose() {
-    geometry.dispose();
-    material.dispose();
-    haloGeometry.dispose();
-    haloMaterial.dispose();
+    particleNode?.dispose();
+    wireGeometry?.dispose();
+    wireMaterial?.dispose();
   }
 
   return {
@@ -574,6 +1214,138 @@ function createStageNode(stage, index) {
   };
 }
 
+function createStageNodeParticles(stage, index) {
+  const random = seededRandom(9200 + index * 137);
+  const geometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(stage.nodeParticleCount * 3);
+  const colors = new Float32Array(stage.nodeParticleCount * 3);
+  const sizes = new Float32Array(stage.nodeParticleCount);
+  const alphas = new Float32Array(stage.nodeParticleCount);
+  const layers = new Float32Array(stage.nodeParticleCount);
+  const base = new THREE.Color(stage.color).multiplyScalar(index === 0 ? 0.48 : 0.72);
+  const ice = new THREE.Color(index === 5 ? 0xc7dce8 : 0xa8e4f5);
+
+  for (let particleIndex = 0; particleIndex < stage.nodeParticleCount; particleIndex += 1) {
+    const stride = particleIndex * 3;
+    const roll = random();
+    const theta = random() * Math.PI * 2;
+    const phi = Math.acos(2 * random() - 1);
+    const isInnerGlow = roll < 0.22;
+    const isLocalHighlight = !isInnerGlow && particleIndex % 17 === 0;
+    const radius = isInnerGlow
+      ? Math.pow(random(), 0.82) * stage.nodeRadius * 0.38
+      : roll > 0.92
+        ? stage.nodeRadius * (1.28 + random() * 0.42)
+        : stage.nodeRadius * (0.88 + random() * 0.18);
+    const color = base.clone().lerp(
+      ice,
+      isInnerGlow ? 0.32 + random() * 0.2 : isLocalHighlight ? 0.62 : 0.16 + random() * 0.2
+    );
+
+    positions[stride] = Math.sin(phi) * Math.cos(theta) * radius;
+    positions[stride + 1] = Math.cos(phi) * radius;
+    positions[stride + 2] = Math.sin(phi) * Math.sin(theta) * radius;
+    colors[stride] = color.r;
+    colors[stride + 1] = color.g;
+    colors[stride + 2] = color.b;
+    sizes[particleIndex] = isInnerGlow
+      ? 0.046 + random() * 0.026
+      : isLocalHighlight
+        ? 0.038 + random() * 0.014
+        : 0.018 + random() * 0.02;
+    alphas[particleIndex] = roll > 0.92
+      ? 0.08 + random() * 0.12
+      : isInnerGlow
+        ? 0.24 + random() * 0.24
+        : isLocalHighlight
+          ? 0.64 + random() * 0.18
+          : 0.38 + random() * 0.34;
+    layers[particleIndex] = isInnerGlow ? 0 : isLocalHighlight ? 2 : 1;
+  }
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+  geometry.setAttribute('aAlpha', new THREE.BufferAttribute(alphas, 1));
+  geometry.setAttribute('aLayer', new THREE.BufferAttribute(layers, 1));
+  const material = createStageParticleMaterial();
+  const points = new THREE.Points(geometry, material);
+
+  points.name = `FiveAStageNodeParticles${stage.id}`;
+  return {
+    points,
+    update(time, motion, sparkle) {
+      points.rotation.y = time * (0.014 + index * 0.001) * motion.stable;
+      points.rotation.z = Math.sin(time * 0.019 + index) * 0.1 * motion.stable;
+      material.uniforms.uOpacity.value = motion.release * stage.nodeBrightness * (
+        0.28 + motion.capture * 0.48 + sparkle * 0.06
+      );
+    },
+    dispose() {
+      geometry.dispose();
+      material.dispose();
+    }
+  };
+}
+
+function createStageParticleMaterial() {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uOpacity: { value: 0 }
+    },
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    fog: false,
+    vertexColors: true,
+    vertexShader: `
+      attribute float aSize;
+      attribute float aAlpha;
+      attribute float aLayer;
+      varying vec3 vColor;
+      varying float vAlpha;
+      varying float vLayer;
+      varying float vFresnel;
+
+      void main() {
+        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+        vec4 viewPosition = viewMatrix * worldPosition;
+        vec3 worldNormal = normalize(mat3(modelMatrix) * normalize(position));
+        vec3 viewDirection = normalize(cameraPosition - worldPosition.xyz);
+        float perspective = clamp(170.0 / max(1.0, -viewPosition.z), 0.82, 4.8);
+
+        gl_PointSize = max(1.0, aSize * perspective * 38.0);
+        gl_Position = projectionMatrix * viewPosition;
+        vColor = color;
+        vAlpha = aAlpha;
+        vLayer = aLayer;
+        vFresnel = pow(1.0 - abs(dot(worldNormal, viewDirection)), 2.8);
+      }
+    `,
+    fragmentShader: `
+      uniform float uOpacity;
+      varying vec3 vColor;
+      varying float vAlpha;
+      varying float vLayer;
+      varying float vFresnel;
+
+      void main() {
+        float radius = length(gl_PointCoord - vec2(0.5));
+        float innerGlow = 1.0 - smoothstep(0.02, 0.5, radius);
+        float shellPoint = 1.0 - smoothstep(0.09, 0.5, radius);
+        float isShell = step(0.5, vLayer);
+        float isHighlight = step(1.5, vLayer);
+        float shape = mix(innerGlow * innerGlow, shellPoint, isShell);
+        float edgeGain = isShell * vFresnel * 0.38;
+        float highlightGain = isHighlight * 0.16;
+
+        if (shape <= 0.001) discard;
+        gl_FragColor = vec4(vColor, shape * vAlpha * uOpacity * (1.0 + edgeGain + highlightGain));
+      }
+    `
+  });
+}
+
 function createFiveATransferFlow() {
   const random = seededRandom(8851);
   const geometry = new THREE.BufferGeometry();
@@ -585,6 +1357,10 @@ function createFiveATransferFlow() {
   const stageIndices = new Uint8Array(TRANSFER_PARTICLE_COUNT);
   const curlSeeds = new Float32Array(TRANSFER_PARTICLE_COUNT);
   const freedom = new Float32Array(TRANSFER_PARTICLE_COUNT);
+  const gapWeights = new Float32Array(TRANSFER_PARTICLE_COUNT);
+  const renderSeeds = new Float32Array(TRANSFER_PARTICLE_COUNT);
+  const trailRoles = new Float32Array(TRANSFER_PARTICLE_COUNT);
+  const renderBrightness = new Float32Array(TRANSFER_PARTICLE_COUNT);
   const color = new THREE.Color(0x8df7ff);
   const white = new THREE.Color(0xffffff);
   const purpleBlue = new THREE.Color(0x7185cf);
@@ -593,13 +1369,32 @@ function createFiveATransferFlow() {
     const i3 = i * 3;
     const stageIndex = i % FIVE_A_STAGES.length;
     const stage = FIVE_A_STAGES[stageIndex];
+    const stageParticleOrdinal = Math.floor(i / FIVE_A_STAGES.length);
+    const migrationClusterRole = stageParticleOrdinal % 12;
+    const isMigrationCluster = migrationClusterRole < 3;
     const sizeRoll = random();
 
-    phases[i] = (random() * 0.82 + (i % 7) * 0.027) % 1;
+    phases[i] = isMigrationCluster
+      ? (Math.floor(stageParticleOrdinal / 12) * 0.137 + migrationClusterRole * 0.014 + stageIndex * 0.021) % 0.88
+      : (random() * 0.82 + (i % 7) * 0.027) % 1;
     stageIndices[i] = stageIndex;
     curlSeeds[i] = random() * Math.PI * 2;
     freedom[i] = random() < 0.16 ? 1 : 0;
-    sizes[i] = sizeRoll < 0.76 ? 0.023 : sizeRoll < 0.96 ? 0.039 : 0.061;
+    gapWeights[i] = isMigrationCluster ? 1 : random() < 0.22 ? 0.18 : 0.72 + random() * 0.28;
+    renderSeeds[i] = random() * Math.PI * 2;
+    trailRoles[i] = isMigrationCluster ? migrationClusterRole : 3;
+    renderBrightness[i] = i % 53 === 0
+      ? 1.3
+      : isMigrationCluster
+        ? 0.58 + random() * 0.22
+        : 0.26 + random() * 0.4;
+    sizes[i] = sizeRoll < 0.55
+      ? 0.017
+      : sizeRoll < 0.82
+        ? 0.026
+        : sizeRoll < 0.97
+          ? 0.041
+          : 0.058;
     color.set(stage.color).lerp(white, i % 15 === 0 ? 0.58 : 0.18 + random() * 0.12);
     if (i % 67 === 0) color.lerp(purpleBlue, 0.22);
     colors[i3] = color.r * 0.78;
@@ -616,8 +1411,14 @@ function createFiveATransferFlow() {
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
   geometry.setAttribute('aAlpha', alphaAttribute);
+  geometry.setAttribute('aSeed', new THREE.BufferAttribute(renderSeeds, 1));
+  geometry.setAttribute('aTrailRole', new THREE.BufferAttribute(trailRoles, 1));
+  geometry.setAttribute('aBrightness', new THREE.BufferAttribute(renderBrightness, 1));
 
   const material = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 }
+    },
     transparent: true,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
@@ -626,28 +1427,42 @@ function createFiveATransferFlow() {
     vertexShader: `
       attribute float aSize;
       attribute float aAlpha;
+      attribute float aSeed;
+      attribute float aTrailRole;
+      attribute float aBrightness;
+      uniform float uTime;
       varying vec3 vColor;
       varying float vAlpha;
+      varying float vBrightness;
 
       void main() {
         vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
         float perspective = clamp(150.0 / max(1.0, -viewPosition.z), 0.8, 5.2);
-        gl_PointSize = max(1.0, aSize * perspective * 42.0);
+        float trailScale = aTrailRole < 2.5 ? 1.0 + (2.0 - aTrailRole) * 0.1 : 1.0;
+        float shimmer = 1.0 + sin(uTime * 0.7 + aSeed) * 0.05;
+        gl_PointSize = max(1.0, aSize * perspective * 42.0 * trailScale);
         gl_Position = projectionMatrix * viewPosition;
         vColor = color;
-        vAlpha = aAlpha;
+        vAlpha = aAlpha * shimmer;
+        vBrightness = aBrightness;
       }
     `,
     fragmentShader: `
       varying vec3 vColor;
       varying float vAlpha;
+      varying float vBrightness;
 
       void main() {
         vec2 centered = gl_PointCoord - vec2(0.5);
         float radius = length(centered);
-        float falloff = 1.0 - smoothstep(0.16, 0.5, radius);
+        float falloff = 1.0 - smoothstep(0.1, 0.5, radius);
+        float core = 1.0 - smoothstep(0.0, 0.12, radius);
         if (falloff <= 0.001) discard;
-        gl_FragColor = vec4(vColor, falloff * vAlpha);
+        float packetEnergy = smoothstep(1.05, 1.28, vBrightness);
+        gl_FragColor = vec4(
+          vColor * (0.76 + vBrightness * 0.48 + core * 0.12 + packetEnergy * 0.5),
+          falloff * vAlpha * (0.84 + core * 0.14 + packetEnergy * 0.12)
+        );
       }
     `
   });
@@ -655,9 +1470,11 @@ function createFiveATransferFlow() {
 
   points.name = 'FiveACoreReleaseParticleFlow';
 
-  function update(delta, time, entrance, globalMotion) {
+  function update(delta, time, entrance, globalMotion, stageRootPositions) {
     const positionArray = positionAttribute.array;
     const alphaArray = alphaAttribute.array;
+
+    material.uniforms.uTime.value = time;
 
     for (let i = 0; i < TRANSFER_PARTICLE_COUNT; i += 1) {
       const i3 = i * 3;
@@ -666,7 +1483,10 @@ function createFiveATransferFlow() {
       const timing = getStageTiming(stageIndex);
       const motion = evaluateStageMotion(stage, stageIndex, entrance, time);
       const pathProgress = clamp01((entrance - timing.start) / (timing.captureEnd - timing.start));
-      const travel = clamp01(pathProgress * 1.16 - phases[i] * 0.22);
+      const packetBurst = i % 53 === 0
+        ? (0.5 + Math.sin(time * 0.86 + curlSeeds[i]) * 0.5) * motion.stable
+        : 0;
+      const travel = clamp01(pathProgress * 1.16 - phases[i] * 0.22 + packetBurst * 0.022);
       const path = evaluateReleaseParticlePosition(
         stage,
         stageIndex,
@@ -675,24 +1495,30 @@ function createFiveATransferFlow() {
         curlSeeds[i],
         freedom[i],
         time,
-        motion.stable
+        motion.stable,
+        stageRootPositions
       );
       const trailWindow = smoothstep(0.02, 0.28, travel) * (1 - smoothstep(0.7, 1, travel));
       const midStream = smoothstep(0.18, 0.42, travel) * (1 - smoothstep(0.58, 0.82, travel));
       const captureGather = smoothstep(0.72, 0.92, travel) * (1 - smoothstep(0.94, 1, travel));
       const chargeAlpha = globalMotion.chargePulse * (1 - phases[i]) * 0.2;
-      const depthCue = THREE.MathUtils.clamp(0.9 + path.z * 0.28, 0.72, 1.16);
+      const depthCue = THREE.MathUtils.clamp(0.86 + path.z * 0.34, 0.62, 1.22);
+      const brokenCadence = (travel > 0.32 && travel < 0.43) || (travel > 0.63 && travel < 0.72)
+        ? 0.24
+        : 1;
+      const microStreakGain = trailRoles[i] < 3 ? 1.18 : 1;
+      const packetGain = i % 53 === 0 ? 1.28 + packetBurst * 0.3 : 1;
 
       positionArray[i3] = path.x;
       positionArray[i3 + 1] = path.y;
       positionArray[i3 + 2] = path.z;
       alphaArray[i] = Math.min(
-        0.8,
+        0.86,
         (
           chargeAlpha
-          + motion.release * (0.07 + trailWindow * 0.38 + midStream * 0.28 + captureGather * 0.24)
-          + motion.stable * 0.09
-        ) * depthCue
+          + motion.release * (0.1 + trailWindow * 0.54 + midStream * 0.4 + captureGather * 0.34)
+          + motion.stable * 0.126
+        ) * depthCue * gapWeights[i] * brokenCadence * microStreakGain * packetGain
       );
     }
 
@@ -724,15 +1550,33 @@ function createFiveABackgroundDust() {
 
   for (let i = 0; i < BACKGROUND_DUST_COUNT; i += 1) {
     const i3 = i * 3;
-    const depth = random();
+    const layer = random();
+    const spread = layer < 0.78 ? 15 : layer < 0.94 ? 10 : 7;
+    let x = (random() - 0.5) * spread;
+    let y = (random() - 0.5) * spread * 0.58;
+    const distanceFromCore = Math.hypot(x, y);
 
-    positions[i3] = (random() - 0.5) * (12 + depth * 10);
-    positions[i3 + 1] = (random() - 0.5) * (7 + depth * 6);
-    positions[i3 + 2] = -2 - random() * 16;
-    color.set(0x0d4f8f).lerp(cyan, random() * 0.24);
-    colors[i3] = color.r * (0.18 + depth * 0.28);
-    colors[i3 + 1] = color.g * (0.18 + depth * 0.28);
-    colors[i3 + 2] = color.b * (0.18 + depth * 0.28);
+    if (distanceFromCore < 1.18) {
+      const angle = random() * Math.PI * 2;
+      const radius = 1.18 + random() * 0.72;
+
+      x = Math.cos(angle) * radius;
+      y = Math.sin(angle) * radius * 0.68;
+    }
+    positions[i3] = x;
+    positions[i3 + 1] = y;
+    positions[i3 + 2] = layer < 0.78
+      ? -3.4 - random() * 12.6
+      : layer < 0.94
+        ? -1.2 - random() * 4.2
+        : 0.3 + random() * 1.15;
+    color.set(0x0d4f8f).lerp(cyan, random() * 0.18);
+    const brightness = layer < 0.78 ? 0.2 : layer < 0.94 ? 0.27 : 0.12;
+    const edgeFade = THREE.MathUtils.clamp(1 - distanceFromCore / 11, 0.38, 1);
+
+    colors[i3] = color.r * brightness * edgeFade;
+    colors[i3 + 1] = color.g * brightness * edgeFade;
+    colors[i3 + 2] = color.b * brightness * edgeFade;
   }
 
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -768,7 +1612,17 @@ function createFiveABackgroundDust() {
 
 function createFiveALabel(stage, index) {
   const group = new THREE.Group();
-  const texture = createTextTexture(`${stage.id}  ${stage.label}  ${stage.value}`);
+
+  group.name = `FiveALabel${stage.id}`;
+  if (index === 0) {
+    return {
+      group,
+      update() {},
+      dispose() {}
+    };
+  }
+
+  const texture = createTextTexture(`${stage.id}  ${stage.label}`);
   const material = new THREE.SpriteMaterial({
     map: texture,
     transparent: true,
@@ -779,26 +1633,24 @@ function createFiveALabel(stage, index) {
   const sprite = new THREE.Sprite(material);
   const angle = getStageFinalAngle(index);
 
-  group.name = `FiveALabel${stage.id}`;
   group.position.set(
     Math.cos(angle) * (stage.radius + 0.26),
     stage.height + 0.12,
-    Math.sin(angle) * stage.radius * 0.42
+    Math.sin(angle) * stage.radius * 0.42 + stage.depthOffset
   );
-  sprite.scale.set(0.7 + index * 0.035, 0.14, 1);
+  sprite.scale.set(0.54 + index * 0.025, 0.105, 1);
   group.add(sprite);
 
-  function update(time, motion) {
+  function update(time, motion, stageRootPosition) {
     const pulse = (0.5 + Math.sin(time * 0.28 + index) * 0.5) * motion.stable;
     const labelReveal = smoothstep(0.28, 0.9, motion.capture);
-    const offset = 0.26 * labelReveal;
 
     group.position.set(
-      motion.position.x + Math.cos(angle) * offset,
-      motion.position.y + 0.12 + Math.sin(time * 0.1 + index) * 0.025 * motion.stable,
-      motion.position.z
+      stageRootPosition.x + Math.cos(angle) * 0.16 * labelReveal,
+      stageRootPosition.y + 0.12 + Math.sin(time * 0.1 + index) * 0.018 * motion.stable,
+      stageRootPosition.z + 0.02
     );
-    material.opacity = labelReveal * (0.42 + pulse * 0.035);
+    material.opacity = labelReveal * (0.28 + pulse * 0.025);
   }
 
   function dispose() {
@@ -811,7 +1663,7 @@ function createFiveALabel(stage, index) {
 
 function createSceneTitle() {
   const group = new THREE.Group();
-  const texture = createTextTexture('5A AUDIENCE FLOW UNIVERSE');
+  const texture = createTextTexture('5A GROWTH JOURNEY');
   const material = new THREE.SpriteMaterial({
     map: texture,
     transparent: true,
@@ -829,7 +1681,7 @@ function createSceneTitle() {
   function update(time, entrance) {
     const titleReveal = smoothstep(0.68, 0.94, entrance);
 
-    material.opacity = titleReveal * (0.5 + Math.sin(time * 0.22) * 0.025);
+    material.opacity = titleReveal * (0.24 + Math.sin(time * 0.22) * 0.018);
   }
 
   function dispose() {
@@ -847,8 +1699,8 @@ function createTextTexture(text) {
   canvas.width = 768;
   canvas.height = 128;
   context.clearRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = 'rgba(150, 246, 255, 0.92)';
-  context.font = '700 42px Inter, Arial, sans-serif';
+  context.fillStyle = 'rgba(170, 226, 244, 0.82)';
+  context.font = '500 32px Inter, Arial, sans-serif';
   context.fillText(text, 24, 76);
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -979,32 +1831,29 @@ function evaluateStageMotion(stage, index, progress, time) {
   };
 }
 
-function evaluateReleaseParticlePosition(stage, index, travel, phase, curlSeed, isFree, time, stable) {
-  const configPhase = [-1.12, -0.86, -1.31, -0.72, -1.46, -0.96][index];
-  const depthPeaks = [-0.08, 0.12, -0.24, 0.28, -0.36, 0.44];
-  const pathStrengths = [0.03, 0.038, 0.055, 0.064, 0.088, 0.1];
-  const finalAngle = getStageFinalAngle(index);
-  const curlAmount = stage.radius * pathStrengths[index] * (isFree ? 1.65 : 0.72);
-  const curlEnvelope = Math.sin(travel * Math.PI);
+function evaluateReleaseParticlePosition(stage, index, travel, phase, curlSeed, isFree, time, stable, stageRootPositions) {
+  const source = index === 0 ? null : stageRootPositions[index - 1];
+  const target = stageRootPositions[index];
+  const sourceX = source?.x ?? 0;
+  const sourceY = source?.y ?? 0;
+  const sourceZ = source?.z ?? 0;
+  const progress = smootherstep01(travel);
+  const arc = Math.sin(progress * Math.PI);
+  const curlAmount = (0.035 + index * 0.012) * (isFree ? 1.65 : 0.72) * arc;
   const curl = (
-    Math.sin(curlSeed + travel * Math.PI * (1.48 + index * 0.09))
-    + Math.sin(curlSeed * 0.63 + travel * Math.PI * 3.1) * 0.34
-  ) * curlAmount * curlEnvelope;
-  const orbitFlow = time * (0.028 + index * 0.002) * stable;
-  const angle = finalAngle
-    + (1 - travel) * configPhase
-    + phase * 0.24
-    + curl
-    + orbitFlow;
-  const radius = stage.radius * (0.025 + easeOutCubic(travel) * 0.975) * (0.97 + phase * 0.06);
-  const arc = Math.sin(travel * Math.PI);
-  const freeLift = isFree ? Math.sin(curlSeed * 1.7 + travel * Math.PI * 2.4) * 0.075 * arc : 0;
-  const streamPinch = 1 - Math.sin(travel * Math.PI) * (0.04 + phase * 0.035);
+    Math.sin(curlSeed + progress * Math.PI * (1.7 + index * 0.08))
+    + Math.sin(curlSeed * 0.63 + progress * Math.PI * 3.2) * 0.32
+  ) * curlAmount;
+  const stableDrift = time * (0.018 + index * 0.0015) * stable;
+  const lateral = Math.sin(curlSeed + progress * Math.PI * 2 + stableDrift) * curlAmount;
+  const freeLift = isFree ? Math.cos(curlSeed * 1.7 + progress * Math.PI * 2.4) * 0.06 * arc : 0;
 
   return {
-    x: Math.cos(angle) * radius * streamPinch + Math.cos(curlSeed) * curl,
-    y: stage.height * travel + arc * (0.065 + index * 0.022) * (index % 2 === 0 ? 1 : -0.7) + freeLift + Math.sin(curlSeed * 1.2) * curl * 0.42,
-    z: Math.sin(angle) * radius * 0.42 + arc * depthPeaks[index] + Math.sin(curlSeed) * curl
+    x: THREE.MathUtils.lerp(sourceX, target.x, progress) + Math.cos(curlSeed) * curl,
+    y: THREE.MathUtils.lerp(sourceY, target.y, progress)
+      + arc * (0.08 + index * 0.018) * (index % 2 === 0 ? 1 : -0.72)
+      + freeLift,
+    z: THREE.MathUtils.lerp(sourceZ, target.z, progress) + lateral
   };
 }
 
@@ -1064,7 +1913,11 @@ function createFiveAMotionDiagnostics(group, orbitSystem, transferFlow) {
     localProgress: 0,
     currentStage: 'core-charge',
     layers: [],
-    particleCount: orbitParticleCount + transferFlow.particleCount + BACKGROUND_DUST_COUNT,
+    particleCount: orbitParticleCount
+      + transferFlow.particleCount
+      + BACKGROUND_DUST_COUNT
+      + FIVE_A_STAGE_GPU_PARTICLE_COUNT
+      + FIVE_A_CORE_PARTICLE_COUNT,
     releaseParticleCount: transferFlow.particleCount,
     scrollDirection: 'idle',
     resourceCounts,
@@ -1137,7 +1990,7 @@ function getMotionStage(progress) {
 }
 
 function getStageFinalAngle(index) {
-  return -0.75 + index * 0.38;
+  return -0.75 + index * 0.38 + (FIVE_A_STAGES[index].angleOffset ?? 0);
 }
 
 function clamp01(value) {
