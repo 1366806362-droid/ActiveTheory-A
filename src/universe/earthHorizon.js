@@ -19,6 +19,17 @@ export const EARTH_V2_HERO_COMPOSITION = Object.freeze({
   atmosphereRadius: 1.93
 });
 
+export const EARTH_V3_CINEMATIC_PROFILE = Object.freeze({
+  version: 'v3.1-cinematic',
+  surfaceRadius: 1.85,
+  cityRadius: 1.859,
+  cloudRadius: 1.878,
+  atmosphereRadius: 1.995,
+  textureWeights: Object.freeze({ surface: 1, city: 0.34, clouds: 0.21 }),
+  drawCalls: 4,
+  addedDrawCalls: 0
+});
+
 export const EARTH_V2_RESPONSIVE_COMPOSITION = Object.freeze({
   desktop: EARTH_V2_HERO_COMPOSITION,
   mobilePortrait: Object.freeze({
@@ -50,17 +61,32 @@ const EARTH_HYBRID_MODES = new Set([
 ]);
 
 export function createEarthHorizon({ heroV2 = false } = {}) {
+  const heroV3 = heroV2 && readEarthV3State().enabled;
   const group = new THREE.Group();
   const surfaceGroup = new THREE.Group();
   const cityLightsGroup = new THREE.Group();
   const cloudGroup = new THREE.Group();
   const atmosphereGroup = new THREE.Group();
   const sunriseGlow = new THREE.Group();
-  const surfaceGeometry = new THREE.SphereGeometry(1.85, 64, 40);
-  const cityLightsGeometry = new THREE.SphereGeometry(1.859, 64, 40);
-  const cloudGeometry = new THREE.SphereGeometry(1.86, 64, 40);
+  const surfaceGeometry = new THREE.SphereGeometry(
+    heroV3 ? EARTH_V3_CINEMATIC_PROFILE.surfaceRadius : 1.85,
+    64,
+    40
+  );
+  const cityLightsGeometry = new THREE.SphereGeometry(
+    heroV3 ? EARTH_V3_CINEMATIC_PROFILE.cityRadius : 1.859,
+    64,
+    40
+  );
+  const cloudGeometry = new THREE.SphereGeometry(
+    heroV3 ? EARTH_V3_CINEMATIC_PROFILE.cloudRadius : 1.86,
+    64,
+    40
+  );
   const atmosphereGeometry = new THREE.SphereGeometry(
-    heroV2 ? EARTH_V2_HERO_COMPOSITION.atmosphereRadius : 1.865,
+    heroV3
+      ? EARTH_V3_CINEMATIC_PROFILE.atmosphereRadius
+      : heroV2 ? EARTH_V2_HERO_COMPOSITION.atmosphereRadius : 1.865,
     96,
     64
   );
@@ -68,12 +94,18 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
   const seamDebug = createEarthSeamDebug();
   const hybridDebug = createEarthHybridDebug();
   const atmosphereDebug = createEarthAtmosphereDebug();
+  const cinematicCloseupDebug = createEarthV3CloseupDebug(heroV3);
   const layerModeOverride = readEarthLayerModeOverride();
   const cityOnlyDebug = readCityOnlyDebugState();
   const surfaceMaterial = createSurfaceMaterial(sharedTime, seamDebug.enabled);
   const cityLightsMaterial = createCityLightsMaterial(sharedTime);
   const cloudMaterial = createCloudMaterial(sharedTime, seamDebug.enabled);
-  const atmosphereMaterial = createAtmosphereMaterial(atmosphereDebug.enabled, heroV2);
+  const atmosphereMaterial = createAtmosphereMaterial(
+    atmosphereDebug.enabled,
+    heroV2,
+    heroV3,
+    sharedTime
+  );
   const surface = new THREE.Mesh(surfaceGeometry, surfaceMaterial);
   const cityLights = new THREE.Mesh(cityLightsGeometry, cityLightsMaterial);
   const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
@@ -86,7 +118,8 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
     surfaceGeometry,
     cityGeometry: cityLightsGeometry,
     cloudGeometry,
-    sunDirection: EARTH_SUN_DIRECTION
+    sunDirection: EARTH_SUN_DIRECTION,
+    cinematic: heroV3
   });
   const rotationDebug = createEarthRotationDebug();
   const inverseSurfaceRotation = new THREE.Quaternion();
@@ -137,6 +170,7 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
     applyHybridMode();
     if (heroV2 && typeof window !== 'undefined') {
       window.__ACTIVE_THEORY_EARTH_V2__ = getStatus();
+      if (heroV3) window.__ACTIVE_THEORY_EARTH_V3__ = getStatus();
     }
   });
   void textureLoader.loadEarthTextures();
@@ -207,6 +241,7 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
       surfaceAngle,
       cloudAngle
     });
+    cinematicCloseupDebug.update({ group });
     if (seamDebug.enabled) setLayerMode(seamDebug.mode);
   }
 
@@ -227,16 +262,21 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
     seamDebug.dispose();
     hybridDebug.dispose();
     atmosphereDebug.dispose();
+    cinematicCloseupDebug.dispose();
     delete window.__ACTIVE_THEORY_EARTH_SEAM_TEST__;
+    delete window.__ACTIVE_THEORY_EARTH_V3__;
     group.clear();
   }
 
   function getStatus() {
     return Object.freeze({
       heroV2,
+      heroV3,
+      version: heroV3 ? EARTH_V3_CINEMATIC_PROFILE.version : heroV2 ? 'v2' : 'legacy',
       textureStatus,
       textureAssets: textureLayers.isReady(),
-      drawCalls: heroV2 ? 4 : null,
+      drawCalls: heroV2 ? EARTH_V3_CINEMATIC_PROFILE.drawCalls : null,
+      addedDrawCalls: heroV3 ? EARTH_V3_CINEMATIC_PROFILE.addedDrawCalls : 0,
       clouds: heroV2 && textureLayers.isReady(),
       position: group.position.toArray(),
       scale: group.scale.x
@@ -305,8 +345,10 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
     cityLights.visible = false;
     clouds.visible = false;
     atmosphere.visible = mode === 'combined';
-    textureLayers.setWeights(heroV2
-      ? { surface: 0.96, city: 0.22, clouds: 0.11 }
+    textureLayers.setWeights(heroV3
+      ? EARTH_V3_CINEMATIC_PROFILE.textureWeights
+      : heroV2
+        ? { surface: 0.96, city: 0.22, clouds: 0.11 }
       : { surface: 0.96, city: 0.72, clouds: 0.22 });
     textureLayers.setSurfaceMode(
       mode === 'cityTextureOnly' || mode === 'cloudTextureOnly'
@@ -345,6 +387,11 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
 export function readEarthV2State(search = readLocationSearch()) {
   const params = new URLSearchParams(search);
   return Object.freeze({ enabled: params.get('earthV2') === '1' });
+}
+
+export function readEarthV3State(search = readLocationSearch()) {
+  const params = new URLSearchParams(search);
+  return Object.freeze({ enabled: params.get('earthV3') === '1' });
 }
 
 function readLocationSearch() {
@@ -1106,29 +1153,43 @@ function createCloudMaterial(sharedTime, debugSeam = false) {
   });
 }
 
-function createAtmosphereMaterial(debugAtmosphere = false, heroV2 = false) {
+function createAtmosphereMaterial(
+  debugAtmosphere = false,
+  heroV2 = false,
+  heroV3 = false,
+  sharedTime = { value: 0 }
+) {
   return new THREE.ShaderMaterial({
     uniforms: {
+      uTime: sharedTime,
       uLayerMode: { value: EARTH_LAYER_MODES.combined },
       uDebugAtmosphere: { value: debugAtmosphere ? 1 : 0 },
-      uHeroV2: { value: heroV2 ? 1 : 0 }
+      uHeroV2: { value: heroV2 ? 1 : 0 },
+      uHeroV3: { value: heroV3 ? 1 : 0 },
+      uSunDirectionObject: { value: new THREE.Vector3(0.76, 0.58, 0.12).normalize() }
     },
     vertexShader: `
       varying vec3 vNormalView;
+      varying vec3 vNormalObject;
       varying vec3 vViewDirection;
 
       void main() {
         vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
         vNormalView = normalize(normalMatrix * normal);
+        vNormalObject = normalize(normal);
         vViewDirection = normalize(-viewPosition.xyz);
         gl_Position = projectionMatrix * viewPosition;
       }
     `,
     fragmentShader: `
+      uniform float uTime;
       uniform float uLayerMode;
       uniform float uDebugAtmosphere;
       uniform float uHeroV2;
+      uniform float uHeroV3;
+      uniform vec3 uSunDirectionObject;
       varying vec3 vNormalView;
+      varying vec3 vNormalObject;
       varying vec3 vViewDirection;
 
       void main() {
@@ -1148,6 +1209,46 @@ function createAtmosphereMaterial(debugAtmosphere = false, heroV2 = false) {
         float edgeVisibility = mix(0.015, 1.0, litEdge);
         float sunrise = pow(max(lightFacing, 0.0), 28.0)
           * pow(limb, 6.0);
+        if (uHeroV3 > 0.5 && uDebugAtmosphere < 0.5) {
+          float sunFacing = dot(
+            normalize(vNormalObject),
+            normalize(uSunDirectionObject)
+          );
+          float lightSide = smoothstep(-0.22, 0.66, sunFacing);
+          float hazeVisibility = mix(0.012, 0.92, lightSide);
+          float rimVisibility = smoothstep(-0.04, 0.62, sunFacing);
+          float outerHaze = pow(limb, 2.2);
+          float middleScatter = pow(limb, 5.4);
+          float innerRim = pow(limb, 28.0);
+          float terminator = 1.0 - smoothstep(0.02, 0.42, abs(sunFacing + 0.06));
+          float sunriseArc = smoothstep(0.885, 0.985, lightFacing)
+            * smoothstep(0.7, 0.985, limb);
+          float breathing = 1.0 + sin(uTime * 0.085 + vNormalObject.y * 4.0) * 0.012;
+          vec3 cobalt = vec3(0.008, 0.052, 0.19);
+          vec3 coldBlue = vec3(0.022, 0.19, 0.48);
+          vec3 icyBlue = vec3(0.16, 0.48, 0.82);
+          vec3 atmosphereColor = mix(
+            cobalt,
+            coldBlue,
+            smoothstep(0.08, 0.68, middleScatter)
+          );
+          atmosphereColor = mix(
+            atmosphereColor,
+            icyBlue,
+            smoothstep(0.12, 0.82, innerRim)
+          );
+          atmosphereColor += vec3(0.12, 0.32, 0.58) * terminator * 0.12;
+          atmosphereColor += vec3(0.42, 0.67, 0.9) * sunriseArc * 0.68;
+          float atmosphereAlpha = outerHaze * 0.052 * hazeVisibility
+            + middleScatter * 0.072 * hazeVisibility
+            + innerRim * 0.235 * rimVisibility;
+          atmosphereAlpha += terminator * outerHaze * 0.014;
+          atmosphereAlpha += sunriseArc * 0.17;
+          atmosphereAlpha *= breathing;
+          if (atmosphereAlpha < 0.0018) discard;
+          gl_FragColor = vec4(atmosphereColor, min(atmosphereAlpha, 0.42));
+          return;
+        }
         if (uHeroV2 > 0.5) {
           float broadRim = pow(limb, 4.8);
           float tightRim = pow(limb, 18.0);
@@ -1222,6 +1323,79 @@ function createAtmosphereDebugSilhouette(geometry) {
       toneMapped: false
     })
   );
+}
+
+function createEarthV3CloseupDebug(heroV3) {
+  const enabled = import.meta.env.DEV
+    && heroV3
+    && new URLSearchParams(window.location.search).get('debugEarthV3Closeup') === '1';
+
+  if (!enabled) return { update() {}, dispose() {} };
+
+  const hiddenSiblings = [];
+  const hiddenOverlays = [];
+  const originalPosition = new THREE.Vector3();
+  const originalScale = new THREE.Vector3();
+  const originalRotation = new THREE.Euler();
+  let isolated = false;
+  let scene = null;
+  let previousBackground = null;
+
+  function update({ group }) {
+    if (isolated || !group.parent) return;
+
+    isolated = true;
+    originalPosition.copy(group.position);
+    originalScale.copy(group.scale);
+    originalRotation.copy(group.rotation);
+    group.parent.children.forEach((object) => {
+      if (object === group) return;
+      hiddenSiblings.push({ object, visible: object.visible });
+      object.visible = false;
+    });
+    document.querySelectorAll('.hero-copy, .hero-scroll-hint').forEach((element) => {
+      hiddenOverlays.push({ element, display: element.style.display });
+      element.style.display = 'none';
+    });
+    scene = group;
+    while (scene.parent) scene = scene.parent;
+    if (scene.isScene) {
+      previousBackground = scene.background;
+      scene.background = new THREE.Color(0x010713);
+    }
+    group.position.set(-0.2, -0.08, 0.45);
+    group.scale.setScalar(0.78);
+    group.rotation.fromArray(EARTH_V2_HERO_COMPOSITION.rotation);
+    window.__ACTIVE_THEORY_EARTH_V3_CLOSEUP__ = Object.freeze({
+      isolated: true,
+      position: group.position.toArray(),
+      scale: group.scale.x
+    });
+  }
+
+  function dispose() {
+    hiddenSiblings.forEach(({ object, visible }) => {
+      object.visible = visible;
+    });
+    hiddenOverlays.forEach(({ element, display }) => {
+      element.style.display = display;
+    });
+    if (scene?.isScene) scene.background = previousBackground;
+    if (isolated) {
+      groupTransformRestore();
+    }
+    delete window.__ACTIVE_THEORY_EARTH_V3_CLOSEUP__;
+  }
+
+  function groupTransformRestore() {
+    const earth = scene?.getObjectByName('EarthRoot');
+    if (!earth) return;
+    earth.position.copy(originalPosition);
+    earth.scale.copy(originalScale);
+    earth.rotation.copy(originalRotation);
+  }
+
+  return { update, dispose };
 }
 
 function createEarthAtmosphereDebug() {
