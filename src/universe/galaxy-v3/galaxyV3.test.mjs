@@ -67,16 +67,16 @@ test('V4 LDI uses five world-space planes with stable far-to-near ordering', () 
   assert.deepEqual(GALAXY_V3_V4_CONFIG.galaxyHeroAsset.scale, [2.03, 2.03, 1]);
 });
 
-test('V1.3 restrains near LDI spread while preserving five distinct depth factors', () => {
+test('V4.4 restrains near LDI spread while preserving five distinct depth factors', () => {
   const { layers } = GALAXY_V3_V4_CONFIG.galaxyHeroAsset;
   const factors = Object.fromEntries(layers.map(({ id, parallaxFactor }) => [id, parallaxFactor]));
 
   assert.deepEqual(
     layers.map(({ parallaxFactor }) => parallaxFactor),
-    [0, 0.24, 0.42, 0.56, 0.78]
+    [0, 0.24, 0.42, 0.46, 0.58]
   );
-  assert.ok(Math.abs(factors.nearArm / 0.7 - 0.8) < Number.EPSILON * 2);
-  assert.equal(factors.foreground, 0.78);
+  assert.ok(Math.abs(factors.nearArm / 0.56 - 0.8214285714285714) < Number.EPSILON * 2);
+  assert.ok(Math.abs(factors.foreground / 0.78 - 0.7435897435897436) < Number.EPSILON * 2);
   assert.ok(factors.foreground > factors.nearArm && factors.nearArm > factors.core);
 });
 
