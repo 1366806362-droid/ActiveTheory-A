@@ -45,6 +45,8 @@ import {
 import { createSceneManager } from '../world/sceneManager.js';
 import { MOCK_FIVE_A_BOTTLENECK } from '../v2/mock/brandUniverseMocks.js';
 import { createFiveADataPanel } from '../ui/fiveA-data-panel/fiveADataPanel.js';
+import { MOCK_BRAND_MIND_PANEL } from '../ui/brandMind-data-panel/brandMindDataPanelMock.js';
+import { createBrandMindDataPanel } from '../ui/brandMind-data-panel/brandMindDataPanel.js';
 
 const ENGINE_INSTANCE_KEY = '__ACTIVE_THEORY_ENGINE__';
 
@@ -72,19 +74,30 @@ export function initializeEngine() {
   const lights = createLights();
   const heroScene = createHeroScene();
   const fiveADataPanel = createFiveADataPanel({ snapshot: MOCK_FIVE_A_BOTTLENECK });
+  const brandMindDataPanel = createBrandMindDataPanel({ snapshot: MOCK_BRAND_MIND_PANEL });
   const sceneManager = createSceneManager({
     heroScene,
     camera,
     onFiveAPrimaryActivate() {
       fiveADataPanel.toggle('primary-sphere');
     },
-    isFiveADataPanelOpen: fiveADataPanel.isOpen
+    isFiveADataPanelOpen: fiveADataPanel.isOpen,
+    onBrandMindPrimaryActivate() {
+      brandMindDataPanel.toggle('primary-core');
+    },
+    isBrandMindDataPanelOpen: brandMindDataPanel.isOpen
   });
   const fiveADataPanelDebugRequested = import.meta.env.DEV
     && new URLSearchParams(window.location.search).get('fiveADataPanel') === '1';
 
   if (fiveADataPanelDebugRequested) {
     fiveADataPanel.open('debug-query');
+  }
+  const brandMindDataPanelDebugRequested = import.meta.env.DEV
+    && new URLSearchParams(window.location.search).get('brandMindDataPanel') === '1';
+
+  if (brandMindDataPanelDebugRequested) {
+    brandMindDataPanel.open('debug-query');
   }
   const interaction = initializeInteraction();
   activeScene.add(sceneManager.root);
@@ -101,7 +114,8 @@ export function initializeEngine() {
     renderer.domElement,
     heroScene.overlay,
     heroScene.scrollHint,
-    fiveADataPanel.element
+    fiveADataPanel.element,
+    brandMindDataPanel.element
   );
   const postProcessing = createPostProcessing({
     renderer,
@@ -138,6 +152,7 @@ export function initializeEngine() {
       isDisposed = true;
       stopEngineLoop();
       fiveADataPanel.destroy();
+      brandMindDataPanel.destroy();
       interaction.dispose();
       sceneManager.dispose();
       environmentMap.dispose();

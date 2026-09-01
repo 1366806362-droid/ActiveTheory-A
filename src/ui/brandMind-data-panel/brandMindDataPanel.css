@@ -1,0 +1,447 @@
+.brandmind-data-panel {
+  --panel-bg: rgba(3, 10, 17, 0.985);
+  --card-bg: rgba(8, 19, 31, 0.945);
+  --card-raised: rgba(10, 23, 37, 0.965);
+  --line: rgba(126, 155, 178, 0.115);
+  --line-horizontal: rgba(135, 162, 182, 0.14);
+  --text: rgba(235, 243, 248, 0.94);
+  --text-soft: rgba(179, 197, 211, 0.73);
+  --text-muted: rgba(134, 157, 176, 0.55);
+  --ice: rgba(165, 207, 230, 0.9);
+  --silver: rgba(207, 220, 229, 0.84);
+  --ivory: #d6c18e;
+  --positive: #78cda2;
+  --negative: #d48779;
+  position: fixed;
+  top: 12px;
+  right: 14px;
+  z-index: 41;
+  width: min(65vw, 1040px);
+  height: calc(100dvh - 24px);
+  color: var(--text);
+  font-family: Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(36px);
+  transition: opacity 300ms ease, transform 300ms ease;
+}
+
+.brandmind-data-panel.is-open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.brandmind-data-panel__surface {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid rgba(133, 162, 183, 0.17);
+  border-radius: 13px;
+  background: var(--panel-bg);
+  box-shadow: -20px 0 58px rgba(0, 0, 0, 0.34), 0 16px 44px rgba(0, 0, 0, 0.42);
+  scrollbar-color: rgba(151, 183, 202, 0.34) rgba(6, 13, 22, 0.8);
+  scrollbar-width: thin;
+}
+
+.brandmind-data-panel__header,
+.brandmind-data-panel__section-heading,
+.brandmind-data-panel__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brandmind-data-panel__header {
+  min-height: 48px;
+  padding: 1px 5px 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.brandmind-data-panel__eyebrow {
+  margin: 0 0 5px;
+  color: rgba(164, 203, 225, 0.52);
+  font-size: 8.5px;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+}
+
+.brandmind-data-panel__header h1,
+.brandmind-data-panel__section-heading h2 {
+  margin: 0;
+  color: var(--text);
+  font-weight: 560;
+  letter-spacing: 0.015em;
+}
+
+.brandmind-data-panel__header h1 { font-size: 20px; }
+.brandmind-data-panel__header h1 span,
+.brandmind-data-panel__section-heading h2 span {
+  margin-left: 7px;
+  color: rgba(177, 197, 211, 0.64);
+  font-size: 0.62em;
+  font-weight: 450;
+}
+
+.brandmind-data-panel__close {
+  min-width: 58px;
+  height: 32px;
+  border: 1px solid rgba(143, 169, 188, 0.27);
+  border-radius: 7px;
+  background: rgba(7, 15, 24, 0.92);
+  color: rgba(225, 234, 240, 0.84);
+  font: 560 11px/1 inherit;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.brandmind-data-panel__close:hover,
+.brandmind-data-panel__close:focus-visible {
+  border-color: rgba(169, 210, 231, 0.52);
+  color: var(--ice);
+  outline: none;
+}
+
+.brandmind-data-panel__snapshot {
+  display: grid;
+  grid-template-columns: 0.95fr 1fr 1.18fr 0.9fr 0.92fr;
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--card-raised);
+}
+
+.brandmind-data-panel__snapshot.is-mock { border-color: rgba(185, 166, 118, 0.24); }
+.brandmind-data-panel__snapshot.is-partial { border-color: rgba(176, 145, 104, 0.3); }
+
+.brandmind-data-panel__snapshot-item {
+  min-width: 0;
+  padding: 7px 11px 8px;
+  border-left: 1px solid rgba(127, 156, 178, 0.075);
+}
+
+.brandmind-data-panel__snapshot-item:first-child { border-left: 0; }
+.brandmind-data-panel__snapshot-item span,
+.brandmind-data-panel__snapshot-item strong { display: block; }
+.brandmind-data-panel__snapshot-item span { color: var(--text-soft); font-size: 10px; }
+.brandmind-data-panel__snapshot-item small { color: var(--text-muted); font-size: 8px; }
+.brandmind-data-panel__snapshot-item strong {
+  margin-top: 5px;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.brandmind-data-panel__snapshot.is-mock .brandmind-data-panel__snapshot-item:nth-child(3) strong,
+.brandmind-data-panel__snapshot.is-mock .brandmind-data-panel__snapshot-item:nth-child(5) strong { color: var(--ivory); }
+
+.brandmind-data-panel__section,
+.brandmind-data-panel__card {
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--card-bg);
+}
+
+.brandmind-data-panel__section,
+.brandmind-data-panel__card { padding: 8px; }
+.brandmind-data-panel__section-heading { min-height: 23px; margin-bottom: 5px; }
+.brandmind-data-panel__section-heading h2 { font-size: 14px; }
+.brandmind-data-panel__section-heading p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 8px;
+  letter-spacing: 0.05em;
+}
+
+.brandmind-data-panel__core-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  border-top: 1px solid rgba(127, 156, 178, 0.09);
+  border-bottom: 1px solid rgba(127, 156, 178, 0.09);
+}
+
+.brandmind-data-panel__core-metric {
+  min-width: 0;
+  min-height: 65px;
+  padding: 8px 10px 5px;
+  border-left: 1px solid rgba(127, 156, 178, 0.07);
+  background: rgba(4, 12, 20, 0.26);
+}
+
+.brandmind-data-panel__core-metric:first-child { border-left: 0; }
+.brandmind-data-panel__core-metric > span,
+.brandmind-data-panel__core-metric > strong,
+.brandmind-data-panel__core-metric > em { display: block; }
+.brandmind-data-panel__core-metric > span { color: var(--text-soft); font-size: 9.5px; }
+.brandmind-data-panel__core-metric > span small { display: block; margin-top: 2px; color: var(--text-muted); font-size: 7.8px; }
+.brandmind-data-panel__core-metric > strong { margin-top: 5px; color: var(--text); font-size: 18px; font-weight: 520; font-variant-numeric: tabular-nums; }
+.brandmind-data-panel__core-metric > em { margin-top: 4px; color: var(--positive); font-size: 8px; font-style: normal; }
+.brandmind-data-panel__core-status > strong { color: var(--ivory); font-size: 15px; }
+.brandmind-data-panel__core-status > em { color: var(--text-muted); letter-spacing: 0.06em; }
+
+.brandmind-data-panel__bar {
+  display: block;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgba(124, 149, 168, 0.1);
+}
+
+.brandmind-data-panel__bar b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: rgba(195, 215, 225, 0.8);
+}
+
+.brandmind-data-panel__core-metric .brandmind-data-panel__bar { margin-top: 5px; }
+
+.brandmind-data-panel__table-wrap {
+  overflow-x: auto;
+  border-top: 1px solid rgba(115, 143, 164, 0.12);
+  border-bottom: 1px solid rgba(115, 143, 164, 0.12);
+  border-radius: 4px;
+}
+
+.brandmind-data-panel__table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 10.5px;
+}
+
+.brandmind-data-panel__table th,
+.brandmind-data-panel__table td {
+  box-sizing: border-box;
+  height: 29px;
+  padding: 4px 7px;
+  overflow: hidden;
+  border-right: 1px solid rgba(112, 141, 162, 0.045);
+  border-bottom: 1px solid var(--line-horizontal);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brandmind-data-panel__table th:last-child,
+.brandmind-data-panel__table td:last-child { border-right: 0; }
+.brandmind-data-panel__table tbody tr:last-child td { border-bottom: 0; }
+.brandmind-data-panel__table th {
+  height: 33px;
+  color: rgba(176, 196, 210, 0.72);
+  background: rgba(5, 12, 20, 0.26);
+  font-size: 9px;
+  font-weight: 550;
+}
+.brandmind-data-panel__table th span,
+.brandmind-data-panel__table th small { display: block; }
+.brandmind-data-panel__table th small { margin-top: 1px; color: var(--text-muted); font-size: 7.6px; font-weight: 450; }
+.brandmind-data-panel__table td { color: rgba(213, 225, 233, 0.77); }
+.brandmind-data-panel__table td strong { color: rgba(234, 241, 245, 0.9); font-weight: 560; }
+.brandmind-data-panel__table .is-rank { color: var(--text-muted); text-align: center; }
+.brandmind-data-panel__table .is-number { color: rgba(229, 238, 243, 0.87); font-variant-numeric: tabular-nums; }
+.brandmind-data-panel__table .is-meta { color: var(--text-muted); }
+.brandmind-data-panel__table tr.is-top td { background: rgba(203, 190, 151, 0.045); }
+.brandmind-data-panel__table tr.is-top .is-key strong { color: var(--ivory); }
+
+.brandmind-data-panel__table--associations th:nth-child(1) { width: 4%; }
+.brandmind-data-panel__table--associations th:nth-child(2) { width: 12%; }
+.brandmind-data-panel__table--associations th:nth-child(3) { width: 12%; }
+.brandmind-data-panel__table--associations th:nth-child(4) { width: 17%; }
+.brandmind-data-panel__table--associations th:nth-child(5) { width: 10%; }
+.brandmind-data-panel__table--associations th:nth-child(6) { width: 11%; }
+.brandmind-data-panel__table--associations th:nth-child(7) { width: 11%; }
+.brandmind-data-panel__table--associations th:nth-child(8) { width: 11%; }
+.brandmind-data-panel__table--associations th:nth-child(9) { width: 12%; }
+
+.brandmind-data-panel__value-bar {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  align-items: center;
+  gap: 7px;
+}
+.brandmind-data-panel__value-bar span { color: var(--silver); font-variant-numeric: tabular-nums; }
+.brandmind-data-panel__value-bar .brandmind-data-panel__bar b { background: rgba(205, 217, 220, 0.82); }
+
+.brandmind-data-panel__status { color: var(--text-soft); }
+.brandmind-data-panel__status.is-core { color: var(--ivory); }
+.brandmind-data-panel__status.is-growing,
+.brandmind-data-panel__status.is-emerging { color: var(--positive); }
+.brandmind-data-panel__status.is-weakening,
+.brandmind-data-panel__status.is-lost { color: var(--negative); }
+.brandmind-data-panel__status.is-not_provided { color: var(--text-muted); }
+.brandmind-data-panel__table .is-positive { color: var(--positive); }
+.brandmind-data-panel__table .is-negative { color: var(--negative); }
+
+.brandmind-data-panel__middle-grid,
+.brandmind-data-panel__bottom-grid {
+  display: grid;
+  gap: 8px;
+}
+.brandmind-data-panel__middle-grid { grid-template-columns: 44fr 56fr; }
+.brandmind-data-panel__bottom-grid { grid-template-columns: 30fr 45fr 25fr; }
+
+.brandmind-data-panel__relationship-list {
+  border-top: 1px solid rgba(115, 143, 164, 0.11);
+}
+.brandmind-data-panel__relationship-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) 45px 45px 54px 58px;
+  align-items: center;
+  min-height: 27px;
+  padding: 0 6px;
+  border-bottom: 1px solid var(--line-horizontal);
+  color: var(--text-soft);
+  font-size: 9px;
+}
+.brandmind-data-panel__relationship-row:last-child { border-bottom: 0; }
+.brandmind-data-panel__relationship-row.is-core-path { background: rgba(203, 190, 151, 0.04); }
+.brandmind-data-panel__relationship-pair { display: grid; grid-template-columns: 1fr 18px 1fr; align-items: center; }
+.brandmind-data-panel__relationship-pair strong { overflow: hidden; color: rgba(225, 235, 241, 0.84); font-weight: 540; text-overflow: ellipsis; white-space: nowrap; }
+.brandmind-data-panel__relationship-pair i { color: var(--text-muted); font-style: normal; text-align: center; }
+.brandmind-data-panel__relationship-row .is-positive { color: var(--positive); }
+.brandmind-data-panel__relationship-row .is-negative { color: var(--negative); }
+
+.brandmind-data-panel__drift-summary {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+}
+.brandmind-data-panel__drift-summary > div {
+  padding: 6px 7px;
+  border: 1px solid rgba(115, 143, 164, 0.105);
+  border-radius: 5px;
+  background: rgba(5, 12, 20, 0.34);
+}
+.brandmind-data-panel__drift-summary span,
+.brandmind-data-panel__drift-summary strong { display: block; }
+.brandmind-data-panel__drift-summary span { color: var(--text-muted); font-size: 8px; }
+.brandmind-data-panel__drift-summary strong { margin-top: 3px; color: var(--silver); font-size: 13px; font-weight: 520; }
+
+.brandmind-data-panel__drift-list { margin-top: 5px; }
+.brandmind-data-panel__drift-list > div {
+  display: grid;
+  grid-template-columns: 1fr 52px 48px minmax(52px, 0.8fr);
+  align-items: center;
+  min-height: 22px;
+  border-bottom: 1px solid rgba(115, 143, 164, 0.09);
+  color: var(--text-soft);
+  font-size: 8.5px;
+}
+.brandmind-data-panel__drift-list > div:last-child { border-bottom: 0; }
+.brandmind-data-panel__drift-list strong { color: rgba(226, 236, 241, 0.85); font-weight: 540; }
+.brandmind-data-panel__drift-list em { font-style: normal; }
+.brandmind-data-panel__drift-list .is-positive { color: var(--positive); }
+.brandmind-data-panel__drift-list .is-negative { color: var(--negative); }
+
+.brandmind-data-panel__diagnostics,
+.brandmind-data-panel__opportunities { display: grid; gap: 4px; }
+.brandmind-data-panel__opportunities article,
+.brandmind-data-panel__diagnostics article {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 7px;
+  padding: 5px 7px;
+  border: 1px solid rgba(116, 144, 164, 0.105);
+  border-radius: 6px;
+  background: rgba(5, 12, 20, 0.4);
+}
+.brandmind-data-panel__opportunities article > span,
+.brandmind-data-panel__diagnostics article > span {
+  align-self: start;
+  padding-top: 1px;
+  color: var(--text-muted);
+  font-size: 8px;
+  font-weight: 650;
+}
+.brandmind-data-panel__opportunities article.is-strengthen > span { color: var(--ivory); }
+.brandmind-data-panel__opportunities article.is-growth > span { color: var(--positive); }
+.brandmind-data-panel__opportunities article.is-defend > span { color: var(--negative); }
+.brandmind-data-panel__diagnostics article.is-warning > span { color: var(--negative); }
+.brandmind-data-panel__diagnostics article.is-positive > span { color: var(--positive); }
+.brandmind-data-panel__diagnostics article.is-attention > span { color: var(--ivory); }
+.brandmind-data-panel__opportunities strong,
+.brandmind-data-panel__diagnostics strong { display: block; color: rgba(230, 238, 243, 0.9); font-size: 10.5px; font-weight: 560; }
+.brandmind-data-panel__opportunities p,
+.brandmind-data-panel__diagnostics p {
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 8.5px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brandmind-data-panel__metric-list { margin: 0; }
+.brandmind-data-panel__metric-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 22px;
+  border-bottom: 1px solid rgba(112, 140, 161, 0.09);
+}
+.brandmind-data-panel__metric-list > div:last-child { border-bottom: 0; }
+.brandmind-data-panel__metric-list dt { color: var(--text-soft); font-size: 9px; }
+.brandmind-data-panel__metric-list dd { margin: 0; color: var(--text); font-size: 10px; font-variant-numeric: tabular-nums; }
+.brandmind-data-panel__metric-list .is-muted dd { color: var(--text-muted); }
+
+.brandmind-data-panel__empty {
+  display: flex;
+  align-items: center;
+  min-height: 74px;
+  padding: 0 12px;
+  border: 1px solid rgba(115, 143, 164, 0.09);
+  border-radius: 5px;
+  color: var(--text-muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.brandmind-data-panel__footer {
+  padding: 5px 3px 0;
+  color: rgba(128, 148, 165, 0.44);
+  font-size: 7.5px;
+  letter-spacing: 0.07em;
+}
+
+@media (max-width: 1100px) {
+  .brandmind-data-panel { right: 14px; width: calc(100vw - 28px); }
+}
+
+@media (max-height: 920px) and (min-width: 1101px) {
+  .brandmind-data-panel__surface { padding: 10px; }
+  .brandmind-data-panel__header { min-height: 43px; padding-bottom: 6px; }
+  .brandmind-data-panel__eyebrow { margin-bottom: 3px; }
+  .brandmind-data-panel__header h1 { font-size: 19px; }
+  .brandmind-data-panel__snapshot { margin-top: 6px; }
+  .brandmind-data-panel__snapshot-item { padding: 5px 10px 6px; }
+  .brandmind-data-panel__snapshot-item strong { margin-top: 3px; }
+  .brandmind-data-panel__section,
+  .brandmind-data-panel__card { margin-top: 6px; padding: 6px; }
+  .brandmind-data-panel__section-heading { min-height: 20px; margin-bottom: 3px; }
+  .brandmind-data-panel__section-heading h2 { font-size: 13px; }
+  .brandmind-data-panel__core-metric { min-height: 51px; padding: 5px 9px 3px; }
+  .brandmind-data-panel__core-metric > strong { margin-top: 3px; font-size: 16px; }
+  .brandmind-data-panel__core-metric > em { margin-top: 2px; }
+  .brandmind-data-panel__core-metric .brandmind-data-panel__bar { margin-top: 3px; }
+  .brandmind-data-panel__table th { height: 29px; }
+  .brandmind-data-panel__table td { height: 25px; padding-top: 3px; padding-bottom: 3px; }
+  .brandmind-data-panel__relationship-row { min-height: 23px; }
+  .brandmind-data-panel__drift-summary > div { padding: 4px 6px; }
+  .brandmind-data-panel__drift-list { margin-top: 3px; }
+  .brandmind-data-panel__drift-list > div { min-height: 19px; }
+  .brandmind-data-panel__diagnostics { gap: 3px; }
+  .brandmind-data-panel__opportunities { gap: 3px; }
+  .brandmind-data-panel__opportunities article,
+  .brandmind-data-panel__diagnostics article { padding: 4px 6px; }
+  .brandmind-data-panel__metric-list > div { min-height: 19px; }
+  .brandmind-data-panel__footer { padding-top: 3px; }
+}
+
+/* Mobile Brand Mind data-panel composition is intentionally deferred. */

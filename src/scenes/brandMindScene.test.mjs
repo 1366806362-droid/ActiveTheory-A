@@ -1,5 +1,10 @@
 import assert from 'node:assert/strict';
-import { BRAND_MIND_VISUAL_V131 } from './brandMindScene.js';
+import {
+  BRAND_MIND_PANEL_OPEN_PRESENTATION_STATE,
+  BRAND_MIND_PRIMARY_INTERACTION_TARGET,
+  BRAND_MIND_VISUAL_V131,
+  resolveBrandMindPanelPresentation
+} from './brandMindScene.js';
 
 const results = [];
 
@@ -50,6 +55,32 @@ test('Brand Mind final balance keeps the blue-led palette with one muted violet 
     BRAND_MIND_VISUAL_V131.palette,
     ['deep-blue', 'icy-blue', 'silver-white', 'muted-violet-accent']
   );
+});
+
+test('Brand Mind data panel binds the existing cognitive core volume', () => {
+  assert.deepEqual(BRAND_MIND_PRIMARY_INTERACTION_TARGET, {
+    id: 'brand-mind-primary-core',
+    objectName: 'BrandMindCoreVolume',
+    semantic: 'PRIMARY_DATA_ENTRY'
+  });
+});
+
+test('panel-open presentation transforms the complete Brand Mind scene root', () => {
+  assert.deepEqual(resolveBrandMindPanelPresentation(1), BRAND_MIND_PANEL_OPEN_PRESENTATION_STATE);
+  assert.equal(BRAND_MIND_PANEL_OPEN_PRESENTATION_STATE.scale, 0.82);
+  assert.equal(BRAND_MIND_PANEL_OPEN_PRESENTATION_STATE.position[0], -2.45);
+});
+
+test('panel-close presentation restores the locked Brand Mind baseline', () => {
+  assert.deepEqual(resolveBrandMindPanelPresentation(0), {
+    position: [0, -0.06, -0.82],
+    scale: 1
+  });
+});
+
+test('Brand Mind panel presentation reopen is deterministic', () => {
+  assert.deepEqual(resolveBrandMindPanelPresentation(1), resolveBrandMindPanelPresentation(1));
+  assert.deepEqual(resolveBrandMindPanelPresentation(0), resolveBrandMindPanelPresentation(0));
 });
 
 const failed = results.filter(({ status }) => status === 'fail');

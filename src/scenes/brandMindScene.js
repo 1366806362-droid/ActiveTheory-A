@@ -13,6 +13,8 @@ const CORE_MID_LOW_DENSITY_GAIN = 0.12;
 const DOMINANT_NEAR_NODE_SCALE_REDUCTION = 0.17;
 const FAR_NODE_COHESION_GAIN = 0.1;
 const SHORT_ASSOCIATION_FLOW_OPACITY = 0.365;
+const BRAND_MIND_FINAL_POSITION = Object.freeze([0, -0.06, -0.82]);
+const BRAND_MIND_PANEL_PRESENTATION_RESPONSE = 12;
 
 const ASSOCIATION_NODE_LAYOUT = Object.freeze([
   Object.freeze({ type: 'particle-shell', depth: 'near', position: [-1.6, 0.6, 0.12], scale: 0.38 * (1 - DOMINANT_NEAR_NODE_SCALE_REDUCTION), phase: 0.3 }),
@@ -24,6 +26,17 @@ const ASSOCIATION_NODE_LAYOUT = Object.freeze([
 ]);
 
 const ASSOCIATION_PATH_NODE_INDICES = Object.freeze([0, 2, 4]);
+
+export const BRAND_MIND_PANEL_OPEN_PRESENTATION_STATE = Object.freeze({
+  position: Object.freeze([-2.45, -0.04, -0.85]),
+  scale: 0.82
+});
+
+export const BRAND_MIND_PRIMARY_INTERACTION_TARGET = Object.freeze({
+  id: 'brand-mind-primary-core',
+  objectName: 'BrandMindCoreVolume',
+  semantic: 'PRIMARY_DATA_ENTRY'
+});
 
 export const BRAND_MIND_VISUAL_V131 = Object.freeze({
   version: '1.3.1',
@@ -50,22 +63,36 @@ export const BRAND_MIND_VISUAL_V131 = Object.freeze({
 
 export function createBrandMindScene() {
   const group = new THREE.Group();
+  const primaryRaycaster = new THREE.Raycaster();
+  const primaryPointer = new THREE.Vector2();
   const glowTexture = createRadialGlowTexture();
   const memoryHalo = createMemoryHalo();
   const paths = createAssociationPaths();
   const nodes = createAssociationNodes(glowTexture);
   const core = createMindCore(glowTexture);
   const label = createLabel();
+  let panelPresentationCurrent = 0;
+  let panelPresentationTarget = 0;
 
   group.name = 'BrandMindScene';
-  group.position.set(0, -0.06, -0.82);
+  group.position.set(...BRAND_MIND_FINAL_POSITION);
   group.add(memoryHalo.points, paths.group, nodes.group, core.group, label.sprite);
 
   function update(renderState, delta, time, transitionProgress = 1) {
     const reveal = smootherstep(0.06, 0.94, transitionProgress);
+    const panelResponse = 1 - Math.exp(-Math.max(delta, 0) * BRAND_MIND_PANEL_PRESENTATION_RESPONSE);
+
+    panelPresentationCurrent += (
+      panelPresentationTarget - panelPresentationCurrent
+    ) * panelResponse;
+    if (Math.abs(panelPresentationTarget - panelPresentationCurrent) < 0.0005) {
+      panelPresentationCurrent = panelPresentationTarget;
+    }
+    const panelPresentation = resolveBrandMindPanelPresentation(panelPresentationCurrent);
 
     group.visible = transitionProgress > 0.001;
-    group.scale.setScalar(0.78 + reveal * 0.22);
+    group.position.set(...panelPresentation.position);
+    group.scale.setScalar((0.78 + reveal * 0.22) * panelPresentation.scale);
     group.rotation.y = Math.sin(time * 0.018) * 0.018;
     group.rotation.x = Math.sin(time * 0.013 + 0.8) * 0.008;
     memoryHalo.update(time, reveal);
@@ -86,13 +113,51 @@ export function createBrandMindScene() {
     group.clear();
   }
 
+  function getPrimaryInteractionTarget({ x, y, camera }) {
+    if (!camera || !group.visible || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+    primaryPointer.set(x, y);
+    camera.updateMatrixWorld();
+    group.updateWorldMatrix(true, true);
+    primaryRaycaster.setFromCamera(primaryPointer, camera);
+    const hit = primaryRaycaster.intersectObject(core.hitTarget, false)[0];
+
+    return hit ? BRAND_MIND_PRIMARY_INTERACTION_TARGET : null;
+  }
+
+  function setPanelPresentationOpen(open) {
+    panelPresentationTarget = open ? 1 : 0;
+  }
+
+  function getPanelPresentationState() {
+    return Object.freeze({
+      open: panelPresentationTarget === 1,
+      progress: panelPresentationCurrent,
+      ...resolveBrandMindPanelPresentation(panelPresentationCurrent)
+    });
+  }
+
   return {
     name: 'BrandMindScene',
     group,
+    primaryInteractionTargetName: BRAND_MIND_PRIMARY_INTERACTION_TARGET.objectName,
+    getPrimaryInteractionTarget,
+    setPanelPresentationOpen,
+    getPanelPresentationState,
     update,
     dispose,
     isShell: false
   };
+}
+
+export function resolveBrandMindPanelPresentation(progress) {
+  const mix = smootherstep(0, 1, progress);
+
+  return Object.freeze({
+    position: Object.freeze(BRAND_MIND_FINAL_POSITION.map((value, index) => (
+      THREE.MathUtils.lerp(value, BRAND_MIND_PANEL_OPEN_PRESENTATION_STATE.position[index], mix)
+    ))),
+    scale: THREE.MathUtils.lerp(1, BRAND_MIND_PANEL_OPEN_PRESENTATION_STATE.scale, mix)
+  });
 }
 
 function createMindCore(glowTexture) {
@@ -184,6 +249,7 @@ function createMindCore(glowTexture) {
 
   return {
     group,
+    hitTarget: volume,
     update(time, reveal) {
       const breath = 1 + Math.sin(time * 0.24) * 0.018;
       const settledScale = (0.9 + reveal * 0.1) * breath;

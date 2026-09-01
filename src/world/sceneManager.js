@@ -82,7 +82,9 @@ export function createSceneManager({
   heroScene,
   camera,
   onFiveAPrimaryActivate = () => {},
-  isFiveADataPanelOpen = () => false
+  isFiveADataPanelOpen = () => false,
+  onBrandMindPrimaryActivate = () => {},
+  isBrandMindDataPanelOpen = () => false
 }) {
   const geoJourneyWheelMode = isGeoV3JourneyWheelMode();
   const root = new THREE.Group();
@@ -140,7 +142,7 @@ export function createSceneManager({
   const heroContainer = sceneContainers.get('HeroScene');
 
   function handleWheel(event) {
-    if (isFiveADataPanelOpen()) {
+    if (isFiveADataPanelOpen() || isBrandMindDataPanelOpen()) {
       if (event.cancelable) event.preventDefault();
       return;
     }
@@ -362,6 +364,7 @@ export function createSceneManager({
     updatePointerEntryIntent();
     updateTransitionProgress(delta);
     fiveAScene.setPanelPresentationOpen(isFiveADataPanelOpen());
+    brandMindScene.setPanelPresentationOpen(isBrandMindDataPanelOpen());
     const view = getTourView(state);
     const targetConfig = view.targetKey ? TARGETS[view.targetKey] : null;
     const targetScene = targetConfig ? getSceneByName(scenes, targetConfig.sceneName) : null;
@@ -442,9 +445,21 @@ export function createSceneManager({
           camera
         })
         : null;
+      const brandMindPrimaryTarget = anchor?.scene === 'BrandMindScene' && !state.transition
+        ? brandMindScene.getPrimaryInteractionTarget({
+          x: interaction.intentX,
+          y: interaction.intentY,
+          camera
+        })
+        : null;
 
       if (fiveAPrimaryTarget) {
         onFiveAPrimaryActivate(fiveAPrimaryTarget);
+        clearPointerEntry();
+        return;
+      }
+      if (brandMindPrimaryTarget) {
+        onBrandMindPrimaryActivate(brandMindPrimaryTarget);
         clearPointerEntry();
         return;
       }
