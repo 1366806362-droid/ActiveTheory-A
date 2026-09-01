@@ -8,6 +8,11 @@ export const SOURCE_TYPES = Object.freeze({
   PARTIAL: 'PARTIAL'
 });
 
+export const SNAPSHOT_COMPLETENESS = Object.freeze({
+  FULL: 'FULL',
+  PARTIAL: 'PARTIAL'
+});
+
 export const VERIFICATION_STATUSES = Object.freeze({
   VERIFIED: 'VERIFIED',
   UNVERIFIED: 'UNVERIFIED',
@@ -55,6 +60,29 @@ export function createDataPoint(
 
   return Object.freeze({
     value: finiteValue,
+    source: typeof source === 'string' && source.trim() ? source.trim() : null,
+    confidence: finiteConfidence,
+    verificationStatus: status
+  });
+}
+
+export function createCategoricalDataPoint(
+  value = null,
+  {
+    source = null,
+    confidence = null,
+    verificationStatus = null
+  } = {}
+) {
+  const cleanValue = typeof value === 'string' && value.trim() ? value.trim() : null;
+  const finiteConfidence = toFiniteOrNull(confidence);
+  const status = verificationStatus
+    ?? (cleanValue === null
+      ? VERIFICATION_STATUSES.MISSING
+      : VERIFICATION_STATUSES.UNVERIFIED);
+
+  return Object.freeze({
+    value: cleanValue,
     source: typeof source === 'string' && source.trim() ? source.trim() : null,
     confidence: finiteConfidence,
     verificationStatus: status

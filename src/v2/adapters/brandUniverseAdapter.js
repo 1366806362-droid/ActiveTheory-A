@@ -3,17 +3,25 @@ import {
   FIVE_A_STAGES,
   FIVE_A_TRANSITIONS,
   GEO_SIGNAL_IDS,
+  SNAPSHOT_COMPLETENESS,
   SOURCE_TYPES,
   VERIFICATION_STATUSES,
+  createCategoricalDataPoint,
   createDataPoint,
   deepFreeze,
   isDataPoint
 } from '../contracts/brandUniverseContract.js';
 
 const GEO_METRICS = Object.freeze(['volume', 'strength', 'quality', 'opportunity']);
-const FIVE_A_STAGE_METRICS = Object.freeze(['population', 'strength', 'confidence']);
-const FIVE_A_TRANSITION_METRICS = Object.freeze(['volume', 'rate', 'confidence']);
-const BRAND_MIND_CORE_METRICS = Object.freeze(['strength', 'concentration', 'confidence']);
+const FIVE_A_STAGE_METRICS = Object.freeze([
+  'population', 'strength', 'confidence', 'changeVsLast'
+]);
+const FIVE_A_TRANSITION_METRICS = Object.freeze([
+  'in', 'out', 'volume', 'rate', 'strength', 'confidence', 'changeVsLast'
+]);
+const BRAND_MIND_CORE_METRICS = Object.freeze([
+  'strength', 'concentration', 'coverage', 'stability', 'confidence', 'changeVsLast'
+]);
 
 export function adaptBrandUniverseSource(rawSource, { expectedSourceType = null } = {}) {
   if (!rawSource || typeof rawSource !== 'object' || Array.isArray(rawSource)) {
@@ -36,18 +44,44 @@ export function adaptBrandUniverseSource(rawSource, { expectedSourceType = null 
     sourceType,
     defaultSource: cleanString(metadata.sourceName) ?? `snapshot:${cleanString(metadata.snapshotId) ?? 'unknown'}`,
     defaultConfidence: sourceType === SOURCE_TYPES.MOCK ? 1 : null,
-    defaultVerificationStatus: sourceType === SOURCE_TYPES.MOCK
-      ? VERIFICATION_STATUSES.SYNTHETIC
-      : VERIFICATION_STATUSES.UNVERIFIED
+    defaultVerificationStatus: Object.values(VERIFICATION_STATUSES).includes(
+      metadata.lineage?.verificationStatus
+    )
+      ? metadata.lineage.verificationStatus
+      : (sourceType === SOURCE_TYPES.MOCK
+        ? VERIFICATION_STATUSES.SYNTHETIC
+        : VERIFICATION_STATUSES.UNVERIFIED)
   });
+
+  const completeness = metadata.completeness
+    ?? (sourceType === SOURCE_TYPES.PARTIAL
+      ? SNAPSHOT_COMPLETENESS.PARTIAL
+      : SNAPSHOT_COMPLETENESS.FULL);
+  if (!Object.values(SNAPSHOT_COMPLETENESS).includes(completeness)) {
+    throw new Error(`metadata.completeness must be FULL or PARTIAL; received ${String(completeness)}.`);
+  }
+
+  const lineage = metadata.lineage ?? {};
+  const capturedAt = cleanString(metadata.capturedAt);
 
   const snapshot = {
     metadata: {
       brandId: cleanString(metadata.brandId),
       snapshotId: cleanString(metadata.snapshotId),
-      capturedAt: cleanString(metadata.capturedAt),
+      capturedAt,
       schemaVersion: cleanString(metadata.schemaVersion) ?? BRAND_UNIVERSE_SCHEMA_VERSION,
-      sourceType
+      sourceType,
+      completeness,
+      lineage: {
+        adapterId: cleanString(lineage.adapterId) ?? 'brand-universe-source-v2',
+        sourceType,
+        sourceId: cleanString(lineage.sourceId) ?? cleanString(metadata.snapshotId),
+        sourceFile: cleanString(lineage.sourceFile),
+        capturedAt: cleanString(lineage.capturedAt) ?? capturedAt,
+        completeness,
+        verificationStatus: cleanString(lineage.verificationStatus)
+          ?? context.defaultVerificationStatus
+      }
     },
     geo: rawSource.geo == null ? null : adaptGeo(rawSource.geo, context),
     fiveA: rawSource.fiveA == null ? null : adaptFiveA(rawSource.fiveA, context),
@@ -95,12 +129,20 @@ function adaptFiveA(rawFiveA, context) {
         )
       }
     ])),
-    opportunityPool: adaptMetricGroup(
-      rawFiveA?.opportunityPool,
-      ['volume', 'strength', 'confidence'],
-      context,
-      'fiveA.opportunityPool'
-    )
+    opportunityPool: {
+      isStage: false,
+      ...adaptMetricGroup(
+        rawFiveA?.opportunityPool,
+        ['population', 'volume', 'strength', 'confidence'],
+        context,
+        'fiveA.opportunityPool'
+      ),
+      status: adaptCategoricalDataPoint(
+        rawFiveA?.opportunityPool?.status,
+        context,
+        'fiveA.opportunityPool.status'
+      )
+    }
   };
 }
 
@@ -108,6 +150,13 @@ function adaptBrandMind(rawBrandMind, context) {
   const associations = Array.isArray(rawBrandMind?.associations)
     ? rawBrandMind.associations
     : [];
+  const relationships = Array.isArray(rawBrandMind?.relationships)
+    ? rawBrandMind.relationships
+    : [];
+  const history = rawBrandMind?.history && typeof rawBrandMind.history === 'object'
+    ? rawBrandMind.history
+    : null;
+
   return {
     core: adaptMetricGroup(
       rawBrandMind?.core,
@@ -119,6 +168,7 @@ function adaptBrandMind(rawBrandMind, context) {
       id: cleanString(association?.id),
       label: cleanString(association?.label),
       category: cleanString(association?.category),
+      source: cleanString(association?.source),
       weight: adaptDataPoint(
         association?.weight,
         context,
@@ -128,8 +178,46 @@ function adaptBrandMind(rawBrandMind, context) {
         association?.confidence,
         context,
         `brandMind.associations.${index}.confidence`
-      )
-    })).sort((left, right) => String(left.id).localeCompare(String(right.id)))
+      ),
+      strength: adaptDataPoint(association?.strength, context, `brandMind.associations.${index}.strength`),
+      share: adaptDataPoint(association?.share, context, `brandMind.associations.${index}.share`),
+      volume: adaptDataPoint(association?.volume, context, `brandMind.associations.${index}.volume`),
+      mentions: adaptDataPoint(association?.mentions, context, `brandMind.associations.${index}.mentions`),
+      changeVsLast: adaptDataPoint(
+        association?.changeVsLast,
+        context,
+        `brandMind.associations.${index}.changeVsLast`
+      ),
+      status: cleanString(
+        association?.status && typeof association.status === 'object'
+          ? association.status.value
+          : association?.status
+      ),
+      statusVerificationStatus: association?.status == null
+        ? VERIFICATION_STATUSES.MISSING
+        : context.defaultVerificationStatus
+    })).sort((left, right) => String(left.id).localeCompare(String(right.id))),
+    relationships: relationships.map((relationship, index) => ({
+      id: cleanString(relationship?.id)
+        ?? `${cleanString(relationship?.sourceId) ?? 'missing'}--${cleanString(relationship?.targetId) ?? index}`,
+      sourceId: cleanString(relationship?.sourceId),
+      targetId: cleanString(relationship?.targetId),
+      strength: adaptDataPoint(relationship?.strength, context, `brandMind.relationships.${index}.strength`),
+      confidence: adaptDataPoint(relationship?.confidence, context, `brandMind.relationships.${index}.confidence`),
+      changeVsLast: adaptDataPoint(
+        relationship?.changeVsLast,
+        context,
+        `brandMind.relationships.${index}.changeVsLast`
+      ),
+      corePath: relationship?.corePath === true
+    })).sort((left, right) => String(left.id).localeCompare(String(right.id))),
+    history: {
+      available: history?.available === true,
+      source: cleanString(history?.source),
+      verificationStatus: Object.values(VERIFICATION_STATUSES).includes(history?.verificationStatus)
+        ? history.verificationStatus
+        : VERIFICATION_STATUSES.MISSING
+    }
   };
 }
 
@@ -149,6 +237,23 @@ function adaptDataPoint(rawValue, context, path) {
     });
   }
   return createDataPoint(rawValue, {
+    source: rawValue == null ? null : `${context.defaultSource}:${path}`,
+    confidence: rawValue == null ? null : context.defaultConfidence,
+    verificationStatus: rawValue == null
+      ? VERIFICATION_STATUSES.MISSING
+      : context.defaultVerificationStatus
+  });
+}
+
+function adaptCategoricalDataPoint(rawValue, context, path) {
+  if (rawValue && typeof rawValue === 'object' && Object.hasOwn(rawValue, 'value')) {
+    return createCategoricalDataPoint(rawValue.value, {
+      source: rawValue.source ?? context.defaultSource,
+      confidence: rawValue.confidence,
+      verificationStatus: rawValue.verificationStatus
+    });
+  }
+  return createCategoricalDataPoint(rawValue, {
     source: rawValue == null ? null : `${context.defaultSource}:${path}`,
     confidence: rawValue == null ? null : context.defaultConfidence,
     verificationStatus: rawValue == null

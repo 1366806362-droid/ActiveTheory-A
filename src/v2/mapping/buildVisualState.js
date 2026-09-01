@@ -53,6 +53,8 @@ export function buildVisualState(snapshot) {
       schemaVersion: BRAND_UNIVERSE_VISUAL_STATE_VERSION,
       sourceSnapshotSchemaVersion: snapshot.metadata.schemaVersion,
       sourceType: snapshot.metadata.sourceType,
+      completeness: snapshot.metadata.completeness,
+      lineage: { ...snapshot.metadata.lineage },
       mappingVersion: VISUAL_MAPPING_VERSION
     },
     availability,
@@ -65,6 +67,7 @@ export function buildVisualState(snapshot) {
         .filter(([, available]) => !available)
         .map(([moduleId]) => moduleId),
       validationWarnings: [...validation.warnings],
+      sourceLineage: { ...snapshot.metadata.lineage },
       dataControlsComposition: false,
       rendererIntegration: 'NOT_CONNECTED'
     }
@@ -185,6 +188,7 @@ function buildBrandMindVisualState(brandMind) {
       id: association.id,
       label: association.label,
       category: association.category,
+      source: association.source,
       node: {
         scale: applyVisualGuardrail('nodeScale', weight),
         brightness: applyVisualGuardrail('brightness', meanNormalized([weight, confidence])),
