@@ -50,6 +50,16 @@ test('V4 home composition preserves depth separation and descending visual weigh
   assert.ok(brandMind.layers.dust > brandMind.layers.visibleCore);
 });
 
+test('V5.1 restores business-nebula visibility by roughly twelve percent without changing hierarchy', () => {
+  const [geo, fiveA, brandMind] = BRAND_GROWTH_V4_HOME_COMPOSITION;
+  const baselines = [0.78, 0.64, 0.59];
+  for (const [index, nebula] of [geo, fiveA, brandMind].entries()) {
+    const gain = nebula.opacity / baselines[index] - 1;
+    assert.ok(gain >= 0.10 && gain <= 0.15);
+  }
+  assert.ok(geo.opacity > fiveA.opacity && fiveA.opacity > brandMind.opacity);
+});
+
 test('V1.2 assigns distinct signal, flow, and memory identities without adding systems', () => {
   const [geo, fiveA, brandMind] = BRAND_GROWTH_V4_HOME_COMPOSITION;
 

@@ -6,6 +6,8 @@ import {
   GALAXY_V3_ASSET_TYPES,
   GALAXY_V3_CONFIG,
   GALAXY_V3_V4_CONFIG,
+  GALAXY_V3_V5_CONFIG,
+  GALAXY_V3_V51_CONFIG,
   GALAXY_V3_LAYER_ORDER,
   readGalaxyV3State
 } from './galaxyV3Config.js';
@@ -55,6 +57,32 @@ test('V4 LDI hero is opt-in and exposes layer and support-star debug switches', 
   assert.equal(state.debug.v4.nearArm, true);
   assert.equal(state.debug.v4.supportStars, false);
   assert.equal(readGalaxyV3State('?galaxyV3=1').heroVersion, 'foundation');
+});
+
+test('V5 target-match LDI hero is independently opt-in and reuses cinematic debug ownership', () => {
+  const state = readGalaxyV3State('?galaxyV3=1&galaxyHero=v5&debugV4Core=0&debugV4Isolated=1');
+  assert.equal(state.heroVersion, 'v5');
+  assert.equal(state.isolated, true);
+  assert.equal(state.debug.v4.core, false);
+});
+
+test('V5 target-match asset preserves the five-layer interface and restrained parallax', () => {
+  const { layers } = GALAXY_V3_V5_CONFIG.galaxyHeroAsset;
+  assert.equal(GALAXY_V3_V5_CONFIG.galaxyHeroAsset.type, 'ldi-5-layer');
+  assert.equal(layers.length, 5);
+  assert.deepEqual(layers.map(({ renderOrder }) => renderOrder), [5, 6, 7, 8, 9]);
+  assert.deepEqual(layers.map(({ parallaxFactor }) => parallaxFactor), [0, 0.18, 0.30, 0.38, 0.48]);
+  assert.ok(layers.every(({ source }) => source.includes('/hero/v5/galaxy-v5-')));
+});
+
+test('V5.1 spiral-cohesion assets are opt-in without replacing the V5 rollback', () => {
+  const state = readGalaxyV3State('?galaxyV3=1&galaxyHero=v5_1&debugV4Isolated=1');
+  const v51Layers = GALAXY_V3_V51_CONFIG.galaxyHeroAsset.layers;
+  assert.equal(state.heroVersion, 'v5_1');
+  assert.equal(state.isolated, true);
+  assert.equal(v51Layers.length, 5);
+  assert.ok(v51Layers.every(({ source }) => source.includes('/hero/v5_1/galaxy-v5_1-')));
+  assert.ok(GALAXY_V3_V5_CONFIG.galaxyHeroAsset.layers.every(({ source }) => source.includes('/hero/v5/galaxy-v5-')));
 });
 
 test('V4 LDI uses five world-space planes with stable far-to-near ordering', () => {

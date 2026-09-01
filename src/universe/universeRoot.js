@@ -29,6 +29,8 @@ import {
 import {
   GALAXY_V3_CONFIG,
   GALAXY_V3_V4_CONFIG,
+  GALAXY_V3_V5_CONFIG,
+  GALAXY_V3_V51_CONFIG,
   readGalaxyV3State
 } from './galaxy-v3/galaxyV3Config.js';
 import { createGalaxyV3Root } from './galaxy-v3/galaxyV3Root.js';
@@ -92,8 +94,9 @@ const DEBUG_GALAXY_ATMOSPHERE_ISOLATION = HERO_GALAXY_VERSION_STATE.isV2
 const CINEMATIC_GALAXY_DEBUG = readCinematicGalaxyDebugState();
 const GPU_GALAXY_V2_STATE = readGpuGalaxyV2State();
 const GALAXY_V3_STATE = readGalaxyV3State();
+const CINEMATIC_HOME_HERO = ['v4', 'v5', 'v5_1'].includes(GALAXY_V3_STATE.heroVersion);
 const EARTH_V2_STATE = readEarthV2State();
-const EARTH_V2_ENABLED = GALAXY_V3_STATE.heroVersion === 'v4'
+const EARTH_V2_ENABLED = CINEMATIC_HOME_HERO
   && EARTH_V2_STATE.enabled;
 export const useCinematicGalaxy = true;
 const HERO_DEBUG = Object.freeze({
@@ -109,7 +112,7 @@ const HERO_DEBUG = Object.freeze({
   showDust: DEBUG_MAIN_GALAXY_ACTIVE ? false : readDebugFlag('showDust', true),
   showGlow: DEBUG_MAIN_GALAXY_ONLY ? false : readDebugFlag('showGlow', true),
   showLabels: DEBUG_MAIN_GALAXY_ACTIVE ? false : (
-    GALAXY_V3_STATE.heroVersion === 'v4'
+    CINEMATIC_HOME_HERO
       ? BUSINESS_INTERACTION_DEBUG.labels
       : readDebugFlag('showLabels', false)
   ),
@@ -180,13 +183,13 @@ export function createUniverseRoot() {
     : createEnergyCore();
   const gpuGalaxy = (GPU_GALAXY_V2_STATE.enabled || GALAXY_V3_STATE.useGpuStars)
     ? createGpuGalaxy(
-      GALAXY_V3_STATE.heroVersion === 'v4'
+      CINEMATIC_HOME_HERO
         ? GPU_GALAXY_V4_SUPPORT_CONFIG
         : undefined
     )
     : null;
   const galaxyPlanets = createGalaxyPlanets({
-    homeComposition: GALAXY_V3_STATE.heroVersion === 'v4' ? 'v4' : 'default'
+    homeComposition: CINEMATIC_HOME_HERO ? 'v4' : 'default'
   });
   const galaxyGroup = new THREE.Group();
   const mainGalaxyFrame = new THREE.Group();
@@ -207,9 +210,11 @@ export function createUniverseRoot() {
   const galaxyV3 = GALAXY_V3_STATE.enabled
     ? createGalaxyV3Root({
       state: GALAXY_V3_STATE,
-      config: GALAXY_V3_STATE.heroVersion === 'v4'
-        ? GALAXY_V3_V4_CONFIG
-        : GALAXY_V3_CONFIG,
+      config: GALAXY_V3_STATE.heroVersion === 'v5_1'
+        ? GALAXY_V3_V51_CONFIG
+        : (GALAXY_V3_STATE.heroVersion === 'v5'
+          ? GALAXY_V3_V5_CONFIG
+          : (GALAXY_V3_STATE.heroVersion === 'v4' ? GALAXY_V3_V4_CONFIG : GALAXY_V3_CONFIG)),
       gpuGalaxy,
       businessNebula: galaxyPlanets,
       fallbackGroup: mainGalaxyFrame
@@ -281,7 +286,7 @@ export function createUniverseRoot() {
   universeState.gpuGalaxy = gpuGalaxy;
   universeState.galaxyV3 = galaxyV3;
   universeState.galaxyPlanets = galaxyPlanets;
-  if (GALAXY_V3_STATE.heroVersion === 'v4' && typeof window !== 'undefined') {
+  if (CINEMATIC_HOME_HERO && typeof window !== 'undefined') {
     window.__ACTIVE_THEORY_UNIVERSE_COMPOSITION__ = galaxyPlanets.getCompositionStatus();
   }
   universeState.nodeSystem = nodeSystem;
@@ -503,7 +508,7 @@ function applyGalaxyComposition(galaxyGroup, cinematicDebugEnabled) {
     return;
   }
 
-  if (GALAXY_V3_STATE.heroVersion === 'v4') {
+  if (CINEMATIC_HOME_HERO) {
     const composition = resolveUniverseV4Composition(viewportMode).galaxyRoot;
     galaxyGroup.position.fromArray(composition.position);
     galaxyGroup.scale.setScalar(composition.scale);
@@ -521,7 +526,7 @@ function syncResponsiveComposition(force = false) {
   if (!force && universeState.responsiveMode === viewport.mode) return;
 
   universeState.responsiveMode = viewport.mode;
-  if (GALAXY_V3_STATE.heroVersion === 'v4') {
+  if (CINEMATIC_HOME_HERO) {
     const composition = resolveUniverseV4Composition(viewport.mode);
     applyGroupComposition(universeState.galaxyV3?.layers.heroAsset, composition.heroAssetLayer);
     applyGroupComposition(universeState.galaxyV3?.layers.gpuStars, composition.gpuStarsLayer);

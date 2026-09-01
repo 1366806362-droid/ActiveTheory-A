@@ -50,7 +50,7 @@ export function createGalaxyV3Root({
     heroAsset?.setEnabled(state.debug.hero);
     layers.gpuStars.visible = state.useGpuStars
       && state.debug.gpuStars
-      && (state.heroVersion !== 'v4' || state.debug.v4.supportStars);
+      && (!['v4', 'v5', 'v5_1'].includes(state.heroVersion) || state.debug.v4.supportStars);
     layers.foregroundDust.visible = state.debug.foreground;
     layers.businessNebula.visible = state.debug.businessNebula;
     if (fallbackGroup) {

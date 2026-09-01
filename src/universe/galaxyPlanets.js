@@ -140,7 +140,7 @@ export const BRAND_GROWTH_V4_HOME_COMPOSITION = Object.freeze([
     hover: Object.freeze([0.82, 0.2]),
     labelScale: 0.42,
     scale: 1.22,
-    opacity: 0.78,
+    opacity: 0.87,
     layers: Object.freeze({ cluster: 1.4, flow: 0.9, dust: 0.65, nodes: 1.45, visibleCore: 1.3, core: 1.25 }),
     identity: Object.freeze({
       mode: 'signal',
@@ -155,7 +155,7 @@ export const BRAND_GROWTH_V4_HOME_COMPOSITION = Object.freeze([
     hover: Object.freeze([0.22, 0.51]),
     labelScale: 0.56,
     scale: 1.12,
-    opacity: 0.64,
+    opacity: 0.72,
     layers: Object.freeze({ cluster: 0.58, flow: 1.65, dust: 1.25, nodes: 0.48, visibleCore: 0.12, core: 0.04 }),
     identity: Object.freeze({
       mode: 'flow',
@@ -169,7 +169,7 @@ export const BRAND_GROWTH_V4_HOME_COMPOSITION = Object.freeze([
     hover: Object.freeze([-0.04, -0.36]),
     labelScale: 0.66,
     scale: 1.48,
-    opacity: 0.59,
+    opacity: 0.66,
     layers: Object.freeze({ cluster: 0.9, flow: 1.55, dust: 2.6, nodes: 0.22, visibleCore: 0.08, core: 0.025 }),
     identity: Object.freeze({
       mode: 'memory',

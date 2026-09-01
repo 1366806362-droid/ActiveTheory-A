@@ -48,6 +48,22 @@ const GALAXY_V4_LDI_LAYERS = Object.freeze([
   Object.freeze({ id: 'foreground', source: '/assets/galaxy-v3/hero/v4/galaxy-v4-foreground.webp', z: 0.04, renderOrder: 9, parallaxFactor: 0.58 })
 ]);
 
+const GALAXY_V5_LDI_LAYERS = Object.freeze([
+  Object.freeze({ id: 'background', source: '/assets/galaxy-v3/hero/v5/galaxy-v5-bg.webp', z: -0.04, renderOrder: 5, parallaxFactor: 0 }),
+  Object.freeze({ id: 'farArm', source: '/assets/galaxy-v3/hero/v5/galaxy-v5-far-arm.webp', z: -0.02, renderOrder: 6, parallaxFactor: 0.18 }),
+  Object.freeze({ id: 'core', source: '/assets/galaxy-v3/hero/v5/galaxy-v5-core.webp', z: 0, renderOrder: 7, parallaxFactor: 0.30 }),
+  Object.freeze({ id: 'nearArm', source: '/assets/galaxy-v3/hero/v5/galaxy-v5-near-arm.webp', z: 0.02, renderOrder: 8, parallaxFactor: 0.38 }),
+  Object.freeze({ id: 'foreground', source: '/assets/galaxy-v3/hero/v5/galaxy-v5-foreground.webp', z: 0.04, renderOrder: 9, parallaxFactor: 0.48 })
+]);
+
+const GALAXY_V51_LDI_LAYERS = Object.freeze([
+  Object.freeze({ id: 'background', source: '/assets/galaxy-v3/hero/v5_1/galaxy-v5_1-bg.webp', z: -0.04, renderOrder: 5, parallaxFactor: 0 }),
+  Object.freeze({ id: 'farArm', source: '/assets/galaxy-v3/hero/v5_1/galaxy-v5_1-far-arm.webp', z: -0.02, renderOrder: 6, parallaxFactor: 0.18 }),
+  Object.freeze({ id: 'core', source: '/assets/galaxy-v3/hero/v5_1/galaxy-v5_1-core.webp', z: 0, renderOrder: 7, parallaxFactor: 0.30 }),
+  Object.freeze({ id: 'nearArm', source: '/assets/galaxy-v3/hero/v5_1/galaxy-v5_1-near-arm.webp', z: 0.02, renderOrder: 8, parallaxFactor: 0.38 }),
+  Object.freeze({ id: 'foreground', source: '/assets/galaxy-v3/hero/v5_1/galaxy-v5_1-foreground.webp', z: 0.04, renderOrder: 9, parallaxFactor: 0.48 })
+]);
+
 export const GALAXY_V3_V4_CONFIG = Object.freeze({
   ...GALAXY_V3_CONFIG,
   mode: 'v3-hero-asset-v4-ldi',
@@ -66,15 +82,47 @@ export const GALAXY_V3_V4_CONFIG = Object.freeze({
   })
 });
 
+export const GALAXY_V3_V5_CONFIG = Object.freeze({
+  ...GALAXY_V3_CONFIG,
+  mode: 'v3-hero-asset-v5-target-match-ldi',
+  galaxyHeroAsset: Object.freeze({
+    ...GALAXY_V3_CONFIG.galaxyHeroAsset,
+    type: 'ldi-5-layer',
+    source: GALAXY_V5_LDI_LAYERS[2].source,
+    layers: GALAXY_V5_LDI_LAYERS,
+    position: Object.freeze([-0.28, -0.06, 0]),
+    rotation: Object.freeze([-0.10, 0, 0]),
+    scale: Object.freeze([2.92, 2.92, 1]),
+    opacity: 1,
+    colorIntensity: 1,
+    bloomIntensity: 0.04,
+    parallaxStrength: 0.038
+  })
+});
+
+export const GALAXY_V3_V51_CONFIG = Object.freeze({
+  ...GALAXY_V3_CONFIG,
+  mode: 'v3-hero-asset-v5-1-spiral-cohesion-ldi',
+  galaxyHeroAsset: Object.freeze({
+    ...GALAXY_V3_V5_CONFIG.galaxyHeroAsset,
+    source: GALAXY_V51_LDI_LAYERS[2].source,
+    layers: GALAXY_V51_LDI_LAYERS
+  })
+});
+
 export function readGalaxyV3State(search = readLocationSearch()) {
   const params = new URLSearchParams(search);
   const enabled = params.get('galaxyV3') === '1';
-  const heroVersion = enabled && params.get('galaxyHero') === 'v4' ? 'v4' : 'foundation';
+  const requestedHero = params.get('galaxyHero');
+  const heroVersion = enabled && ['v4', 'v5', 'v5_1'].includes(requestedHero)
+    ? requestedHero
+    : 'foundation';
+  const cinematicHero = ['v4', 'v5', 'v5_1'].includes(heroVersion);
 
   return Object.freeze({
     enabled,
     heroVersion,
-    isolated: heroVersion === 'v4' && readBooleanParam(params, 'debugV4Isolated', false),
+    isolated: cinematicHero && readBooleanParam(params, 'debugV4Isolated', false),
     useGpuStars: enabled && readBooleanParam(params, 'v3UseGpuStars', true),
     debug: Object.freeze({
       hero: readBooleanParam(params, 'debugV3Hero', true),
