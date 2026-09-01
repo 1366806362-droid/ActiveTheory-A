@@ -20,7 +20,7 @@ export function deriveBrandMindMetrics(snapshot) {
   const brandMind = snapshot?.brandMind;
   if (!brandMind) return deepFreeze({ available: false, version: BRAND_MIND_DERIVATION_VERSION });
 
-  const associations = brandMind.associations.map((association) => ({
+  const associations = (Array.isArray(brandMind.associations) ? brandMind.associations : []).map((association) => ({
     id: association.id,
     strength: unit(read(association.strength) ?? read(association.weight)),
     confidence: unit(read(association.confidence)),
@@ -34,16 +34,42 @@ export function deriveBrandMindMetrics(snapshot) {
     changeVsLast: signed(read(brandMind.core?.changeVsLast))
   };
 
+  const coreStatus = deriveCoreStatus(core, associations, historyAvailable);
+  const derivedAssociations = associations.map((association) => ({
+    ...association,
+    driftStatus: historyAvailable ? deriveDriftStatus(association) : null
+  }));
+
   return deepFreeze({
     available: true,
     version: BRAND_MIND_DERIVATION_VERSION,
-    coreStatus: deriveCoreStatus(core, associations, historyAvailable),
-    opportunitySignals: deriveOpportunitySignals(associations, historyAvailable),
+    coreStatus,
+    associations: Object.fromEntries(derivedAssociations.map((association) => [
+      association.id,
+      {
+        sourceStatus: association.sourceStatus,
+        driftStatus: association.driftStatus
+      }
+    ])),
+    opportunitySignals: deriveOpportunitySignals(derivedAssociations, historyAvailable),
+    diagnosticSignals: deriveDiagnosticSignals(core, derivedAssociations, historyAvailable),
     driftSummary: {
       available: historyAvailable,
       changedAssociationCount: historyAvailable
-        ? associations.filter((item) => item.changeVsLast !== null).length
-        : null
+        ? derivedAssociations.filter((item) => item.changeVsLast !== null).length
+        : null,
+      categories: historyAvailable
+        ? countStatuses(derivedAssociations)
+        : null,
+      orderedAssociationIds: historyAvailable
+        ? derivedAssociations
+          .filter((item) => item.changeVsLast !== null)
+          .sort((left, right) => (
+            Math.abs(right.changeVsLast) - Math.abs(left.changeVsLast)
+            || left.id.localeCompare(right.id)
+          ))
+          .map((item) => item.id)
+        : []
     }
   });
 }
@@ -52,7 +78,8 @@ function deriveCoreStatus(core, associations, historyAvailable) {
   if (core.concentration === null || core.stability === null) return 'NOT_PROVIDED';
   const significantChanges = historyAvailable
     ? associations.filter((item) => (
-      item.changeVsLast !== null
+      item.sourceStatus !== 'CORE'
+      && item.changeVsLast !== null
       && Math.abs(item.changeVsLast) >= BRAND_MIND_DERIVATION_RULES.shiftingAssociationChange
     )).length
     : 0;
@@ -86,6 +113,48 @@ function deriveOpportunitySignals(associations, historyAvailable) {
   if (growth) signals.push({ type: 'GROWTH', associationId: growth.id });
   if (defend) signals.push({ type: 'DEFEND', associationId: defend.id });
   return signals.slice(0, 3);
+}
+
+function deriveDriftStatus(association) {
+  if (association.sourceStatus && association.sourceStatus !== 'CORE') {
+    return association.sourceStatus;
+  }
+  if (association.changeVsLast === null) return 'STABLE';
+  if (association.changeVsLast >= 0.03) return 'GROWING';
+  if (association.changeVsLast <= -0.01) return 'WEAKENING';
+  return 'STABLE';
+}
+
+function deriveDiagnosticSignals(core, associations, historyAvailable) {
+  const signals = [];
+  const strongest = [...associations].sort(compareStrength)[0];
+  const fastestGrowing = historyAvailable
+    ? associations
+      .filter((item) => item.changeVsLast !== null && item.changeVsLast > 0)
+      .sort((left, right) => right.changeVsLast - left.changeVsLast || compareStrength(left, right))[0]
+    : null;
+  const weakening = historyAvailable
+    ? associations
+      .filter((item) => item.changeVsLast !== null && item.changeVsLast < 0)
+      .sort((left, right) => left.changeVsLast - right.changeVsLast || compareStrength(left, right))[0]
+    : null;
+
+  if (core.concentration !== null && core.concentration < 0.55) {
+    signals.push({ type: 'LOW_CORE_CONCENTRATION' });
+  } else if (strongest) {
+    signals.push({ type: 'STRONGEST_ASSOCIATION', associationId: strongest.id });
+  }
+  if (fastestGrowing) signals.push({ type: 'FASTEST_GROWING', associationId: fastestGrowing.id });
+  if (weakening) signals.push({ type: 'WEAKENING_ASSOCIATION', associationId: weakening.id });
+  if (!historyAvailable) signals.push({ type: 'HISTORY_MISSING' });
+  return signals.slice(0, 3);
+}
+
+function countStatuses(associations) {
+  return Object.fromEntries(['EMERGING', 'GROWING', 'STABLE', 'WEAKENING', 'LOST'].map((status) => [
+    status,
+    associations.filter((item) => item.driftStatus === status).length
+  ]));
 }
 
 function compareStrength(left, right) {

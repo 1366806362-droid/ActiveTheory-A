@@ -8,6 +8,9 @@ import { MOCK_BALANCED } from '../../v2/mock/brandUniverseMocks.js';
 
 const SOURCE = 'ActiveTheory V2 synthetic Brand Mind panel fixture';
 
+// Deprecated V1.1 presentation fixture. Runtime and unified-consumer tests use
+// CANONICAL_BRAND_MIND_MOCK from src/v2/mock/canonicalFixtures.js.
+
 const associationDefinitions = [
   ['association-scale', '量大', '产品利益', 86, 0.182, 0.92, 0.052, 'CORE'],
   ['association-value', '实惠', '价格心智', 78, 0.154, 0.89, 0.021, 'CORE'],

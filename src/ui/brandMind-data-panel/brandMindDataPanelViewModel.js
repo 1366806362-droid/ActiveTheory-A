@@ -3,6 +3,10 @@ import {
   VERIFICATION_STATUSES,
   deepFreeze
 } from '../../v2/contracts/brandUniverseContract.js';
+import {
+  BRAND_MIND_DERIVATION_VERSION,
+  deriveBrandMindMetrics
+} from '../../v2/derived/deriveBrandMindMetrics.js';
 
 const ALLOWED_ASSOCIATION_STATUSES = Object.freeze([
   'CORE',
@@ -13,35 +17,23 @@ const ALLOWED_ASSOCIATION_STATUSES = Object.freeze([
   'LOST'
 ]);
 const RELATIONSHIP_LIMIT = 5;
-const OPPORTUNITY_LIMIT = 3;
 const DIAGNOSTIC_RULE_VERSION = 'V2_BRAND_MIND_PANEL_DEMO_RULES_1';
 const PRODUCT_RULE_VERSION = 'V2_BRAND_MIND_PANEL_PRODUCT_RULES_1';
 
-export const BRAND_MIND_CORE_STATUS_RULES = Object.freeze({
-  shiftingCoreChange: 0.06,
-  shiftingAssociationChange: 0.06,
-  concentratedMinimum: 0.68,
-  distributedMaximum: 0.55,
-  stableMinimum: 0.72
-});
-
-export const BRAND_MIND_OPPORTUNITY_RULES = Object.freeze({
-  strengthenStrengthMinimum: 0.7,
-  strengthenConfidenceMinimum: 0.8,
-  growthChangeMinimum: 0.04,
-  defendChangeMaximum: -0.01,
-  defendStrengthMinimum: 0.4,
-  historyConfidenceMinimum: 0.7
-});
-
-export function buildBrandMindDataPanelViewModel(snapshot) {
+export function buildBrandMindDataPanelViewModel(
+  snapshot,
+  derivedMetrics = deriveBrandMindMetrics(snapshot)
+) {
   const metadata = snapshot?.metadata ?? {};
   const brandMind = snapshot?.brandMind ?? null;
-  const associationRows = buildAssociationRows(brandMind?.associations);
+  const associationRows = buildAssociationRows(
+    brandMind?.associations,
+    derivedMetrics?.associations
+  );
   const relationshipRows = buildRelationshipRows(brandMind, associationRows);
   const coreMetrics = buildCoreMetrics(brandMind?.core, associationRows);
-  const mindDrift = buildMindDrift(brandMind, associationRows);
-  const coreStatus = buildCoreStatus(coreMetrics, associationRows, mindDrift.available);
+  const mindDrift = buildMindDrift(associationRows, derivedMetrics?.driftSummary);
+  const coreStatus = presentCoreStatus(derivedMetrics?.coreStatus);
   const sourceIdentity = getSourceIdentity(snapshot);
 
   return deepFreeze({
@@ -53,6 +45,8 @@ export function buildBrandMindDataPanelViewModel(snapshot) {
       snapshotId: cleanString(metadata.snapshotId) ?? '未提供',
       sourceType: metadata.sourceType ?? 'UNKNOWN',
       sourceIdentity: getSourceIdentity(snapshot),
+      completeness: metadata.completeness ?? 'UNKNOWN',
+      lineage: { ...(metadata.lineage ?? {}) },
       sampleSize: null,
       sampleSizeLabel: '未提供',
       verification: getSnapshotVerification(snapshot),
@@ -64,12 +58,20 @@ export function buildBrandMindDataPanelViewModel(snapshot) {
     associationRows,
     relationshipRows,
     mindDrift,
-    opportunityInsights: buildOpportunityInsights(associationRows, mindDrift.available, sourceIdentity),
-    diagnostics: buildDiagnostics(coreMetrics, associationRows, mindDrift),
+    opportunityInsights: presentOpportunityInsights(
+      derivedMetrics?.opportunitySignals,
+      associationRows,
+      sourceIdentity
+    ),
+    diagnostics: presentDiagnostics(
+      derivedMetrics?.diagnosticSignals,
+      coreMetrics,
+      associationRows
+    ),
     dataQuality: buildDataQuality(brandMind, snapshot),
     rules: {
       version: DIAGNOSTIC_RULE_VERSION,
-      productVersion: PRODUCT_RULE_VERSION,
+      productVersion: derivedMetrics?.version ?? BRAND_MIND_DERIVATION_VERSION,
       status: 'EXPERIMENTAL',
       note: '诊断仅解释当前数据结构；MOCK / SYNTHETIC 不代表生产结论。'
     }
@@ -102,114 +104,57 @@ function buildCoreMetrics(core, associations) {
   };
 }
 
-function buildCoreStatus(core, associations, historyAvailable) {
-  if (core.concentration === null || core.stability === null) {
+const CORE_STATUS_PRESENTATION = Object.freeze({
+  STABLE: Object.freeze({ label: '稳定型', description: '心智结构处于稳定区间，未出现显著迁移。' }),
+  CONCENTRATED: Object.freeze({ label: '集中型', description: '核心心智集中度较高，主要认知聚合清晰。' }),
+  DISTRIBUTED: Object.freeze({ label: '分布型', description: '核心心智集中度较低，关联认知相对分散。' }),
+  SHIFTING: Object.freeze({ label: '迁移中', description: '核心或多项外围关联正在发生显著变化。' }),
+  NOT_PROVIDED: Object.freeze({ label: '未提供', description: '缺少心智集中度或稳定度，无法判定心智状态。' })
+});
+
+function presentCoreStatus(code) {
+  const safeCode = Object.hasOwn(CORE_STATUS_PRESENTATION, code) ? code : 'NOT_PROVIDED';
+  return {
+    code: safeCode,
+    ...CORE_STATUS_PRESENTATION[safeCode],
+    ruleVersion: BRAND_MIND_DERIVATION_VERSION
+  };
+}
+
+function presentOpportunityInsights(signals, associations, sourceIdentity) {
+  const associationById = new Map(associations.map((row) => [row.id, row]));
+  return (Array.isArray(signals) ? signals : []).map((signal) => {
+    const row = associationById.get(signal.associationId);
+    if (signal.type === 'STRENGTHEN') {
+      return {
+        id: `strengthen-${signal.associationId}`,
+        type: signal.type,
+        title: `强化“${row?.association ?? signal.associationId}”核心联想`,
+        detail: `强度 ${row?.strengthLabel ?? '未提供'}、置信度 ${row?.confidenceLabel ?? '未提供'}，适合优先验证强化。`
+      };
+    }
+    if (signal.type === 'GROWTH') {
+      return {
+        id: `growth-${signal.associationId}`,
+        type: signal.type,
+        title: `放大“${row?.association ?? signal.associationId}”增长信号`,
+        detail: `较上期 ${row?.changeVsLastLabel ?? '未提供'}，可验证其场景与传播驱动。`
+      };
+    }
     return {
-      code: 'NOT_PROVIDED',
-      label: '未提供',
-      description: '缺少心智集中度或稳定度，无法判定心智状态。',
-      ruleVersion: PRODUCT_RULE_VERSION
+      id: `defend-${signal.associationId}`,
+      type: signal.type,
+      title: `防御“${row?.association ?? signal.associationId}”认知下滑`,
+      detail: `较上期 ${row?.changeVsLastLabel ?? '未提供'}，需核验下降来源并保护关联。`
     };
-  }
-
-  const significantAssociationChanges = historyAvailable
-    ? associations.filter((row) => (
-      row.status !== 'CORE'
-      && row.changeVsLast !== null
-      && Math.abs(row.changeVsLast) >= BRAND_MIND_CORE_STATUS_RULES.shiftingAssociationChange
-    )).length
-    : 0;
-  const shifting = historyAvailable && (
-    Math.abs(core.changeVsLast ?? 0) >= BRAND_MIND_CORE_STATUS_RULES.shiftingCoreChange
-    || significantAssociationChanges >= 2
-  );
-
-  if (shifting) {
-    return coreStatus('SHIFTING', '迁移中', '核心或多项外围关联正在发生显著变化。');
-  }
-  if (core.concentration >= BRAND_MIND_CORE_STATUS_RULES.concentratedMinimum) {
-    return coreStatus('CONCENTRATED', '集中型', '核心心智集中度较高，主要认知聚合清晰。');
-  }
-  if (core.concentration < BRAND_MIND_CORE_STATUS_RULES.distributedMaximum) {
-    return coreStatus('DISTRIBUTED', '分布型', '核心心智集中度较低，关联认知相对分散。');
-  }
-  if (core.stability >= BRAND_MIND_CORE_STATUS_RULES.stableMinimum) {
-    return coreStatus('STABLE', '稳定型', '心智结构处于稳定区间，未出现显著迁移。');
-  }
-  return coreStatus('SHIFTING', '迁移中', '稳定度未达到稳定区间，需持续观察心智变化。');
-}
-
-function coreStatus(code, label, description) {
-  return { code, label, description, ruleVersion: PRODUCT_RULE_VERSION };
-}
-
-function buildOpportunityInsights(associations, historyAvailable, sourceIdentity) {
-  const insights = [];
-  const strengthen = associations
-    .filter((row) => (
-      row.status === 'CORE'
-      && row.strength !== null
-      && row.strength >= BRAND_MIND_OPPORTUNITY_RULES.strengthenStrengthMinimum
-      && row.confidence !== null
-      && row.confidence >= BRAND_MIND_OPPORTUNITY_RULES.strengthenConfidenceMinimum
-    ))
-    .sort(compareAssociationRows)[0];
-  const growth = historyAvailable
-    ? associations
-      .filter((row) => (
-        row.changeVsLast !== null
-        && row.changeVsLast >= BRAND_MIND_OPPORTUNITY_RULES.growthChangeMinimum
-        && row.confidence !== null
-        && row.confidence >= BRAND_MIND_OPPORTUNITY_RULES.historyConfidenceMinimum
-      ))
-      .sort((left, right) => right.changeVsLast - left.changeVsLast || compareAssociationRows(left, right))[0]
-    : null;
-  const defend = historyAvailable
-    ? associations
-      .filter((row) => (
-        row.changeVsLast !== null
-        && row.changeVsLast <= BRAND_MIND_OPPORTUNITY_RULES.defendChangeMaximum
-        && row.strength !== null
-        && row.strength >= BRAND_MIND_OPPORTUNITY_RULES.defendStrengthMinimum
-        && row.confidence !== null
-        && row.confidence >= BRAND_MIND_OPPORTUNITY_RULES.historyConfidenceMinimum
-      ))
-      .sort((left, right) => left.changeVsLast - right.changeVsLast || compareAssociationRows(left, right))[0]
-    : null;
-
-  if (strengthen) {
-    insights.push({
-      id: `strengthen-${strengthen.id}`,
-      type: 'STRENGTHEN',
-      title: `强化“${strengthen.association}”核心联想`,
-      detail: `强度 ${strengthen.strengthLabel}、置信度 ${strengthen.confidenceLabel}，适合优先验证强化。`
-    });
-  }
-  if (growth) {
-    insights.push({
-      id: `growth-${growth.id}`,
-      type: 'GROWTH',
-      title: `放大“${growth.association}”增长信号`,
-      detail: `较上期 ${growth.changeVsLastLabel}，可验证其场景与传播驱动。`
-    });
-  }
-  if (defend) {
-    insights.push({
-      id: `defend-${defend.id}`,
-      type: 'DEFEND',
-      title: `防御“${defend.association}”认知下滑`,
-      detail: `较上期 ${defend.changeVsLastLabel}，需核验下降来源并保护关联。`
-    });
-  }
-
-  return insights.slice(0, OPPORTUNITY_LIMIT).map((insight) => ({
+  }).map((insight) => ({
     ...insight,
     sourceIdentity,
-    sourceRule: PRODUCT_RULE_VERSION
+    sourceRule: BRAND_MIND_DERIVATION_VERSION
   }));
 }
 
-function buildAssociationRows(associations) {
+function buildAssociationRows(associations, derivedAssociations) {
   const safeAssociations = Array.isArray(associations) ? associations : [];
   const weights = safeAssociations.map((association) => readValue(association?.weight));
   const totalWeight = weights.reduce((sum, value) => sum + (value ?? 0), 0);
@@ -245,6 +190,7 @@ function buildAssociationRows(associations) {
       changeVsLast,
       changeVsLastLabel: formatSignedPercent(changeVsLast),
       status,
+      driftStatus: derivedAssociations?.[association?.id]?.driftStatus ?? null,
       available: Boolean(association)
     };
   }).sort(compareAssociationRows).map((row, rankIndex) => ({
@@ -293,10 +239,8 @@ function buildRelationshipRows(brandMind, associations) {
     .slice(0, RELATIONSHIP_LIMIT);
 }
 
-function buildMindDrift(brandMind, associations) {
-  const historyAvailable = Boolean(brandMind?.history?.available);
-
-  if (!historyAvailable) {
+function buildMindDrift(associations, driftSummary) {
+  if (!driftSummary?.available) {
     return {
       available: false,
       status: 'NOT PROVIDED',
@@ -307,87 +251,57 @@ function buildMindDrift(brandMind, associations) {
     };
   }
 
-  const categorizedAssociations = associations.map((row) => ({
-    ...row,
-    driftStatus: deriveDriftStatus(row)
-  }));
   const categories = ['EMERGING', 'GROWING', 'STABLE', 'WEAKENING', 'LOST'].map((status) => ({
     status,
-    count: categorizedAssociations.filter((row) => row.driftStatus === status).length,
-    countLabel: formatInteger(categorizedAssociations.filter((row) => row.driftStatus === status).length)
+    count: driftSummary.categories?.[status] ?? 0,
+    countLabel: formatInteger(driftSummary.categories?.[status] ?? 0)
   }));
-  const rows = associations
-    .filter((row) => row.changeVsLast !== null)
-    .sort((left, right) => (
-      Math.abs(right.changeVsLast) - Math.abs(left.changeVsLast)
-      || left.id.localeCompare(right.id)
-    ))
+  const associationById = new Map(associations.map((row) => [row.id, row]));
+  const rows = (driftSummary.orderedAssociationIds ?? [])
+    .map((id) => associationById.get(id))
+    .filter(Boolean)
     .slice(0, 5);
 
   return { available: true, status: 'SYNTHETIC', categories, rows };
 }
 
-function deriveDriftStatus(row) {
-  if (row.status !== 'CORE') return row.status;
-  if (row.changeVsLast === null) return 'STABLE';
-  if (row.changeVsLast >= 0.03) return 'GROWING';
-  if (row.changeVsLast <= -0.01) return 'WEAKENING';
-  return 'STABLE';
-}
-
-function buildDiagnostics(core, associations, mindDrift) {
-  const diagnostics = [];
-  const strongest = associations[0];
-  const fastestGrowing = associations
-    .filter((row) => row.changeVsLast !== null && row.changeVsLast > 0)
-    .sort((left, right) => right.changeVsLast - left.changeVsLast)[0];
-  const weakening = associations
-    .filter((row) => row.changeVsLast !== null && row.changeVsLast < 0)
-    .sort((left, right) => left.changeVsLast - right.changeVsLast)[0];
-
-  if (core.concentration !== null && core.concentration < 0.55) {
-    diagnostics.push({
+function presentDiagnostics(signals, core, associations) {
+  const associationById = new Map(associations.map((row) => [row.id, row]));
+  return (Array.isArray(signals) ? signals : []).map((signal) => {
+    const row = associationById.get(signal.associationId);
+    if (signal.type === 'LOW_CORE_CONCENTRATION') return {
       id: 'core-concentration',
       level: 'attention',
       title: '核心心智集中度偏低',
       detail: `当前集中度 ${core.concentrationLabel}，关联结构相对分散。`
-    });
-  } else if (strongest) {
-    diagnostics.push({
+    };
+    if (signal.type === 'STRONGEST_ASSOCIATION') return {
       id: 'strongest-association',
       level: 'info',
-      title: `${strongest.association}为当前首要关联`,
-      detail: `关联强度 ${strongest.strengthLabel}，权重 ${strongest.weightLabel}。`
-    });
-  }
-  if (fastestGrowing) {
-    diagnostics.push({
+      title: `${row?.association ?? signal.associationId}为当前首要关联`,
+      detail: `关联强度 ${row?.strengthLabel ?? '未提供'}，权重 ${row?.weightLabel ?? '未提供'}。`
+    };
+    if (signal.type === 'FASTEST_GROWING') return {
       id: 'fastest-growing',
       level: 'positive',
-      title: `${fastestGrowing.association}增长最快`,
-      detail: `SYNTHETIC 较上期变化 ${fastestGrowing.changeVsLastLabel}。`
-    });
-  }
-  if (weakening) {
-    diagnostics.push({
+      title: `${row?.association ?? signal.associationId}增长最快`,
+      detail: `较上期变化 ${row?.changeVsLastLabel ?? '未提供'}。`
+    };
+    if (signal.type === 'WEAKENING_ASSOCIATION') return {
       id: 'weakening-association',
       level: 'warning',
-      title: `${weakening.association}关联走弱`,
-      detail: `SYNTHETIC 较上期变化 ${weakening.changeVsLastLabel}。`
-    });
-  }
-  if (!mindDrift.available) {
-    diagnostics.push({
+      title: `${row?.association ?? signal.associationId}关联走弱`,
+      detail: `较上期变化 ${row?.changeVsLastLabel ?? '未提供'}。`
+    };
+    return {
       id: 'history-missing',
       level: 'warning',
       title: '心智历史对比未提供',
       detail: '当前快照不能判断新增、增长、衰减或消失。'
-    });
-  }
-
-  return diagnostics.slice(0, 3).map((item) => ({
+    };
+  }).map((item) => ({
     ...item,
-    sourceRule: DIAGNOSTIC_RULE_VERSION
+    sourceRule: BRAND_MIND_DERIVATION_VERSION
   }));
 }
 

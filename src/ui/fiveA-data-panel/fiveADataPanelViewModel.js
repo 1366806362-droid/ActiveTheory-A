@@ -4,6 +4,10 @@ import {
   SOURCE_TYPES,
   VERIFICATION_STATUSES
 } from '../../v2/contracts/brandUniverseContract.js';
+import {
+  deriveFiveAMetrics,
+  FIVE_A_DERIVATION_VERSION
+} from '../../v2/derived/deriveFiveAMetrics.js';
 
 const STAGE_NAMES = Object.freeze({
   A1: Object.freeze({ english: 'AWARE', chinese: '认知' }),
@@ -20,9 +24,10 @@ const TRANSITION_LABELS = Object.freeze({
   A4_TO_A5: 'A4 → A5'
 });
 
-const DIAGNOSTIC_RULE_VERSION = 'V2_PANEL_DEMO_RULES_1';
-
-export function buildFiveADataPanelViewModel(snapshot) {
+export function buildFiveADataPanelViewModel(
+  snapshot,
+  derivedMetrics = deriveFiveAMetrics(snapshot)
+) {
   const metadata = snapshot?.metadata ?? {};
   const fiveA = snapshot?.fiveA ?? null;
   const stageValues = Object.keys(FIVE_A_STAGES).map((stageId) => (
@@ -36,27 +41,21 @@ export function buildFiveADataPanelViewModel(snapshot) {
       fiveA?.stages?.[stageId],
       stageValues[index],
       totalStagePopulation,
-      maxStagePopulation
+      maxStagePopulation,
+      derivedMetrics?.stages?.[stageId]
     )
   ));
   const transitionRows = FIVE_A_TRANSITIONS.map((transitionId) => (
-    createTransitionRow(transitionId, fiveA?.transitions?.[transitionId], stageRows)
+    createTransitionRow(
+      transitionId,
+      fiveA?.transitions?.[transitionId],
+      derivedMetrics?.transitions?.[transitionId]
+    )
   ));
-  const lowestTransition = transitionRows
-    .filter((row) => row.conversionRate !== null)
-    .sort(compareRateThenId)[0] ?? null;
-  const bottleneckStageId = lowestTransition?.toStageId ?? null;
-
-  for (const row of stageRows) {
-    row.isBottleneck = row.stageId === bottleneckStageId;
-  }
-  for (const row of transitionRows) {
-    row.isBottleneck = row.transitionId === lowestTransition?.transitionId;
-  }
 
   const opportunityPool = createOpportunityPool(
     fiveA?.opportunityPool,
-    totalStagePopulation
+    derivedMetrics?.opportunityPool
   );
   const dataQuality = createDataQuality(fiveA);
 
@@ -69,25 +68,39 @@ export function buildFiveADataPanelViewModel(snapshot) {
       snapshotId: cleanString(metadata.snapshotId) ?? '未提供',
       sourceType: metadata.sourceType ?? 'UNKNOWN',
       sourceIdentity: getSourceIdentity(snapshot),
+      completeness: metadata.completeness ?? 'UNKNOWN',
+      lineage: { ...(metadata.lineage ?? {}) },
       sampleSize: null,
       sampleSizeLabel: '未提供',
       verification: getSnapshotVerification(snapshot),
-      isMock: metadata.sourceType === SOURCE_TYPES.MOCK
+      isMock: metadata.sourceType === SOURCE_TYPES.MOCK,
+      isPartial: metadata.sourceType === SOURCE_TYPES.PARTIAL
     },
     stageRows,
     transitionRows,
     opportunityPool,
-    diagnostics: createDiagnostics(transitionRows, opportunityPool),
+    diagnostics: createDiagnostics(
+      derivedMetrics?.diagnosticSignals,
+      transitionRows,
+      opportunityPool
+    ),
     dataQuality,
     rules: {
-      version: DIAGNOSTIC_RULE_VERSION,
+      version: derivedMetrics?.version ?? FIVE_A_DERIVATION_VERSION,
       status: 'EXPERIMENTAL',
       note: '瓶颈与诊断仅用于 MOCK 面板演示，不构成正式业务规则。'
     }
   });
 }
 
-function createStageRow(stageId, stage, population, totalStagePopulation, maxStagePopulation) {
+function createStageRow(
+  stageId,
+  stage,
+  population,
+  totalStagePopulation,
+  maxStagePopulation,
+  derivedStage
+) {
   const stageName = STAGE_NAMES[stageId];
   const strength = finiteOrNull(stage?.strength?.value);
   const confidence = finiteOrNull(stage?.confidence?.value);
@@ -111,53 +124,51 @@ function createStageRow(stageId, stage, population, totalStagePopulation, maxSta
     strengthLabel: formatScore(strength),
     confidence,
     confidenceLabel: formatDecimal(confidence),
-    changeVsLast: null,
-    changeVsLastLabel: '未提供',
-    isBottleneck: false,
+    changeVsLast: finiteOrNull(derivedStage?.changeVsLast),
+    changeVsLastLabel: formatSignedPercent(derivedStage?.changeVsLast),
+    isBottleneck: derivedStage?.isBottleneck === true,
     available: Boolean(stage)
   };
 }
 
-function createTransitionRow(transitionId, transition, stageRows) {
+function createTransitionRow(transitionId, transition, derivedTransition) {
   const [fromStageId, toStageId] = transitionId.split('_TO_');
-  const from = stageRows.find((stage) => stage.stageId === fromStageId);
-  const to = stageRows.find((stage) => stage.stageId === toStageId);
-  const conversionRate = finiteOrNull(transition?.rate?.value);
+  const conversionRate = finiteOrNull(derivedTransition?.rate);
   const confidence = finiteOrNull(transition?.confidence?.value);
-  const dropOffRate = conversionRate === null ? null : clamp01(1 - conversionRate);
+  const dropOffRate = finiteOrNull(derivedTransition?.dropOffRate);
+  const flowStrength = finiteOrNull(transition?.strength?.value);
+  const changeVsLast = finiteOrNull(derivedTransition?.changeVsLast);
 
   return {
     transitionId,
     label: TRANSITION_LABELS[transitionId],
     fromStageId,
     toStageId,
-    inPopulation: from?.population ?? null,
-    inPopulationLabel: formatInteger(from?.population),
-    outPopulation: to?.population ?? null,
-    outPopulationLabel: formatInteger(to?.population),
+    inPopulation: finiteOrNull(derivedTransition?.in),
+    inPopulationLabel: formatInteger(derivedTransition?.in),
+    outPopulation: finiteOrNull(derivedTransition?.out),
+    outPopulationLabel: formatInteger(derivedTransition?.out),
     transitionVolume: finiteOrNull(transition?.volume?.value),
     conversionRate,
     conversionRateLabel: formatPercent(conversionRate),
-    flowStrength: null,
-    flowStrengthLabel: '未提供',
+    flowStrength,
+    flowStrengthLabel: formatDecimal(flowStrength),
     dropOffRate,
     dropOffRateLabel: formatPercent(dropOffRate),
     confidence,
     confidenceLabel: formatDecimal(confidence),
-    changeVsLast: null,
-    changeVsLastLabel: '未提供',
-    isBottleneck: false,
+    changeVsLast,
+    changeVsLastLabel: formatSignedPercent(changeVsLast),
+    isBottleneck: derivedTransition?.isBottleneck === true,
     available: Boolean(transition)
   };
 }
 
-function createOpportunityPool(pool, totalStagePopulation) {
+function createOpportunityPool(pool, derivedPool) {
   const volume = finiteOrNull(pool?.volume?.value);
   const strength = finiteOrNull(pool?.strength?.value);
   const confidence = finiteOrNull(pool?.confidence?.value);
-  const ratio = volume !== null && totalStagePopulation > 0
-    ? volume / totalStagePopulation
-    : null;
+  const ratio = finiteOrNull(derivedPool?.ratio);
 
   return {
     isStage: false,
@@ -170,33 +181,32 @@ function createOpportunityPool(pool, totalStagePopulation) {
     strengthLabel: formatScore(strength),
     confidence,
     confidenceLabel: formatDecimal(confidence),
-    status: volume === null ? 'MISSING' : 'AVAILABLE'
+    status: cleanString(pool?.status?.value)
+      ?? (derivedPool?.available ? 'AVAILABLE' : 'MISSING')
   };
 }
 
-function createDiagnostics(transitionRows, opportunityPool) {
-  const ranked = transitionRows
-    .filter((row) => row.conversionRate !== null)
-    .sort(compareRateThenId);
-  const diagnostics = ranked.slice(0, 2).map((row, index) => ({
-    id: `transition-${row.transitionId}`,
-    level: index === 0 ? 'warning' : 'attention',
-    title: `${row.label} 流转率偏低`,
-    detail: `当前 MOCK 转化率 ${row.conversionRateLabel}，流失率 ${row.dropOffRateLabel}。`,
-    sourceRule: DIAGNOSTIC_RULE_VERSION
-  }));
-
-  if (opportunityPool.volume !== null) {
-    diagnostics.push({
+function createDiagnostics(signals, transitionRows, opportunityPool) {
+  const transitionById = new Map(transitionRows.map((row) => [row.transitionId, row]));
+  return (Array.isArray(signals) ? signals : []).map((signal, index) => {
+    if (signal.type === 'LOW_TRANSITION_RATE') {
+      const row = transitionById.get(signal.transitionId);
+      return {
+        id: `transition-${signal.transitionId}`,
+        level: index === 0 ? 'warning' : 'attention',
+        title: `${row?.label ?? signal.transitionId} 流转率偏低`,
+        detail: `当前转化率 ${row?.conversionRateLabel ?? '未提供'}，流失率 ${row?.dropOffRateLabel ?? '未提供'}。`,
+        sourceRule: FIVE_A_DERIVATION_VERSION
+      };
+    }
+    return {
       id: 'opportunity-pool',
       level: 'info',
       title: 'Opportunity Pool 可观测',
-      detail: `当前 MOCK 规模 ${opportunityPool.volumeLabel}，占阶段人群合计 ${opportunityPool.ratioLabel}。`,
-      sourceRule: DIAGNOSTIC_RULE_VERSION
-    });
-  }
-
-  return diagnostics.slice(0, 3);
+      detail: `当前规模 ${opportunityPool.volumeLabel}，占阶段人群合计 ${opportunityPool.ratioLabel}。`,
+      sourceRule: FIVE_A_DERIVATION_VERSION
+    };
+  }).slice(0, 3);
 }
 
 function createDataQuality(fiveA) {
@@ -254,11 +264,6 @@ function visitDataPoints(value, callback) {
   Object.values(value).forEach((child) => visitDataPoints(child, callback));
 }
 
-function compareRateThenId(left, right) {
-  return left.conversionRate - right.conversionRate
-    || left.transitionId.localeCompare(right.transitionId);
-}
-
 function sumFinite(values) {
   return values.reduce((sum, value) => sum + (value ?? 0), 0);
 }
@@ -276,6 +281,12 @@ function formatPercent(value) {
   return Number.isFinite(value) ? `${(value * 100).toFixed(1)}%` : '未提供';
 }
 
+function formatSignedPercent(value) {
+  if (!Number.isFinite(value)) return '未提供';
+  const sign = value > 0 ? '+' : '';
+  return `${sign}${(value * 100).toFixed(1)}%`;
+}
+
 function formatScore(value) {
   return Number.isFinite(value) ? value.toFixed(0) : '未提供';
 }
@@ -290,10 +301,6 @@ function finiteOrNull(value) {
 
 function cleanString(value) {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
-}
-
-function clamp01(value) {
-  return Math.min(Math.max(value, 0), 1);
 }
 
 function deepFreeze(value) {

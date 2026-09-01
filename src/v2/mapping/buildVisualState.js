@@ -184,6 +184,10 @@ function buildBrandMindVisualState(brandMind) {
       association.confidence,
       DATA_TO_VISUAL_MAPPING.confidence
     );
+    const strength = normalizeDataPoint(
+      association.strength,
+      DATA_TO_VISUAL_MAPPING.rate
+    );
     return {
       id: association.id,
       label: association.label,
@@ -191,7 +195,11 @@ function buildBrandMindVisualState(brandMind) {
       source: association.source,
       node: {
         scale: applyVisualGuardrail('nodeScale', weight),
-        brightness: applyVisualGuardrail('brightness', meanNormalized([weight, confidence])),
+        brightness: applyVisualGuardrail(
+          'brightness',
+          meanNormalized([weight, strength, confidence])
+        ),
+        emphasis: applyVisualGuardrail('emphasis', meanNormalized([strength, confidence])),
         activity: applyVisualGuardrail('activity', confidence),
         relationshipStrength: applyVisualGuardrail('relationshipStrength', weight)
       },

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { SOURCE_TYPES } from '../../v2/contracts/brandUniverseContract.js';
 import { validateSnapshot } from '../../v2/runtime/validateSnapshot.js';
-import { MOCK_BRAND_MIND_PANEL } from './brandMindDataPanelMock.js';
+import { CANONICAL_BRAND_MIND_MOCK } from '../../v2/mock/canonicalFixtures.js';
 import {
   createBrandMindDataPanelController,
   isBrandMindDataPanelIsolationEvent
@@ -19,8 +19,8 @@ test('ViewModel is deterministic', () => {
 test('core metrics stay finite or unavailable', () => {
   const core = build().coreMetrics;
   assert.equal(core.strength, 0.72);
-  assert.equal(core.concentration, 0.48);
-  assert.equal(core.associationCount, 6);
+  assert.equal(core.concentration, 0.63);
+  assert.equal(core.associationCount, 2);
 });
 
 test('coreStatus is deterministic', () => {
@@ -48,13 +48,13 @@ test('shifting core status follows ViewModel rules', () => {
 });
 
 test('associations array is safe when source is missing', () => {
-  const snapshot = clone(MOCK_BRAND_MIND_PANEL);
+  const snapshot = clone(CANONICAL_BRAND_MIND_MOCK);
   snapshot.brandMind.associations = null;
   assert.deepEqual(buildBrandMindDataPanelViewModel(snapshot).associationRows, []);
 });
 
 test('association vocabulary comes from data rather than ViewModel constants', () => {
-  const snapshot = clone(MOCK_BRAND_MIND_PANEL);
+  const snapshot = clone(CANONICAL_BRAND_MIND_MOCK);
   snapshot.brandMind.associations[0].label = '动态测试词';
   assert.equal(
     buildBrandMindDataPanelViewModel(snapshot).associationRows.some((row) => row.association === '动态测试词'),
@@ -63,19 +63,19 @@ test('association vocabulary comes from data rather than ViewModel constants', (
 });
 
 test('relationship rows are safe when relationships are missing', () => {
-  const snapshot = clone(MOCK_BRAND_MIND_PANEL);
+  const snapshot = clone(CANONICAL_BRAND_MIND_MOCK);
   delete snapshot.brandMind.relationships;
-  assert.equal(buildBrandMindDataPanelViewModel(snapshot).relationshipRows.length, 5);
+  assert.equal(buildBrandMindDataPanelViewModel(snapshot).relationshipRows.length, 2);
 });
 
 test('relationship top-N selection is deterministic', () => {
   const rows = build().relationshipRows;
-  assert.equal(rows.length, 5);
+  assert.equal(rows.length, 1);
   assert.ok(rows.every((row, index) => index === 0 || rows[index - 1].strength >= row.strength));
 });
 
 test('drift missing is explicit and safe', () => {
-  const snapshot = clone(MOCK_BRAND_MIND_PANEL);
+  const snapshot = clone(CANONICAL_BRAND_MIND_MOCK);
   delete snapshot.brandMind.history;
   const drift = buildBrandMindDataPanelViewModel(snapshot).mindDrift;
   assert.equal(drift.available, false);
@@ -100,17 +100,17 @@ test('opportunity insights are deterministic', () => {
 
 test('strengthen opportunity uses a qualified core association', () => {
   const insight = build().opportunityInsights.find((item) => item.type === 'STRENGTHEN');
-  assert.equal(insight?.id, 'strengthen-association-scale');
+  assert.equal(insight?.id, 'strengthen-mock-association-a');
 });
 
 test('growth opportunity uses the strongest qualified positive change', () => {
   const insight = build().opportunityInsights.find((item) => item.type === 'GROWTH');
-  assert.equal(insight?.id, 'growth-association-night');
+  assert.equal(insight?.id, 'growth-mock-association-a');
 });
 
 test('defend opportunity uses the strongest qualified decline', () => {
   const insight = build().opportunityInsights.find((item) => item.type === 'DEFEND');
-  assert.equal(insight?.id, 'defend-association-local');
+  assert.equal(insight?.id, 'defend-mock-association-b');
 });
 
 test('opportunity insights never exceed three items', () => {
@@ -118,7 +118,7 @@ test('opportunity insights never exceed three items', () => {
 });
 
 test('missing history is safe and does not invent growth or defend opportunities', () => {
-  const snapshot = clone(MOCK_BRAND_MIND_PANEL);
+  const snapshot = clone(CANONICAL_BRAND_MIND_MOCK);
   delete snapshot.brandMind.history;
   const insights = buildBrandMindDataPanelViewModel(snapshot).opportunityInsights;
   assert.equal(insights.some((item) => item.type === 'GROWTH' || item.type === 'DEFEND'), false);
@@ -138,7 +138,7 @@ test('DOM renderer contains no product-rule thresholds or insight calculations',
 
 test('REAL MOCK and PARTIAL identity cannot be silently converted', () => {
   for (const sourceType of Object.values(SOURCE_TYPES)) {
-    const snapshot = clone(MOCK_BRAND_MIND_PANEL);
+    const snapshot = clone(CANONICAL_BRAND_MIND_MOCK);
     snapshot.metadata.sourceType = sourceType;
     assert.equal(buildBrandMindDataPanelViewModel(snapshot).header.sourceType, sourceType);
   }
@@ -153,7 +153,7 @@ test('ViewModel contains no Infinity', () => {
 });
 
 test('panel mock remains a valid Canonical Snapshot', () => {
-  assert.equal(validateSnapshot(MOCK_BRAND_MIND_PANEL).ok, true);
+  assert.equal(validateSnapshot(CANONICAL_BRAND_MIND_MOCK).ok, true);
 });
 
 test('controller opens panel once', () => {
@@ -226,7 +226,7 @@ console.log(JSON.stringify({ passed, failed, results }, null, 2));
 if (failed) process.exitCode = 1;
 
 function build() {
-  return buildBrandMindDataPanelViewModel(MOCK_BRAND_MIND_PANEL);
+  return buildBrandMindDataPanelViewModel(CANONICAL_BRAND_MIND_MOCK);
 }
 
 function clone(value) {
@@ -234,7 +234,7 @@ function clone(value) {
 }
 
 function statusFixture({ concentration, stability, change }) {
-  const snapshot = clone(MOCK_BRAND_MIND_PANEL);
+  const snapshot = clone(CANONICAL_BRAND_MIND_MOCK);
   snapshot.brandMind.core.concentration.value = concentration;
   snapshot.brandMind.core.stability.value = stability;
   snapshot.brandMind.core.changeVsLast.value = change;

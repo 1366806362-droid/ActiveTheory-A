@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { MOCK_FIVE_A_BOTTLENECK } from '../../v2/mock/brandUniverseMocks.js';
+import { CANONICAL_FIVE_A_MOCK } from '../../v2/mock/canonicalFixtures.js';
 import {
   createFiveADataPanelController,
   isFiveADataPanelIsolationEvent
@@ -38,7 +38,7 @@ test('MOCK and SYNTHETIC identity is preserved', () => {
 });
 
 test('missing stage stays safe and visible as an unavailable row', () => {
-  const snapshot = clone(MOCK_FIVE_A_BOTTLENECK);
+  const snapshot = clone(CANONICAL_FIVE_A_MOCK);
   snapshot.fiveA.stages.A3 = null;
   const row = buildFiveADataPanelViewModel(snapshot).stageRows[2];
   assert.equal(row.stageId, 'A3');
@@ -48,7 +48,7 @@ test('missing stage stays safe and visible as an unavailable row', () => {
 });
 
 test('missing transition stays safe and visible as an unavailable row', () => {
-  const snapshot = clone(MOCK_FIVE_A_BOTTLENECK);
+  const snapshot = clone(CANONICAL_FIVE_A_MOCK);
   snapshot.fiveA.transitions.A2_TO_A3 = null;
   const row = buildFiveADataPanelViewModel(snapshot).transitionRows[1];
   assert.equal(row.transitionId, 'A2_TO_A3');
@@ -134,7 +134,7 @@ console.log(JSON.stringify({ passed, failed, results }, null, 2));
 if (failed) process.exitCode = 1;
 
 function build() {
-  return buildFiveADataPanelViewModel(MOCK_FIVE_A_BOTTLENECK);
+  return buildFiveADataPanelViewModel(CANONICAL_FIVE_A_MOCK);
 }
 
 function clone(value) {

@@ -43,10 +43,9 @@ import {
   updateInteraction
 } from '../universe/interaction.js';
 import { createSceneManager } from '../world/sceneManager.js';
-import { MOCK_FIVE_A_BOTTLENECK } from '../v2/mock/brandUniverseMocks.js';
 import { createFiveADataPanel } from '../ui/fiveA-data-panel/fiveADataPanel.js';
-import { MOCK_BRAND_MIND_PANEL } from '../ui/brandMind-data-panel/brandMindDataPanelMock.js';
 import { createBrandMindDataPanel } from '../ui/brandMind-data-panel/brandMindDataPanel.js';
+import { createV2ConsumerProvider } from '../v2/runtime/consumerProvider.js';
 
 const ENGINE_INSTANCE_KEY = '__ACTIVE_THEORY_ENGINE__';
 
@@ -73,8 +72,11 @@ export function initializeEngine() {
   const activeScene = getActiveScene();
   const lights = createLights();
   const heroScene = createHeroScene();
-  const fiveADataPanel = createFiveADataPanel({ snapshot: MOCK_FIVE_A_BOTTLENECK });
-  const brandMindDataPanel = createBrandMindDataPanel({ snapshot: MOCK_BRAND_MIND_PANEL });
+  const consumerProvider = createV2ConsumerProvider();
+  const fiveAConsumer = consumerProvider.getFiveA();
+  const brandMindConsumer = consumerProvider.getBrandMind();
+  const fiveADataPanel = createFiveADataPanel(fiveAConsumer);
+  const brandMindDataPanel = createBrandMindDataPanel(brandMindConsumer);
   const sceneManager = createSceneManager({
     heroScene,
     camera,

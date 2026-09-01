@@ -5,6 +5,8 @@ const CAPTURED_AT = '2026-09-01T09:00:00+08:00';
 
 export const MOCK_BALANCED = adaptBrandUniverseSource(createBalancedRaw());
 export const MOCK_GEO_OPPORTUNITY = adaptBrandUniverseSource(createGeoOpportunityRaw());
+// Legacy V2-0 regression fixture only. Runtime Panel consumers use the
+// canonical source-adapter fixtures exposed by canonicalFixtures.js.
 export const MOCK_FIVE_A_BOTTLENECK = adaptBrandUniverseSource(createFiveABottleneckRaw());
 
 export const BRAND_UNIVERSE_MOCKS = Object.freeze({

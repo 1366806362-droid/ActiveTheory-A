@@ -71,3 +71,17 @@ points. They do not create panel copy, colors, bottleneck conclusions,
 `derived/` own reusable business derivation. Data Panel ViewModels and
 VisualState mapping must consume the same validated Canonical Snapshot and may
 not maintain conflicting business facts.
+
+## V2-2 unified consumers
+
+`runtime/consumerProvider.js` is the single runtime composition boundary for
+current Canonical Snapshots. It validates the snapshot and consumer contract,
+derives reusable business metrics once, and exposes the same snapshot to both
+Panel ViewModels and `buildVisualState()`.
+
+Panel modules receive `{ snapshot, derivedMetrics }` through dependency
+injection. They never import source adapters and retain only labels, number
+formatting, and presentation copy. FiveA bottleneck/drop-off rules and Brand
+Mind core status/opportunity/diagnostic rules live only under `derived/`.
+Replacing a MOCK source with a future REAL adapter output therefore changes the
+provider input, not the Panel or Visual Mapping business facts.

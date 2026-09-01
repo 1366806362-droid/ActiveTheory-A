@@ -5,8 +5,13 @@ import {
 } from './fiveADataPanelController.js';
 import { buildFiveADataPanelViewModel } from './fiveADataPanelViewModel.js';
 
-export function createFiveADataPanel({ snapshot, documentObject = document, windowObject = window }) {
-  const viewModel = buildFiveADataPanelViewModel(snapshot);
+export function createFiveADataPanel({
+  snapshot,
+  derivedMetrics,
+  documentObject = document,
+  windowObject = window
+}) {
+  const viewModel = buildFiveADataPanelViewModel(snapshot, derivedMetrics);
   const element = documentObject.createElement('aside');
   element.className = 'fivea-data-panel';
   element.dataset.fiveADataPanel = 'v1';

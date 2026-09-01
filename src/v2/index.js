@@ -17,6 +17,7 @@ export * from './derived/deriveBrandMindMetrics.js';
 export * from './derived/deriveBusinessMetrics.js';
 export * from './runtime/validateSnapshot.js';
 export * from './runtime/validateVisualState.js';
+export * from './runtime/consumerProvider.js';
 export * from './mock/brandUniverseMocks.js';
 export * from './mock/sourceAdapterFixtures.js';
 export * from './mock/canonicalFixtures.js';

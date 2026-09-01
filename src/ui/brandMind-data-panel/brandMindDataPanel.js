@@ -5,8 +5,13 @@ import {
 } from './brandMindDataPanelController.js';
 import { buildBrandMindDataPanelViewModel } from './brandMindDataPanelViewModel.js';
 
-export function createBrandMindDataPanel({ snapshot, documentObject = document, windowObject = window }) {
-  const viewModel = buildBrandMindDataPanelViewModel(snapshot);
+export function createBrandMindDataPanel({
+  snapshot,
+  derivedMetrics,
+  documentObject = document,
+  windowObject = window
+}) {
+  const viewModel = buildBrandMindDataPanelViewModel(snapshot, derivedMetrics);
   const element = documentObject.createElement('aside');
 
   element.className = 'brandmind-data-panel';

@@ -31,22 +31,41 @@ export function deriveFiveAMetrics(snapshot) {
     .reduce((sum, value) => sum + (value ?? 0), 0);
   const opportunityVolume = read(fiveA.opportunityPool?.volume)
     ?? read(fiveA.opportunityPool?.population);
+  const bottleneck = ranked.length ? {
+    transitionId: ranked[0][0],
+    stageId: ranked[0][0].split('_TO_')[1],
+    rate: ranked[0][1].rate
+  } : null;
 
   return deepFreeze({
     available: true,
     version: FIVE_A_DERIVATION_VERSION,
-    transitions,
-    bottleneck: ranked.length ? {
-      transitionId: ranked[0][0],
-      stageId: ranked[0][0].split('_TO_')[1],
-      rate: ranked[0][1].rate
-    } : null,
+    stages: Object.fromEntries(Object.keys(FIVE_A_STAGES).map((stageId) => [
+      stageId,
+      {
+        changeVsLast: read(fiveA.stages?.[stageId]?.changeVsLast),
+        isBottleneck: stageId === bottleneck?.stageId
+      }
+    ])),
+    transitions: Object.fromEntries(Object.entries(transitions).map(([transitionId, value]) => [
+      transitionId,
+      { ...value, isBottleneck: transitionId === bottleneck?.transitionId }
+    ])),
+    bottleneck,
     opportunityPool: {
       isStage: false,
       ratio: opportunityVolume !== null && totalPopulation > 0
         ? opportunityVolume / totalPopulation
-        : null
-    }
+        : null,
+      available: opportunityVolume !== null
+    },
+    diagnosticSignals: [
+      ...ranked.slice(0, 2).map(([transitionId]) => ({
+        type: 'LOW_TRANSITION_RATE',
+        transitionId
+      })),
+      ...(opportunityVolume !== null ? [{ type: 'OPPORTUNITY_POOL_AVAILABLE' }] : [])
+    ].slice(0, 3)
   });
 }
 
