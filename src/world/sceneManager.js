@@ -78,7 +78,12 @@ const TARGET_KEY_BY_NEBULA = Object.freeze(Object.fromEntries(
   Object.values(TARGETS).map(({ key, nebulaName }) => [nebulaName, key])
 ));
 
-export function createSceneManager({ heroScene }) {
+export function createSceneManager({
+  heroScene,
+  camera,
+  onFiveAPrimaryActivate = () => {},
+  isFiveADataPanelOpen = () => false
+}) {
   const geoJourneyWheelMode = isGeoV3JourneyWheelMode();
   const root = new THREE.Group();
   const geoScene = createGeoScene();
@@ -135,6 +140,10 @@ export function createSceneManager({ heroScene }) {
   const heroContainer = sceneContainers.get('HeroScene');
 
   function handleWheel(event) {
+    if (isFiveADataPanelOpen()) {
+      if (event.cancelable) event.preventDefault();
+      return;
+    }
     const normalizedDelta = normalizeWheelDelta(event);
     const normalizedWheelUnit = geoJourneyWheelMode
       ? normalizeJourneyWheelUnit(event)
@@ -352,6 +361,7 @@ export function createSceneManager({ heroScene }) {
   function update(renderState, delta, time) {
     updatePointerEntryIntent();
     updateTransitionProgress(delta);
+    fiveAScene.setPanelPresentationOpen(isFiveADataPanelOpen());
     const view = getTourView(state);
     const targetConfig = view.targetKey ? TARGETS[view.targetKey] : null;
     const targetScene = targetConfig ? getSceneByName(scenes, targetConfig.sceneName) : null;
@@ -425,6 +435,19 @@ export function createSceneManager({ heroScene }) {
     if (interaction.intentVersion !== lastIntentVersion) {
       lastIntentVersion = interaction.intentVersion;
       const anchor = getTourAnchor(state.routeIndex);
+      const fiveAPrimaryTarget = anchor?.scene === 'FiveAScene' && !state.transition
+        ? fiveAScene.getPrimaryInteractionTarget({
+          x: interaction.intentX,
+          y: interaction.intentY,
+          camera
+        })
+        : null;
+
+      if (fiveAPrimaryTarget) {
+        onFiveAPrimaryActivate(fiveAPrimaryTarget);
+        clearPointerEntry();
+        return;
+      }
       const interactionTarget = anchor?.scene === 'HeroScene' && !state.transition
         ? heroScene.getPlanetInteractionTarget({
           x: interaction.intentX,

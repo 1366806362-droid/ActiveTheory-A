@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
-import { FIVE_A_VISUAL_V1, FIVE_A_VISUAL_V2 } from './fiveAScene.js';
+import {
+  FIVE_A_PANEL_OPEN_PRESENTATION_STATE,
+  FIVE_A_PRIMARY_INTERACTION_TARGET,
+  FIVE_A_VISUAL_V1,
+  FIVE_A_VISUAL_V2,
+  resolveFiveAPanelPresentation
+} from './fiveAScene.js';
 
 const results = [];
 
@@ -139,6 +145,33 @@ test('5A Visual V2 keeps Opportunity subordinate and labels restrained', () => {
 
 test('legacy visual export remains an exact compatibility alias', () => {
   assert.equal(FIVE_A_VISUAL_V1, FIVE_A_VISUAL_V2);
+});
+
+test('5A data panel binds the existing core rather than a normal stage sphere', () => {
+  assert.deepEqual(FIVE_A_PRIMARY_INTERACTION_TARGET, {
+    id: 'fivea-primary-core',
+    objectName: 'FiveACorePrimaryHitTarget',
+    semantic: 'PRIMARY_DATA_ENTRY'
+  });
+  assert.equal(FIVE_A_VISUAL_V2.stageProfiles.some(({ id }) => id === 'CORE'), false);
+});
+
+test('panel-open presentation transforms the complete FiveA scene root', () => {
+  assert.deepEqual(resolveFiveAPanelPresentation(1), FIVE_A_PANEL_OPEN_PRESENTATION_STATE);
+  assert.ok(FIVE_A_PANEL_OPEN_PRESENTATION_STATE.scale < 0.7);
+  assert.ok(FIVE_A_PANEL_OPEN_PRESENTATION_STATE.position[0] < -4);
+});
+
+test('panel-close presentation restores the locked FiveA baseline', () => {
+  assert.deepEqual(resolveFiveAPanelPresentation(0), {
+    position: [-2.35, -0.22, -2.08],
+    scale: 0.94
+  });
+});
+
+test('panel presentation reopen is deterministic', () => {
+  assert.deepEqual(resolveFiveAPanelPresentation(1), resolveFiveAPanelPresentation(1));
+  assert.deepEqual(resolveFiveAPanelPresentation(0), resolveFiveAPanelPresentation(0));
 });
 
 const failed = results.filter(({ status }) => status === 'fail');

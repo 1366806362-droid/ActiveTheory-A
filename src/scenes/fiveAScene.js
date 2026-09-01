@@ -150,8 +150,20 @@ const FIVE_A_STAGE_GPU_PARTICLE_COUNT = FIVE_A_STAGES
   .reduce((total, stage) => total + stage.gpuParticleCount, 0);
 const FIVE_A_FINAL_POSITION = Object.freeze([-2.35, -0.22, -2.08]);
 const FIVE_A_FINAL_SCALE = 0.94;
+const FIVE_A_PANEL_PRESENTATION_RESPONSE = 12;
 const FIVE_A_STAGE_GROUP_CORE_PULL = -0.13;
 const STABLE_DRIFT_START = 0.72;
+
+export const FIVE_A_PANEL_OPEN_PRESENTATION_STATE = Object.freeze({
+  position: Object.freeze([-5, -0.05, -1.72]),
+  scale: 0.68
+});
+
+export const FIVE_A_PRIMARY_INTERACTION_TARGET = Object.freeze({
+  id: 'fivea-primary-core',
+  objectName: 'FiveACorePrimaryHitTarget',
+  semantic: 'PRIMARY_DATA_ENTRY'
+});
 
 export const FIVE_A_VISUAL_V2 = Object.freeze({
   version: '2.0',
@@ -206,6 +218,8 @@ export const FIVE_A_VISUAL_V1 = FIVE_A_VISUAL_V2;
 
 export function createFiveAScene() {
   const group = new THREE.Group();
+  const primaryRaycaster = new THREE.Raycaster();
+  const primaryPointer = new THREE.Vector2();
   const core = createFiveACore();
   const orbitSystem = createFiveAOrbitSystem();
   const transferFlow = createFiveATransferFlow();
@@ -213,6 +227,8 @@ export function createFiveAScene() {
   const title = createSceneTitle();
   let diagnostics;
   let lastMotionProgress = 0;
+  let panelPresentationCurrent = 0;
+  let panelPresentationTarget = 0;
 
   group.name = 'FiveAScene';
   group.position.set(...FIVE_A_FINAL_POSITION);
@@ -230,12 +246,21 @@ export function createFiveAScene() {
         ? 'reverse'
         : 'idle';
     const cameraExplore = motionProgress * motionProgress;
+    const panelResponse = 1 - Math.exp(-Math.max(delta, 0) * FIVE_A_PANEL_PRESENTATION_RESPONSE);
+
+    panelPresentationCurrent += (
+      panelPresentationTarget - panelPresentationCurrent
+    ) * panelResponse;
+    if (Math.abs(panelPresentationTarget - panelPresentationCurrent) < 0.0005) {
+      panelPresentationCurrent = panelPresentationTarget;
+    }
+    const panelPresentation = resolveFiveAPanelPresentation(panelPresentationCurrent);
 
     group.visible = transitionProgress > 0.01 || diagnostics.isDebugEnabled;
-    group.position.set(...FIVE_A_FINAL_POSITION);
+    group.position.set(...panelPresentation.position);
     group.rotation.y = Math.sin(time * 0.025) * 0.04 * motion.stable;
     group.rotation.x = Math.sin(time * 0.018) * 0.02 * motion.stable;
-    group.scale.setScalar(FIVE_A_FINAL_SCALE);
+    group.scale.setScalar(panelPresentation.scale);
 
     renderState.cameraOffset.x += Math.sin(time * 0.038 + 0.6) * 0.18 * cameraExplore;
     renderState.cameraOffset.y += Math.sin(time * 0.032) * 0.07 * cameraExplore;
@@ -261,12 +286,52 @@ export function createFiveAScene() {
     group.clear();
   }
 
+  function getPrimaryInteractionTarget({ x, y, camera }) {
+    if (!camera || !group.visible || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+    primaryPointer.set(x, y);
+    camera.updateMatrixWorld();
+    group.updateWorldMatrix(true, true);
+    primaryRaycaster.setFromCamera(primaryPointer, camera);
+    const hit = primaryRaycaster.intersectObject(core.hitTarget, false)[0];
+
+    return hit
+      ? FIVE_A_PRIMARY_INTERACTION_TARGET
+      : null;
+  }
+
+  function setPanelPresentationOpen(open) {
+    panelPresentationTarget = open ? 1 : 0;
+  }
+
+  function getPanelPresentationState() {
+    return Object.freeze({
+      open: panelPresentationTarget === 1,
+      progress: panelPresentationCurrent,
+      ...resolveFiveAPanelPresentation(panelPresentationCurrent)
+    });
+  }
+
   return {
     name: 'FiveAScene',
     group,
+    primaryInteractionTargetName: FIVE_A_PRIMARY_INTERACTION_TARGET.objectName,
+    getPrimaryInteractionTarget,
+    setPanelPresentationOpen,
+    getPanelPresentationState,
     update,
     dispose
   };
+}
+
+export function resolveFiveAPanelPresentation(progress) {
+  const mix = smootherstep01(progress);
+
+  return Object.freeze({
+    position: Object.freeze(FIVE_A_FINAL_POSITION.map((value, index) => (
+      THREE.MathUtils.lerp(value, FIVE_A_PANEL_OPEN_PRESENTATION_STATE.position[index], mix)
+    ))),
+    scale: THREE.MathUtils.lerp(FIVE_A_FINAL_SCALE, FIVE_A_PANEL_OPEN_PRESENTATION_STATE.scale, mix)
+  });
 }
 
 function createFiveACore() {
@@ -288,6 +353,7 @@ function createFiveACore() {
     depthWrite: false
   });
   const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = 'FiveACorePrimaryHitTarget';
   const atmosphereMaterial = new THREE.ShaderMaterial({
     uniforms: {
       uOpacity: { value: 0 },
@@ -369,7 +435,7 @@ function createFiveACore() {
     haloMaterial.dispose();
   }
 
-  return { group, update, dispose };
+  return { group, hitTarget: mesh, update, dispose };
 }
 
 function createFiveACoreParticles() {

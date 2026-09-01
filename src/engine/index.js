@@ -43,6 +43,8 @@ import {
   updateInteraction
 } from '../universe/interaction.js';
 import { createSceneManager } from '../world/sceneManager.js';
+import { MOCK_FIVE_A_BOTTLENECK } from '../v2/mock/brandUniverseMocks.js';
+import { createFiveADataPanel } from '../ui/fiveA-data-panel/fiveADataPanel.js';
 
 const ENGINE_INSTANCE_KEY = '__ACTIVE_THEORY_ENGINE__';
 
@@ -69,7 +71,21 @@ export function initializeEngine() {
   const activeScene = getActiveScene();
   const lights = createLights();
   const heroScene = createHeroScene();
-  const sceneManager = createSceneManager({ heroScene });
+  const fiveADataPanel = createFiveADataPanel({ snapshot: MOCK_FIVE_A_BOTTLENECK });
+  const sceneManager = createSceneManager({
+    heroScene,
+    camera,
+    onFiveAPrimaryActivate() {
+      fiveADataPanel.toggle('primary-sphere');
+    },
+    isFiveADataPanelOpen: fiveADataPanel.isOpen
+  });
+  const fiveADataPanelDebugRequested = import.meta.env.DEV
+    && new URLSearchParams(window.location.search).get('fiveADataPanel') === '1';
+
+  if (fiveADataPanelDebugRequested) {
+    fiveADataPanel.open('debug-query');
+  }
   const interaction = initializeInteraction();
   activeScene.add(sceneManager.root);
   applySpatialDesign(renderState);
@@ -81,7 +97,12 @@ export function initializeEngine() {
   initializeAtmosphereSystem();
   initializeCohesionSystem();
 
-  app.replaceChildren(renderer.domElement, heroScene.overlay, heroScene.scrollHint);
+  app.replaceChildren(
+    renderer.domElement,
+    heroScene.overlay,
+    heroScene.scrollHint,
+    fiveADataPanel.element
+  );
   const postProcessing = createPostProcessing({
     renderer,
     scene: activeScene,
@@ -116,6 +137,7 @@ export function initializeEngine() {
 
       isDisposed = true;
       stopEngineLoop();
+      fiveADataPanel.destroy();
       interaction.dispose();
       sceneManager.dispose();
       environmentMap.dispose();
