@@ -64,6 +64,14 @@ const GALAXY_V51_LDI_LAYERS = Object.freeze([
   Object.freeze({ id: 'foreground', source: '/assets/galaxy-v3/hero/v5_1/galaxy-v5_1-foreground.webp', z: 0.04, renderOrder: 9, parallaxFactor: 0.48 })
 ]);
 
+const GALAXY_V6_LDI_LAYERS = Object.freeze([
+  Object.freeze({ id: 'background', source: '/assets/galaxy-v3/hero/v6/galaxy-v6-bg.webp', z: -0.04, renderOrder: 5, parallaxFactor: 0 }),
+  Object.freeze({ id: 'farArm', source: '/assets/galaxy-v3/hero/v6/galaxy-v6-far-arm.webp', z: -0.02, renderOrder: 6, parallaxFactor: 0.18 }),
+  Object.freeze({ id: 'core', source: '/assets/galaxy-v3/hero/v6/galaxy-v6-core.webp', z: 0, renderOrder: 7, parallaxFactor: 0.30 }),
+  Object.freeze({ id: 'nearArm', source: '/assets/galaxy-v3/hero/v6/galaxy-v6-near-arm.webp', z: 0.02, renderOrder: 8, parallaxFactor: 0.38 }),
+  Object.freeze({ id: 'foreground', source: '/assets/galaxy-v3/hero/v6/galaxy-v6-foreground.webp', z: 0.04, renderOrder: 9, parallaxFactor: 0.48 })
+]);
+
 export const GALAXY_V3_V4_CONFIG = Object.freeze({
   ...GALAXY_V3_CONFIG,
   mode: 'v3-hero-asset-v4-ldi',
@@ -110,14 +118,24 @@ export const GALAXY_V3_V51_CONFIG = Object.freeze({
   })
 });
 
+export const GALAXY_V3_V6_CONFIG = Object.freeze({
+  ...GALAXY_V3_CONFIG,
+  mode: 'v3-hero-asset-v6-structural-arm-ldi',
+  galaxyHeroAsset: Object.freeze({
+    ...GALAXY_V3_V51_CONFIG.galaxyHeroAsset,
+    source: GALAXY_V6_LDI_LAYERS[2].source,
+    layers: GALAXY_V6_LDI_LAYERS
+  })
+});
+
 export function readGalaxyV3State(search = readLocationSearch()) {
   const params = new URLSearchParams(search);
   const enabled = params.get('galaxyV3') === '1';
   const requestedHero = params.get('galaxyHero');
-  const heroVersion = enabled && ['v4', 'v5', 'v5_1'].includes(requestedHero)
+  const heroVersion = enabled && ['v4', 'v5', 'v5_1', 'v6'].includes(requestedHero)
     ? requestedHero
     : 'foundation';
-  const cinematicHero = ['v4', 'v5', 'v5_1'].includes(heroVersion);
+  const cinematicHero = ['v4', 'v5', 'v5_1', 'v6'].includes(heroVersion);
 
   return Object.freeze({
     enabled,

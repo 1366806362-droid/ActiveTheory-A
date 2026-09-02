@@ -8,6 +8,7 @@ import {
   GALAXY_V3_V4_CONFIG,
   GALAXY_V3_V5_CONFIG,
   GALAXY_V3_V51_CONFIG,
+  GALAXY_V3_V6_CONFIG,
   GALAXY_V3_LAYER_ORDER,
   readGalaxyV3State
 } from './galaxyV3Config.js';
@@ -83,6 +84,18 @@ test('V5.1 spiral-cohesion assets are opt-in without replacing the V5 rollback',
   assert.equal(v51Layers.length, 5);
   assert.ok(v51Layers.every(({ source }) => source.includes('/hero/v5_1/galaxy-v5_1-')));
   assert.ok(GALAXY_V3_V5_CONFIG.galaxyHeroAsset.layers.every(({ source }) => source.includes('/hero/v5/galaxy-v5-')));
+});
+
+test('V6 structural-arm candidate is opt-in and preserves all prior rollback assets', () => {
+  const state = readGalaxyV3State('?galaxyV3=1&galaxyHero=v6&debugV4Isolated=1');
+  const layers = GALAXY_V3_V6_CONFIG.galaxyHeroAsset.layers;
+  assert.equal(state.heroVersion, 'v6');
+  assert.equal(state.isolated, true);
+  assert.equal(layers.length, 5);
+  assert.deepEqual(layers.map(({ parallaxFactor }) => parallaxFactor), [0, 0.18, 0.30, 0.38, 0.48]);
+  assert.ok(layers.every(({ source }) => source.includes('/hero/v6/galaxy-v6-')));
+  assert.ok(GALAXY_V3_V51_CONFIG.galaxyHeroAsset.layers.every(({ source }) => source.includes('/hero/v5_1/')));
+  assert.ok(GALAXY_V3_V5_CONFIG.galaxyHeroAsset.layers.every(({ source }) => source.includes('/hero/v5/')));
 });
 
 test('V4 LDI uses five world-space planes with stable far-to-near ordering', () => {
