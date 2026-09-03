@@ -107,3 +107,22 @@ Data may control bounded scale, density, energy, activity, flow, highlight, and
 visibility. Camera, global composition, scene layout, Earth/Galaxy position,
 permanent stage position, route, scroll, handoff, typography, and panel layout
 remain exclusively owned by Art Direction and application interaction logic.
+
+## V2-3A.1 replay and regression harness
+
+`replay/` runs chronological canonical snapshots through the existing
+`deriveBusinessMetrics()`, `buildVisualState()`, and `buildVisualBindingPlan()`
+functions. It does not duplicate business rules or render anything. Each replay
+frame retains snapshot identity, lineage, compact Panel/derived/visual/binding
+summaries, and safety assertions. Scenarios verify directionality, stable IDs,
+metadata, missing-data preservation, guardrail bounds, determinism, and JSON
+serialization before future V2-3B renderer adapters exist.
+
+Run the compact report with:
+
+```text
+node src/v2/replay/previewReplay.mjs
+```
+
+Golden fixtures intentionally record only stable IDs, frame IDs, and selected
+expected categories. They do not snapshot full VisualState or renderer output.

@@ -298,6 +298,7 @@ function collectSourceMissingPaths(snapshot) {
     const transition = snapshot.fiveA?.transitions?.[transitionId];
     add([`fiveA.transitions.${transitionId}.flowStrength`], [transition?.rate]);
     add([`fiveA.transitions.${transitionId}.flowSpeed`], [transition?.volume]);
+    add([`fiveA.transitions.${transitionId}.confidence`], [transition?.confidence]);
   }
 
 
