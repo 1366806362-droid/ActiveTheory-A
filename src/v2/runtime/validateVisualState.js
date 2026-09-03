@@ -175,6 +175,29 @@ function validateBrandMind(brandMind, errors) {
     );
     validateUnit(association.confidence, `${path}.confidence`, errors);
   });
+  if (!Array.isArray(brandMind?.relationships)) {
+    errors.push('brandMind.relationships must be an array.');
+    return;
+  }
+  brandMind.relationships.forEach((relationship, index) => {
+    const path = `brandMind.relationships[${index}]`;
+    if (!relationship.sourceId || !relationship.targetId) {
+      errors.push(`${path} must preserve sourceId and targetId.`);
+    }
+    validateGuarded(
+      relationship.path?.visibility,
+      'visibility',
+      `${path}.path.visibility`,
+      errors
+    );
+    validateGuarded(
+      relationship.path?.flowStrength,
+      'flowStrength',
+      `${path}.path.flowStrength`,
+      errors
+    );
+    validateUnit(relationship.confidence, `${path}.confidence`, errors);
+  });
 }
 
 function validateGuarded(value, channel, path, errors) {

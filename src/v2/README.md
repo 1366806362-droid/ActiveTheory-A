@@ -20,7 +20,9 @@ Source
      `-> Data-to-Visual Mapping
   -> Normalize (0..1)
   -> BrandUniverseVisualState
-  -> Renderer (future integration only)
+  -> VisualBindingPlan
+  -> Renderer Adapter (V2-3B, future integration only)
+  -> Three.js
 ```
 
 ## Canonical modules
@@ -85,3 +87,23 @@ formatting, and presentation copy. FiveA bottleneck/drop-off rules and Brand
 Mind core status/opportunity/diagnostic rules live only under `derived/`.
 Replacing a MOCK source with a future REAL adapter output therefore changes the
 provider input, not the Panel or Visual Mapping business facts.
+
+## V2-3A visual binding contract
+
+**V2-3A DOES NOT RENDER.** `binding/` translates validated VisualState fields
+into a deterministic, serializable `VisualBindingPlan`. Stable channel IDs state
+which future renderer-facing visual channel receives each bounded value, while
+remaining independent of Three.js classes, scene objects, shaders, materials,
+particles, and DOM implementation.
+
+The binding layer is identity or bounded pass-through only. It reuses the
+existing Art Direction guardrails, retains source-missing diagnostics and
+lineage, preserves stable FiveA stage/transition IDs and Brand Mind association/
+relationship IDs, and never recalculates business metrics. Capability contracts
+make unsupported renderer channels an explicit validation error rather than a
+silent omission.
+
+Data may control bounded scale, density, energy, activity, flow, highlight, and
+visibility. Camera, global composition, scene layout, Earth/Galaxy position,
+permanent stage position, route, scroll, handoff, typography, and panel layout
+remain exclusively owned by Art Direction and application interaction logic.

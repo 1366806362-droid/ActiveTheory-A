@@ -61,6 +61,12 @@ export const VISUAL_MAPPING_CONTRACT = deepFreeze({
       relationshipStrength: { source: 'weight', guardrail: 'relationshipStrength' },
       pathVisibility: { source: 'confidence', guardrail: 'visibility' },
       pathFlowStrength: { source: 'weight', guardrail: 'flowStrength' }
+    },
+    relationshipTemplate: {
+      sourceId: { source: 'sourceId', behavior: 'preserve' },
+      targetId: { source: 'targetId', behavior: 'preserve' },
+      pathVisibility: { source: 'confidence', guardrail: 'visibility' },
+      pathFlowStrength: { source: 'strength', guardrail: 'flowStrength' }
     }
   }
 });
