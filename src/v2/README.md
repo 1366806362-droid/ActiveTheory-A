@@ -20,7 +20,9 @@ Source
      `-> Data-to-Visual Mapping
   -> Normalize (0..1)
   -> BrandUniverseVisualState
-  -> Renderer (future integration only)
+  -> VisualBindingPlan
+  -> Renderer Adapter (V2-3B, future integration only)
+  -> Three.js
 ```
 
 ## Canonical modules
@@ -85,3 +87,64 @@ formatting, and presentation copy. FiveA bottleneck/drop-off rules and Brand
 Mind core status/opportunity/diagnostic rules live only under `derived/`.
 Replacing a MOCK source with a future REAL adapter output therefore changes the
 provider input, not the Panel or Visual Mapping business facts.
+
+## V2-3A visual binding contract
+
+**V2-3A DOES NOT RENDER.** `binding/` translates validated VisualState fields
+into a deterministic, serializable `VisualBindingPlan`. Stable channel IDs state
+which future renderer-facing visual channel receives each bounded value, while
+remaining independent of Three.js classes, scene objects, shaders, materials,
+particles, and DOM implementation.
+
+The binding layer is identity or bounded pass-through only. It reuses the
+existing Art Direction guardrails, retains source-missing diagnostics and
+lineage, preserves stable FiveA stage/transition IDs and Brand Mind association/
+relationship IDs, and never recalculates business metrics. Capability contracts
+make unsupported renderer channels an explicit validation error rather than a
+silent omission.
+
+Data may control bounded scale, density, energy, activity, flow, highlight, and
+visibility. Camera, global composition, scene layout, Earth/Galaxy position,
+permanent stage position, route, scroll, handoff, typography, and panel layout
+remain exclusively owned by Art Direction and application interaction logic.
+
+## V2-3A.1 replay and regression harness
+
+`replay/` runs chronological canonical snapshots through the existing
+`deriveBusinessMetrics()`, `buildVisualState()`, and `buildVisualBindingPlan()`
+functions. It does not duplicate business rules or render anything. Each replay
+frame retains snapshot identity, lineage, compact Panel/derived/visual/binding
+summaries, and safety assertions. Scenarios verify directionality, stable IDs,
+metadata, missing-data preservation, guardrail bounds, determinism, and JSON
+serialization before future V2-3B renderer adapters exist.
+
+Run the compact report with:
+
+```text
+node src/v2/replay/previewReplay.mjs
+```
+
+Golden fixtures intentionally record only stable IDs, frame IDs, and selected
+expected categories. They do not snapshot full VisualState or renderer output.
+
+## V2-3A.2 renderer adapter dry-run
+
+**V2-3A.2 DOES NOT RENDER.** `renderer-dry-run/` is a pure Node execution
+harness between `VisualBindingPlan` and a serializable `FakeRendererState`.
+It consumes only the frozen V2-3A channel contract, resolves targets by stable
+FiveA stage/transition IDs and Brand Mind association/relationship IDs, and
+uses validate-first atomic apply. Failed channels, illegal values, and missing
+targets leave the prior state intact. A rollback token restores the complete
+prior state; re-applying a plan is an idempotent set operation.
+
+Dynamic Brand Mind targets are never silently created from an incoming plan.
+When a previously known dynamic target is absent from a later valid plan, the
+dry-run policy marks it inactive. The final Three.js lifecycle decision remains
+`V2-3B TODO`. Missing source data remains flagged in binding metadata while its
+existing renderer-safe fallback value may still be applied.
+
+Run the compact dry-run report with:
+
+```text
+node src/v2/renderer-dry-run/previewDryRun.mjs
+```

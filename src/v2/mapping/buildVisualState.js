@@ -68,6 +68,7 @@ export function buildVisualState(snapshot) {
         .map(([moduleId]) => moduleId),
       validationWarnings: [...validation.warnings],
       sourceLineage: { ...snapshot.metadata.lineage },
+      sourceMissingPaths: collectSourceMissingPaths(snapshot),
       dataControlsComposition: false,
       rendererIntegration: 'NOT_CONNECTED'
     }
@@ -211,6 +212,27 @@ function buildBrandMindVisualState(brandMind) {
     };
   });
 
+  const relationships = (brandMind?.relationships ?? []).map((relationship) => {
+    const strength = normalizeDataPoint(
+      relationship.strength,
+      DATA_TO_VISUAL_MAPPING.rate
+    );
+    const confidence = normalizeDataPoint(
+      relationship.confidence,
+      DATA_TO_VISUAL_MAPPING.confidence
+    );
+    return {
+      id: relationship.id,
+      sourceId: relationship.sourceId,
+      targetId: relationship.targetId,
+      path: {
+        visibility: applyVisualGuardrail('visibility', confidence),
+        flowStrength: applyVisualGuardrail('flowStrength', strength)
+      },
+      confidence
+    };
+  });
+
   return {
     core: {
       density: applyVisualGuardrail('density', coreConcentration),
@@ -218,8 +240,128 @@ function buildBrandMindVisualState(brandMind) {
       concentration: applyVisualGuardrail('concentration', coreConcentration),
       confidence: coreConfidence
     },
-    associations
+    associations,
+    relationships
   };
+}
+
+function collectSourceMissingPaths(snapshot) {
+  const paths = [];
+  const add = (visualPaths, sourcePoints) => {
+    if (sourcePoints.some(isMissingDataPoint)) paths.push(...visualPaths);
+  };
+
+  for (const signalId of GEO_SIGNAL_IDS) {
+    const signal = snapshot.geo?.[signalId];
+    const visualId = visualGeoId(signalId);
+    add([`geo.${visualId}.density`], [signal?.volume]);
+    add([`geo.${visualId}.energy`], [signal?.strength]);
+    add([`geo.${visualId}.flowSpeed`], [signal?.opportunity]);
+    add([`geo.${visualId}.highlightRate`], [signal?.quality]);
+    add([`geo.${visualId}.confidence`], [
+      signal?.volume,
+      signal?.strength,
+      signal?.quality,
+      signal?.opportunity
+    ]);
+  }
+
+  const geoSignals = ['answer', 'citation', 'keyword'].map((id) => snapshot.geo?.[id]);
+  const signalCore = snapshot.geo?.signalCore;
+  add(['home.geoNebula.density'], geoSignals.map((signal) => signal?.volume));
+  add(['home.geoNebula.energy'], [signalCore?.strength]);
+  add(['home.geoNebula.activity'], [
+    signalCore?.strength,
+    ...geoSignals.map((signal) => signal?.opportunity),
+    signalCore?.volume,
+    signalCore?.quality,
+    signalCore?.opportunity
+  ]);
+  add(['home.geoNebula.emphasis'], [
+    signalCore?.strength,
+    signalCore?.volume,
+    signalCore?.quality,
+    signalCore?.opportunity
+  ]);
+
+  for (const stageId of Object.keys(FIVE_A_STAGES)) {
+    const stage = snapshot.fiveA?.stages?.[stageId];
+    add([
+      `fiveA.stages.${stageId}.scale`,
+      `fiveA.stages.${stageId}.density`
+    ], [stage?.population]);
+    add([`fiveA.stages.${stageId}.energy`], [stage?.strength]);
+    add([`fiveA.stages.${stageId}.activity`], [stage?.strength, stage?.confidence]);
+  }
+
+  for (const transitionId of FIVE_A_TRANSITIONS) {
+    const transition = snapshot.fiveA?.transitions?.[transitionId];
+    add([`fiveA.transitions.${transitionId}.flowStrength`], [transition?.rate]);
+    add([`fiveA.transitions.${transitionId}.flowSpeed`], [transition?.volume]);
+    add([`fiveA.transitions.${transitionId}.confidence`], [transition?.confidence]);
+  }
+
+
+  const stages = Object.keys(FIVE_A_STAGES).map((stageId) => snapshot.fiveA?.stages?.[stageId]);
+  const transitions = FIVE_A_TRANSITIONS.map((id) => snapshot.fiveA?.transitions?.[id]);
+  add(['home.fiveANebula.density'], stages.map((stage) => stage?.population));
+  add(['home.fiveANebula.energy'], stages.map((stage) => stage?.strength));
+  add(['home.fiveANebula.activity'], [
+    ...stages.map((stage) => stage?.strength),
+    ...stages.map((stage) => stage?.confidence),
+    ...transitions.map((transition) => transition?.rate)
+  ]);
+  add(['home.fiveANebula.emphasis'], [
+    ...stages.map((stage) => stage?.strength),
+    ...stages.map((stage) => stage?.confidence)
+  ]);
+
+  const opportunity = snapshot.fiveA?.opportunityPool;
+  add([`fiveA.opportunityPool.density`], [opportunity?.volume]);
+  add([`fiveA.opportunityPool.energy`], [opportunity?.strength]);
+  add([`fiveA.opportunityPool.activity`], [
+    opportunity?.strength,
+    opportunity?.confidence
+  ]);
+
+  const core = snapshot.brandMind?.core;
+  add([
+    'brandMind.core.density',
+    'brandMind.core.concentration'
+  ], [core?.concentration]);
+  add(['brandMind.core.energy'], [core?.strength]);
+  add(['home.brandMindNebula.density'], [core?.concentration]);
+  add(['home.brandMindNebula.energy'], [core?.strength]);
+  add(['home.brandMindNebula.activity'], [
+    core?.strength,
+    core?.confidence,
+    ...(snapshot.brandMind?.associations ?? []).map((association) => association.confidence)
+  ]);
+  add(['home.brandMindNebula.emphasis'], [core?.strength, core?.confidence]);
+
+  (snapshot.brandMind?.associations ?? []).forEach((association, index) => {
+    const base = `brandMind.associations.${association.id ?? index}`;
+    add([`${base}.node.scale`, `${base}.node.relationshipStrength`], [association.weight]);
+    add([`${base}.node.brightness`], [
+      association.weight,
+      association.strength,
+      association.confidence
+    ]);
+    add([`${base}.node.activity`, `${base}.path.visibility`], [association.confidence]);
+    add([`${base}.path.flowStrength`], [association.weight]);
+  });
+
+  (snapshot.brandMind?.relationships ?? []).forEach((relationship, index) => {
+    const base = `brandMind.relationships.${relationship.id ?? index}`;
+    add([`${base}.path.visibility`], [relationship.confidence]);
+    add([`${base}.path.flowStrength`], [relationship.strength]);
+  });
+
+  return [...new Set(paths)].sort();
+}
+
+function isMissingDataPoint(point) {
+  return !point || point.value === null || point.value === undefined;
 }
 
 function buildHomeVisualState({ geo, fiveA, brandMind, availability }) {
