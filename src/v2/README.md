@@ -126,3 +126,25 @@ node src/v2/replay/previewReplay.mjs
 
 Golden fixtures intentionally record only stable IDs, frame IDs, and selected
 expected categories. They do not snapshot full VisualState or renderer output.
+
+## V2-3A.2 renderer adapter dry-run
+
+**V2-3A.2 DOES NOT RENDER.** `renderer-dry-run/` is a pure Node execution
+harness between `VisualBindingPlan` and a serializable `FakeRendererState`.
+It consumes only the frozen V2-3A channel contract, resolves targets by stable
+FiveA stage/transition IDs and Brand Mind association/relationship IDs, and
+uses validate-first atomic apply. Failed channels, illegal values, and missing
+targets leave the prior state intact. A rollback token restores the complete
+prior state; re-applying a plan is an idempotent set operation.
+
+Dynamic Brand Mind targets are never silently created from an incoming plan.
+When a previously known dynamic target is absent from a later valid plan, the
+dry-run policy marks it inactive. The final Three.js lifecycle decision remains
+`V2-3B TODO`. Missing source data remains flagged in binding metadata while its
+existing renderer-safe fallback value may still be applied.
+
+Run the compact dry-run report with:
+
+```text
+node src/v2/renderer-dry-run/previewDryRun.mjs
+```
