@@ -49,6 +49,8 @@ import { createV2ConsumerProvider } from '../v2/runtime/consumerProvider.js';
 import { resolveFiveAA3Demo } from '../v2/runtime/fiveAA3Demo.js';
 import { buildVisualBindingPlan } from '../v2/binding/bindingPlanner.js';
 import { createFiveAA3RendererAdapter } from '../v2/renderer-adapters/fiveAA3RendererAdapter.js';
+import { createFiveAStageRendererAdapter } from '../v2/renderer-adapters/fiveAStageRendererAdapter.js';
+import { resolveFiveAStagesDemo } from '../v2/runtime/fiveAStagesDemo.js';
 
 const ENGINE_INSTANCE_KEY = '__ACTIVE_THEORY_ENGINE__';
 
@@ -75,8 +77,10 @@ export function initializeEngine() {
   const activeScene = getActiveScene();
   const lights = createLights();
   const heroScene = createHeroScene();
-  const a3Demo = resolveFiveAA3Demo(window.location.search, import.meta.env.DEV);
-  const consumerProvider = createV2ConsumerProvider(a3Demo ? { fiveASnapshot: a3Demo.snapshot } : undefined);
+  const stagesDemo = resolveFiveAStagesDemo(window.location.search, import.meta.env.DEV);
+  const a3Demo = stagesDemo ? null : resolveFiveAA3Demo(window.location.search, import.meta.env.DEV);
+  const activeDemo = stagesDemo ?? a3Demo;
+  const consumerProvider = createV2ConsumerProvider(activeDemo ? { fiveASnapshot: activeDemo.snapshot } : undefined);
   const fiveAConsumer = consumerProvider.getFiveA();
   const brandMindConsumer = consumerProvider.getBrandMind();
   const fiveADataPanel = createFiveADataPanel(fiveAConsumer);
@@ -99,6 +103,23 @@ export function initializeEngine() {
     sceneManager.scenes.find((candidate) => candidate.name === 'FiveAScene').resolveStageBindingTarget
   ) : null;
   a3Adapter?.apply(a3Plan);
+  const stagesVisualState = stagesDemo ? fiveAConsumer.buildVisualState() : null;
+  const stagesPlan = stagesDemo ? buildVisualBindingPlan(stagesVisualState) : null;
+  const stagesAdapter = stagesDemo ? createFiveAStageRendererAdapter(
+    sceneManager.scenes.find((candidate) => candidate.name === 'FiveAScene').resolveStageRendererTarget
+  ) : null;
+  stagesAdapter?.apply(stagesPlan);
+  let stagesProofFramesRemaining = stagesDemo ? 120 : 0;
+  function publishStagesProof() {
+    if (stagesProofFramesRemaining === 0 || --stagesProofFramesRemaining !== 0) return;
+    document.documentElement.dataset.v2FiveAStagesProof = JSON.stringify({
+      state: stagesDemo.state, canonical: fiveAConsumer.snapshot.fiveA.stages,
+      visualState: stagesVisualState.fiveA.stages, binding: stagesPlan.fiveA.stages,
+      execution: stagesAdapter.getReport(),
+      camera: { position: camera.position.toArray(), quaternion: camera.quaternion.toArray(), fov: camera.fov },
+      sampleTime: stagesDemo.capture ? 12 : null, loop: getLoopStatus()
+    });
+  }
   let proofFramesRemaining = a3Demo ? 120 : 0;
   function publishA3Proof() {
     if (proofFramesRemaining === 0 || --proofFramesRemaining !== 0) return;
@@ -156,7 +177,7 @@ export function initializeEngine() {
     renderState,
     applyRenderState,
     renderFrame: postProcessing.render,
-    sampleTime: a3Demo?.capture ? 12 : null,
+    sampleTime: activeDemo?.capture ? 12 : null,
     updates: [
       updateNarrative,
       updateDepth,
@@ -166,7 +187,8 @@ export function initializeEngine() {
       updateCohesion,
       updateShaderCore,
       sceneManager.update,
-      publishA3Proof
+      publishA3Proof,
+      publishStagesProof
     ]
   });
 
@@ -183,7 +205,9 @@ export function initializeEngine() {
       brandMindDataPanel.destroy();
       interaction.dispose();
       a3Adapter?.dispose();
+      stagesAdapter?.dispose();
       delete document.documentElement.dataset.v2FiveAA3Proof;
+      delete document.documentElement.dataset.v2FiveAStagesProof;
       sceneManager.dispose();
       environmentMap.dispose();
       postProcessing.dispose();

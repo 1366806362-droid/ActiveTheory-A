@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { assertFiveAA3Values } from '../v2/renderer-adapters/fiveAA3RendererAdapter.js';
+import { assertFiveAStageValues, FIVE_A_RENDERER_STAGE_IDS } from '../v2/renderer-adapters/fiveAStageRendererAdapter.js';
 
 const FIVE_A_STAGES = [
   {
@@ -320,6 +320,7 @@ export function createFiveAScene() {
     setPanelPresentationOpen,
     getPanelPresentationState,
     resolveStageBindingTarget: orbitSystem.resolveStageBindingTarget,
+    resolveStageRendererTarget: orbitSystem.resolveStageRendererTarget,
     update,
     dispose
   };
@@ -635,20 +636,20 @@ function createFiveAOrbitSystem() {
   const labels = FIVE_A_STAGES.map((stage, index) => createFiveALabel(stage, index));
   const stageParticleSpheres = createBatchedStageParticleSpheres(bindings);
   let disposed = false;
-  const a3Target = Object.freeze({
-    stageId: 'A3',
+  const stageTargets = new Map(FIVE_A_RENDERER_STAGE_IDS.map((stageId) => [stageId, Object.freeze({
+    stageId,
     read() {
-      if (disposed) throw new Error('A3 target disposed');
-      return { binding: { ...bindings.get('A3') }, ...stageParticleSpheres.readStage('A3') };
+      if (disposed) throw new Error('Stage target disposed');
+      return { binding: { ...bindings.get(stageId) }, ...stageParticleSpheres.readStage(stageId) };
     },
     write(values) {
-      if (disposed) throw new Error('A3 target disposed');
-      assertFiveAA3Values(values);
-      Object.assign(bindings.get('A3'), values);
-      orbitById.get('A3').refreshBinding();
-      stageParticleSpheres.refreshBinding('A3');
+      if (disposed) throw new Error('Stage target disposed');
+      assertFiveAStageValues(values);
+      Object.assign(bindings.get(stageId), values);
+      orbitById.get(stageId).refreshBinding();
+      stageParticleSpheres.refreshBinding(stageId);
     }
-  });
+  })]));
   const stageRoots = FIVE_A_STAGES.map(() => ({
     matrix: new THREE.Matrix4(),
     localPosition: new THREE.Vector3(),
@@ -687,6 +688,7 @@ function createFiveAOrbitSystem() {
     disposed = true;
     bindings.clear();
     orbitById.clear();
+    stageTargets.clear();
     orbits.forEach((orbit) => orbit.dispose());
     labels.forEach((label) => label.dispose());
     stageParticleSpheres.dispose();
@@ -699,7 +701,11 @@ function createFiveAOrbitSystem() {
     dispose,
     resolveStageBindingTarget(stageId) {
       if (disposed) throw new Error('FiveA targets disposed');
-      return stageId === 'A3' ? a3Target : null;
+      return stageId === 'A3' ? stageTargets.get(stageId) : null;
+    },
+    resolveStageRendererTarget(stageId) {
+      if (disposed) throw new Error('FiveA targets disposed');
+      return stageTargets.get(stageId) ?? null;
     },
     getJourneyStagePositions() {
       return journeyStagePositions;
@@ -1222,17 +1228,19 @@ function createBatchedStageParticleSpheres(bindings) {
   const slotsById = new Map(primaryStages.map((stage, slot) => [stage.id, slot]));
   const baseScales = new Float64Array(primaryStages.length).fill(1);
   const baseOpacities = new Float64Array(primaryStages.length);
-  const appliedScales = new Float64Array(primaryStages.length).fill(1);
+  const referenceScales = new Float64Array(primaryStages.length).fill(1);
+  const referenceMatrices = nodeMatrices.map((matrix) => matrix.clone());
   function refreshBinding(stageId) {
     const slot = slotsById.get(stageId);
     const binding = bindings.get(stageId);
     // Scale only the basis columns, not the translation / permanent position.
-    const ratio = binding.scale / appliedScales[slot];
+    const ratio = binding.scale / referenceScales[slot];
+    // Always derive from the last animation sample, never compound prior writes.
+    nodeMatrices[slot].copy(referenceMatrices[slot]);
     const matrix = nodeMatrices[slot].elements;
     for (let column = 0; column < 3; column += 1) {
       for (let row = 0; row < 3; row += 1) matrix[column * 4 + row] *= ratio;
     }
-    appliedScales[slot] = binding.scale;
     nodeScales[slot] = baseScales[slot] * binding.scale;
     nodeOpacities[slot] = baseOpacities[slot] * binding.energy;
   }
@@ -1252,7 +1260,8 @@ function createBatchedStageParticleSpheres(bindings) {
         const sparkle = (0.5 + Math.sin(time * (0.5 + nodeIndex * 0.06) + nodeIndex) * 0.5) * motion.stable;
 
         nodeMatrices[nodeIndex].copy(stageRoots[nodeIndex + 1].matrix);
-        appliedScales[nodeIndex] = bindings.get(stage.id).scale;
+        referenceScales[nodeIndex] = bindings.get(stage.id).scale;
+        referenceMatrices[nodeIndex].copy(nodeMatrices[nodeIndex]);
         baseOpacities[nodeIndex] = motion.release * stage.nodeBrightness * (
           0.22 + motion.capture * 0.34 + sparkle * 0.035
         );

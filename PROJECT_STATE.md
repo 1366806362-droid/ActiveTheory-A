@@ -79,3 +79,23 @@
   wheel isolation PASS. One Canvas and one primary RAF chain; no browser
   error/warning observed. Screenshot/value evidence stays local under
   `art/v2-3b-fivea-a3/`. This is an opt-in technical checkpoint, not art approval.
+
+## FiveA A1-A5 stage expansion — scoped feature checkpoint
+
+- Independent branch `feat/active-theory-v2-3b-fivea-stages` starts at A3 remote
+  `928acdc78ee72aed67211a7b358ad2aa9cbc7ae0`. Master and original worktrees
+  remain untouched. This milestone supersedes only the prior A3 scope limit.
+- One stable-ID adapter binds scale + energy for A1-A5, using the same Canonical
+  provider as the Panel. The A3 API remains a compatibility wrapper.
+- Atomic apply/rollback, idempotence, 200 repeated snapshot cycles, per-stage
+  isolation, partial/missing metadata and restore/dispose are verified against
+  actual Three.js matrices and uniforms. No geometry rebuild or GLSL edits.
+- BALANCED / CONTRAST / PARTIAL are opt-in synthetic engineering fixtures.
+  Existing transitions and Opportunity facts remain unchanged; these are not
+  claimed to be realistic funnel datasets. Normal URLs preserve unbound art.
+- 532/532 tests (486 inherited + 46 new), build and diff check PASS. Browser
+  proof uses the same camera/time/viewport for all three states. Canvas=1 and
+  primary RAF chain=1. Local evidence stays under `art/v2-3b-fivea-stages/`.
+- Density remains TODO. Transition binding is the next separately approved
+  milestone; no transition, GEO, Brand Mind, camera or composition binding is
+  authorized by this feature. No high-load visual rendering was executed.

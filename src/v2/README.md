@@ -232,3 +232,32 @@ The first command instantiates real Three.js scene objects in Node, stubbing onl
 It verifies actual matrices/uniforms, not just an adapter mock. Browser screenshots
 and interaction observations complement these deterministic engineering tests;
 they do not authorize a new visual art direction.
+
+## V2-3B: FiveA A1-A5 stage expansion
+
+This subsequent scoped milestone extends scale and energy to all five stable
+stage IDs. `fiveAStageRendererAdapter.js` is the single implementation; the A3
+adapter is a compatibility wrapper with an A3-only capability scope. The scene
+registry resolves `A1` through `A5` directly; Opportunity Pool is not a target.
+Density, activity, transitions, GEO and Brand Mind are not executed.
+
+Every apply validates all ten entries before any write, rolls back on write
+failure, and preserves lineage/missing metadata. GPU matrices are derived from
+the last animation reference sample rather than the previous binding write,
+preventing cumulative multiplication during repeated T1/T2/T3 switches.
+Disposal restores the original art multipliers before scene disposal.
+
+Development-only entry: `/?scene=fivea&v2FiveAState=balanced|contrast|partial`.
+The stage query takes precedence over the legacy A3 query. All three fixtures
+are explicit synthetic engineering scenarios, not coherent real funnel datasets;
+transition and Opportunity facts deliberately stay unchanged to prove isolation.
+The existing consumer provider supplies the identical snapshot to Panel and
+VisualState. No pipeline work runs per frame. Normal/production entries remain
+unbound. Append `&v2FiveACapture=1` only for frozen-time comparison screenshots;
+omit it for interactions. The one-time `data-v2-five-a-stages-proof` attribute
+records all five actual GPU readbacks after 120 frames and is removed on disposal.
+
+Run `node src/v2/renderer-adapters/fiveAStageRendererAdapter.test.mjs --report`.
+The 46 tests exercise real Three.js matrices/uniforms, per-stage isolation,
+200 repeated snapshot cycles, animation updates, rollback, reopening and missing
+values. Local reports and screenshots stay in `art/v2-3b-fivea-stages/`.
