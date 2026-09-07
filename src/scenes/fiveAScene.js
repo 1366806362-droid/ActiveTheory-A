@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { assertFiveAStageValues, FIVE_A_RENDERER_STAGE_IDS } from '../v2/renderer-adapters/fiveAStageRendererAdapter.js';
+import { assertFiveAFlowValues } from '../v2/renderer-adapters/fiveAFlowRendererAdapter.js';
 
 const FIVE_A_STAGES = [
   {
@@ -321,6 +322,8 @@ export function createFiveAScene() {
     getPanelPresentationState,
     resolveStageBindingTarget: orbitSystem.resolveStageBindingTarget,
     resolveStageRendererTarget: orbitSystem.resolveStageRendererTarget,
+    resolveTransitionRendererTarget: transferFlow.resolveTarget,
+    readTransitionRendererStates: transferFlow.readStates,
     update,
     dispose
   };
@@ -1484,6 +1487,14 @@ function createFiveATransferFlow() {
   const colors = new Float32Array(TRANSFER_PARTICLE_COUNT * 3);
   const sizes = new Float32Array(TRANSFER_PARTICLE_COUNT);
   const alphas = new Float32Array(TRANSFER_PARTICLE_COUNT);
+  // CPU reference values for existing aAlpha; no new GPU geometry or attribute.
+  const baseAlphas = new Float32Array(TRANSFER_PARTICLE_COUNT);
+  const segments = new Map(FIVE_A_STAGES.map((stage, index) => {
+    const sourceId = index === 0 ? 'CORE' : FIVE_A_STAGES[index - 1].id;
+    return [`${sourceId}_TO_${stage.id}`, { sourceId, targetId: stage.id, strength: 1, particles: [] }];
+  }));
+  const segmentByTargetId = new Map([...segments.values()].map(segment => [segment.targetId, segment]));
+  let disposed = false;
   const phases = new Float32Array(TRANSFER_PARTICLE_COUNT);
   const stageIndices = new Uint8Array(TRANSFER_PARTICLE_COUNT);
   const curlSeeds = new Float32Array(TRANSFER_PARTICLE_COUNT);
@@ -1509,6 +1520,7 @@ function createFiveATransferFlow() {
       ? (Math.floor(stageParticleOrdinal / 12) * 0.137 + migrationClusterRole * 0.014 + stageIndex * 0.021) % 0.88
       : (random() * 0.82 + (i % 7) * 0.027) % 1;
     stageIndices[i] = stageIndex;
+    segmentByTargetId.get(stage.id).particles.push(i);
     curlSeeds[i] = random() * Math.PI * 2;
     freedom[i] = random() < 0.16 ? 1 : 0;
     gapWeights[i] = isMigrationCluster ? 1 : random() < 0.22 ? 0.18 : 0.72 + random() * 0.28;
@@ -1643,7 +1655,7 @@ function createFiveATransferFlow() {
       positionArray[i3] = path.x;
       positionArray[i3 + 1] = path.y;
       positionArray[i3 + 2] = path.z;
-      alphaArray[i] = Math.min(
+      baseAlphas[i] = Math.min(
         0.86,
         (
           chargeAlpha
@@ -1651,6 +1663,7 @@ function createFiveATransferFlow() {
           + motion.stable * 0.126
         ) * depthCue * gapWeights[i] * brokenCadence * microStreakGain * packetGain
       );
+      alphaArray[i] = baseAlphas[i] * segmentByTargetId.get(stage.id).strength;
     }
 
     positionAttribute.needsUpdate = true;
@@ -1658,14 +1671,42 @@ function createFiveATransferFlow() {
   }
 
   function dispose() {
+    disposed = true;
+    segments.clear();
+    segmentByTargetId.clear();
     geometry.dispose();
     material.dispose();
   }
 
+  function readSegment(id, segment) {
+    if (disposed) throw new Error('Flow target disposed');
+    return { id, sourceId: segment.sourceId, targetId: segment.targetId,
+      binding: { flowStrength: segment.strength },
+      particleIndices: [...segment.particles],
+      alphas: segment.particles.map(i => alphas[i]),
+      baseAlphas: segment.particles.map(i => baseAlphas[i]) };
+  }
+  const a2a3 = segments.get('A2_TO_A3');
+  const target = Object.freeze({
+    transitionId: 'A2_TO_A3',
+    read: () => readSegment('A2_TO_A3', a2a3),
+    write(values) {
+      if (disposed) throw new Error('Flow target disposed');
+      assertFiveAFlowValues(values);
+      a2a3.strength = values.flowStrength;
+      for (const i of a2a3.particles) alphas[i] = baseAlphas[i] * a2a3.strength;
+      alphaAttribute.needsUpdate = true;
+    }
+  });
   return {
     points,
     update,
     dispose,
+    resolveTarget(id) {
+      if (disposed) throw new Error('Flow target disposed');
+      return id === 'A2_TO_A3' ? target : null;
+    },
+    readStates() { return Object.fromEntries([...segments].map(([id, segment]) => [id, readSegment(id, segment)])); },
     particleCount: TRANSFER_PARTICLE_COUNT,
     uuid: points.uuid
   };

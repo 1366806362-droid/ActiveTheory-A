@@ -51,6 +51,8 @@ import { buildVisualBindingPlan } from '../v2/binding/bindingPlanner.js';
 import { createFiveAA3RendererAdapter } from '../v2/renderer-adapters/fiveAA3RendererAdapter.js';
 import { createFiveAStageRendererAdapter } from '../v2/renderer-adapters/fiveAStageRendererAdapter.js';
 import { resolveFiveAStagesDemo } from '../v2/runtime/fiveAStagesDemo.js';
+import { resolveFiveAFlowDemo } from '../v2/runtime/fiveAFlowDemo.js';
+import { createFiveAFlowRendererAdapter } from '../v2/renderer-adapters/fiveAFlowRendererAdapter.js';
 
 const ENGINE_INSTANCE_KEY = '__ACTIVE_THEORY_ENGINE__';
 
@@ -77,7 +79,8 @@ export function initializeEngine() {
   const activeScene = getActiveScene();
   const lights = createLights();
   const heroScene = createHeroScene();
-  const stagesDemo = resolveFiveAStagesDemo(window.location.search, import.meta.env.DEV);
+  const flowDemo = resolveFiveAFlowDemo(window.location.search, import.meta.env.DEV);
+  const stagesDemo = flowDemo ?? resolveFiveAStagesDemo(window.location.search, import.meta.env.DEV);
   const a3Demo = stagesDemo ? null : resolveFiveAA3Demo(window.location.search, import.meta.env.DEV);
   const activeDemo = stagesDemo ?? a3Demo;
   const consumerProvider = createV2ConsumerProvider(activeDemo ? { fiveASnapshot: activeDemo.snapshot } : undefined);
@@ -109,6 +112,10 @@ export function initializeEngine() {
     sceneManager.scenes.find((candidate) => candidate.name === 'FiveAScene').resolveStageRendererTarget
   ) : null;
   stagesAdapter?.apply(stagesPlan);
+  const flowAdapter = flowDemo ? createFiveAFlowRendererAdapter(
+    sceneManager.scenes.find((candidate) => candidate.name === 'FiveAScene').resolveTransitionRendererTarget
+  ) : null;
+  flowAdapter?.apply(stagesPlan);
   let stagesProofFramesRemaining = stagesDemo ? 120 : 0;
   function publishStagesProof() {
     if (stagesProofFramesRemaining === 0 || --stagesProofFramesRemaining !== 0) return;
@@ -117,7 +124,15 @@ export function initializeEngine() {
       visualState: stagesVisualState.fiveA.stages, binding: stagesPlan.fiveA.stages,
       execution: stagesAdapter.getReport(),
       camera: { position: camera.position.toArray(), quaternion: camera.quaternion.toArray(), fov: camera.fov },
-      sampleTime: stagesDemo.capture ? 12 : null, loop: getLoopStatus()
+      sampleTime: flowDemo?.sampleTime ?? (stagesDemo.capture ? 12 : null), loop: getLoopStatus()
+    });
+    if (flowDemo) document.documentElement.dataset.v2FiveAFlowProof = JSON.stringify({
+      state: flowDemo.state, snapshotId: fiveAConsumer.snapshot.metadata.snapshotId,
+      canonical: fiveAConsumer.snapshot.fiveA.transitions.A2_TO_A3,
+      visual: stagesVisualState.fiveA.transitions.A2_TO_A3,
+      execution: flowAdapter.getReport(), sampleTime: flowDemo.sampleTime,
+      camera: { position: camera.position.toArray(), quaternion: camera.quaternion.toArray(), fov: camera.fov },
+      stages: stagesAdapter.getReport(), loop: getLoopStatus()
     });
   }
   let proofFramesRemaining = a3Demo ? 120 : 0;
@@ -177,7 +192,7 @@ export function initializeEngine() {
     renderState,
     applyRenderState,
     renderFrame: postProcessing.render,
-    sampleTime: activeDemo?.capture ? 12 : null,
+    sampleTime: flowDemo?.sampleTime ?? (activeDemo?.capture ? 12 : null),
     updates: [
       updateNarrative,
       updateDepth,
@@ -206,8 +221,10 @@ export function initializeEngine() {
       interaction.dispose();
       a3Adapter?.dispose();
       stagesAdapter?.dispose();
+      flowAdapter?.dispose();
       delete document.documentElement.dataset.v2FiveAA3Proof;
       delete document.documentElement.dataset.v2FiveAStagesProof;
+      delete document.documentElement.dataset.v2FiveAFlowProof;
       sceneManager.dispose();
       environmentMap.dispose();
       postProcessing.dispose();

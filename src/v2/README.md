@@ -261,3 +261,41 @@ Run `node src/v2/renderer-adapters/fiveAStageRendererAdapter.test.mjs --report`.
 The 46 tests exercise real Three.js matrices/uniforms, per-stage isolation,
 200 repeated snapshot cycles, animation updates, rollback, reopening and missing
 values. Local reports and screenshots stay in `art/v2-3b-fivea-stages/`.
+
+## V2-3B: A2_TO_A3 flow strength
+
+`fiveAFlowRendererAdapter.js` selects one validated FLOW_STRENGTH entry by
+transitionId/targetId/sourcePath. The real scene target is an endpoint-derived
+subset of the existing `FiveACoreReleaseParticleFlow` batch, not a global
+uniform or an array-index binding. It multiplies only existing aAlpha against
+an unmodified CPU reference buffer. Apply is atomic, repeated writes do not
+compound, and disposal restores the original multiplier before scene disposal.
+No shader or geometry rebuild, and no new RAF. The original update computes
+animation alpha each frame; business mapping runs only at snapshot apply.
+
+Development URL: `/?scene=fivea&v2FiveAFlowState=low|baseline|high|partial`.
+This query takes precedence over stage/A3 demos and enables both stage and flow
+adapters using the same consumer provider. All stage source facts stay fixed.
+`v2FiveAFlowFrame=0|1|2` freezes the existing loop at 12/12.25/12.5 seconds for
+comparable evidence. Omit that parameter for Panel/ESC/Journey testing.
+The development-only `data-v2-five-a-flow-proof` document attribute publishes
+one runtime sample after 120 frames and is removed on disposal.
+
+Fixtures use synthetic cohort entrants=1000 and observed exits=100/500/900;
+rate is cohort exits/entrants, never a ratio of stage populations. PARTIAL
+preserves null exits, volume and rate, with Mapping fallback strength=0.1.
+An independent business strength metric is not supplied and stays missing;
+the renderer flowStrength follows the existing rate Mapping, not this missing
+source strength. Other transition facts are intentionally preserved, not
+represented as belonging to the same tracked cohort. All scenarios are MOCK.
+
+flowSpeed remains unbound. Formal Mapping uses volume, not conversion rate;
+the present animation uses shared absolute time, so phase-continuous per-segment
+speed requires a separately authorized change. Other transitions remain unbound.
+
+Run `node src/v2/renderer-adapters/fiveAFlowRendererAdapter.test.mjs --report`.
+Local actual-array and browser evidence: `art/v2-3b-a2-a3-flow/`.
+
+FiveA Derived revision 2 preserves missing cohort in/out instead of replacing
+them with stage populations. This fixes a pre-existing PARTIAL Panel mismatch;
+the UI and formal rate-to-strength Mapping remain unchanged.

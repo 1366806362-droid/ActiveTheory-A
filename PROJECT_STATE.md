@@ -99,3 +99,32 @@
 - Density remains TODO. Transition binding is the next separately approved
   milestone; no transition, GEO, Brand Mind, camera or composition binding is
   authorized by this feature. No high-load visual rendering was executed.
+
+## FiveA A2_TO_A3 flow strength — scoped feature
+
+- Branch `feat/active-theory-v2-3b-fivea-a2-a3-flow` starts at verified remote
+  A1-A5 stage checkpoint `05248fea01c1fc350afba77084c69c1ddde0c7bd`, in an
+  independent worktree. Original worktrees and integration Master are untouched.
+- Actual supported channels: A1-A5 SCALE/ENERGY plus A2_TO_A3 FLOW_STRENGTH.
+  One shared transfer batch has CPU-updated aAlpha. Stable endpoint IDs identify
+  the A2_TO_A3 particle subset; only its reference alpha is multiplied. No new
+  geometry, shader, particles, paths, anchors, batches or render loops.
+- flowSpeed is deferred: the existing travel and stable drift use shared
+  absolute time, not an independently accumulated segment phase. Applying a
+  speed multiplier would jump phases. Formal Mapping still maps volume to speed;
+  the adapter intentionally does not execute that channel.
+- LOW/BASELINE/HIGH use an explicitly SYNTHETIC tracked cohort of 1000 entrants,
+  with 100/500/900 observed exits and consistent rates. These are independent
+  of stage snapshot populations. PARTIAL keeps observed exits/rate missing.
+  All fixtures remain MOCK; no source verification or real history is invented.
+- Same Canonical provider supplies Panel and both real adapters. Other stages,
+  transitions and Opportunity facts/bindings are unchanged. Normal and existing
+  demo URLs retain their prior opt-in behavior.
+- Derived revision 2 removes the invalid fallback from missing transition cohort
+  in/out to stage snapshot populations. Missing Panel counts now stay missing;
+  no Panel UI or rate Mapping was changed.
+- 556/556 tests PASS (532 inherited + 24 flow tests), build/diff PASS. Real alpha
+  readbacks verify monotonicity, rollback, 100 HIGH/LOW cycles, idempotence and
+  disposal. Local browser evidence includes 12 fixed-time JPEG frames, identical
+  camera/viewport/seed, Panel checks, one Canvas and one primary RAF chain.
+- No Transition expansion, high-load rendering, or visual art approval implied.
