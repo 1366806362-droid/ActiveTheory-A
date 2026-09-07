@@ -72,6 +72,14 @@ const GALAXY_V6_LDI_LAYERS = Object.freeze([
   Object.freeze({ id: 'foreground', source: '/assets/galaxy-v3/hero/v6/galaxy-v6-foreground.webp', z: 0.04, renderOrder: 9, parallaxFactor: 0.48 })
 ]);
 
+const GALAXY_FINAL_M3_LDI_LAYERS = Object.freeze([
+  Object.freeze({ id: 'background', source: '/assets/galaxy-v3/hero/final-m3/galaxy-final-m3-bg.webp', z: -0.04, renderOrder: 5, parallaxFactor: 0 }),
+  Object.freeze({ id: 'farArm', source: '/assets/galaxy-v3/hero/final-m3/galaxy-final-m3-far-arm.webp', z: -0.02, renderOrder: 6, parallaxFactor: 0.18 }),
+  Object.freeze({ id: 'core', source: '/assets/galaxy-v3/hero/final-m3/galaxy-final-m3-core.webp', z: 0, renderOrder: 7, parallaxFactor: 0.30 }),
+  Object.freeze({ id: 'nearArm', source: '/assets/galaxy-v3/hero/final-m3/galaxy-final-m3-near-arm.webp', z: 0.02, renderOrder: 8, parallaxFactor: 0.38 }),
+  Object.freeze({ id: 'foreground', source: '/assets/galaxy-v3/hero/final-m3/galaxy-final-m3-foreground.webp', z: 0.04, renderOrder: 9, parallaxFactor: 0.48 })
+]);
+
 export const GALAXY_V3_V4_CONFIG = Object.freeze({
   ...GALAXY_V3_CONFIG,
   mode: 'v3-hero-asset-v4-ldi',
@@ -128,14 +136,45 @@ export const GALAXY_V3_V6_CONFIG = Object.freeze({
   })
 });
 
+export const GALAXY_V3_FINAL_M3_CONFIG = Object.freeze({
+  ...GALAXY_V3_CONFIG,
+  mode: 'v3-hero-asset-final-m3-master-guided-ldi',
+  galaxyHeroAsset: Object.freeze({
+    ...GALAXY_V3_V51_CONFIG.galaxyHeroAsset,
+    registerLdiProjection: true,
+    // Decode the asset's HDR storage scale, not a creative brightness setting.
+    linearTextureGain: 8,
+    bakedAtmosphere: true,
+    source: GALAXY_FINAL_M3_LDI_LAYERS[2].source,
+    layers: GALAXY_FINAL_M3_LDI_LAYERS
+  })
+});
+
+export const GALAXY_V3_REPAIRED_M3_CONFIG = Object.freeze({
+  ...GALAXY_V3_FINAL_M3_CONFIG,
+  mode: 'v3-hero-asset-repaired-m3-candidate',
+  galaxyHeroAsset: Object.freeze({
+    ...GALAXY_V3_FINAL_M3_CONFIG.galaxyHeroAsset,
+    source: '/assets/galaxy-v3/hero/repaired-m3/galaxy-repaired-m3-core.webp',
+    layers: Object.freeze(GALAXY_FINAL_M3_LDI_LAYERS.map(layer => Object.freeze({
+      ...layer, source: layer.source.replaceAll('final-m3', 'repaired-m3')
+    }))),
+    coreBloomCalibration: Object.freeze({
+      uv: Object.freeze([908.38092 / 1600, 1 - 409.80392 / 900]),
+      radius: Object.freeze([85 / 1600, 65 / 900]),
+      retention: 0.12
+    })
+  })
+});
+
 export function readGalaxyV3State(search = readLocationSearch()) {
   const params = new URLSearchParams(search);
   const enabled = params.get('galaxyV3') === '1';
   const requestedHero = params.get('galaxyHero');
-  const heroVersion = enabled && ['v4', 'v5', 'v5_1', 'v6'].includes(requestedHero)
+  const heroVersion = enabled && ['v4', 'v5', 'v5_1', 'v6', 'final_m3', 'repaired_m3'].includes(requestedHero)
     ? requestedHero
     : 'foundation';
-  const cinematicHero = ['v4', 'v5', 'v5_1', 'v6'].includes(heroVersion);
+  const cinematicHero = ['v4', 'v5', 'v5_1', 'v6', 'final_m3', 'repaired_m3'].includes(heroVersion);
 
   return Object.freeze({
     enabled,

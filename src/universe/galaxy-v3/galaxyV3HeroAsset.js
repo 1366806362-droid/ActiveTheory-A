@@ -99,11 +99,13 @@ function createLdiHeroAsset(config, layerVisibility) {
   const textures = [];
   const materials = [];
   const meshes = [];
+  const localCameraPosition = new THREE.Vector3();
   const basePosition = new THREE.Vector3().fromArray(config.position);
   const initialCameraPosition = new THREE.Vector3();
   let hasInitialCamera = false;
 
   group.name = 'GalaxyV3HeroAssetV4LDI';
+  if (config.coreBloomCalibration) group.userData.coreBloomCalibration = config.coreBloomCalibration;
   group.position.copy(basePosition);
   group.position.z += config.depthBias;
   group.rotation.fromArray(config.rotation);
@@ -122,13 +124,15 @@ function createLdiHeroAsset(config, layerVisibility) {
 
     const material = new THREE.MeshBasicMaterial({
       map: texture,
-      color: 0xffffff,
+      color: new THREE.Color().setScalar(config.linearTextureGain ?? 1),
       transparent: true,
       opacity: config.opacity,
       premultipliedAlpha: false,
       depthWrite: false,
       depthTest: true,
       side: THREE.DoubleSide,
+      // M3 contains its approved halo/atmosphere; scene fog would grade it again.
+      fog: config.bakedAtmosphere !== true,
       toneMapped: false
     });
     const mesh = new THREE.Mesh(geometry, material);
@@ -144,7 +148,7 @@ function createLdiHeroAsset(config, layerVisibility) {
   }
 
   function update(camera, interaction = null) {
-    if (!camera || config.parallaxStrength <= 0) return;
+    if (!camera || (config.parallaxStrength <= 0 && !config.registerLdiProjection)) return;
     if (!hasInitialCamera) {
       initialCameraPosition.copy(camera.position);
       hasInitialCamera = true;
@@ -154,10 +158,21 @@ function createLdiHeroAsset(config, layerVisibility) {
     const pointerX = interaction?.parallaxX ?? 0;
     const pointerY = interaction?.parallaxY ?? 0;
 
+    // The five textures share one image projection. Compensate their z offsets
+    // before adding the existing restrained parallax, so detail stays registered.
+    if (config.registerLdiProjection) {
+      group.updateWorldMatrix(true, false);
+      camera.getWorldPosition(localCameraPosition);
+      group.worldToLocal(localCameraPosition);
+    }
+
     for (const mesh of meshes) {
       const strength = config.parallaxStrength * mesh.userData.parallaxFactor;
-      mesh.position.x = pointerX * strength + cameraX * strength * 0.28;
-      mesh.position.y = pointerY * strength * 0.62 + cameraY * strength * 0.18;
+      const depthRatio = config.registerLdiProjection && Math.abs(localCameraPosition.z) > 0.001
+        ? mesh.position.z / localCameraPosition.z : 0;
+      mesh.scale.set(1 - depthRatio, 1 - depthRatio, 1);
+      mesh.position.x = localCameraPosition.x * depthRatio + pointerX * strength + cameraX * strength * 0.28;
+      mesh.position.y = localCameraPosition.y * depthRatio + pointerY * strength * 0.62 + cameraY * strength * 0.18;
     }
   }
 
