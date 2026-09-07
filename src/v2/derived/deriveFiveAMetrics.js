@@ -1,6 +1,6 @@
 import { FIVE_A_STAGES, FIVE_A_TRANSITIONS, deepFreeze } from '../contracts/brandUniverseContract.js';
 
-export const FIVE_A_DERIVATION_VERSION = 'V2_1_FIVE_A_DERIVED_1';
+export const FIVE_A_DERIVATION_VERSION = 'V2_1_FIVE_A_DERIVED_2';
 
 export function deriveFiveAMetrics(snapshot) {
   const fiveA = snapshot?.fiveA;
@@ -11,14 +11,14 @@ export function deriveFiveAMetrics(snapshot) {
     read(fiveA.stages?.[stageId]?.population)
   ]));
   const transitions = Object.fromEntries(FIVE_A_TRANSITIONS.map((transitionId) => {
-    const [fromStageId, toStageId] = transitionId.split('_TO_');
     const transition = fiveA.transitions?.[transitionId];
     const explicitIn = read(transition?.in);
     const explicitOut = read(transition?.out);
     const rate = read(transition?.rate);
     return [transitionId, {
-      in: explicitIn ?? stagePopulation[fromStageId],
-      out: explicitOut ?? stagePopulation[toStageId],
+      // A stage population snapshot is not an observed transition cohort.
+      in: explicitIn,
+      out: explicitOut,
       rate,
       dropOffRate: rate === null ? null : clamp01(1 - rate),
       changeVsLast: read(transition?.changeVsLast)

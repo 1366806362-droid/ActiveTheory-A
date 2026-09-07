@@ -15,7 +15,7 @@ import {
 import { initializeDepthSystem, updateDepth } from './depth.js';
 import { initializeIdentitySystem } from './identity.js';
 import { createLights } from './light.js';
-import { startLoop } from './loop.js';
+import { getLoopStatus, startLoop } from './loop.js';
 import { createBrandMaterial } from './material.js';
 import { createEnvironmentMap } from './environmentMap.js';
 import {
@@ -46,6 +46,13 @@ import { createSceneManager } from '../world/sceneManager.js';
 import { createFiveADataPanel } from '../ui/fiveA-data-panel/fiveADataPanel.js';
 import { createBrandMindDataPanel } from '../ui/brandMind-data-panel/brandMindDataPanel.js';
 import { createV2ConsumerProvider } from '../v2/runtime/consumerProvider.js';
+import { resolveFiveAA3Demo } from '../v2/runtime/fiveAA3Demo.js';
+import { buildVisualBindingPlan } from '../v2/binding/bindingPlanner.js';
+import { createFiveAA3RendererAdapter } from '../v2/renderer-adapters/fiveAA3RendererAdapter.js';
+import { createFiveAStageRendererAdapter } from '../v2/renderer-adapters/fiveAStageRendererAdapter.js';
+import { resolveFiveAStagesDemo } from '../v2/runtime/fiveAStagesDemo.js';
+import { resolveFiveAFlowDemo, resolveFiveATransitionsDemo } from '../v2/runtime/fiveAFlowDemo.js';
+import { createFiveAFlowRendererAdapter, createFiveATransitionFlowRendererAdapter } from '../v2/renderer-adapters/fiveAFlowRendererAdapter.js';
 
 const ENGINE_INSTANCE_KEY = '__ACTIVE_THEORY_ENGINE__';
 
@@ -72,7 +79,12 @@ export function initializeEngine() {
   const activeScene = getActiveScene();
   const lights = createLights();
   const heroScene = createHeroScene();
-  const consumerProvider = createV2ConsumerProvider();
+  const transitionsDemo = resolveFiveATransitionsDemo(window.location.search, import.meta.env.DEV);
+  const flowDemo = transitionsDemo ?? resolveFiveAFlowDemo(window.location.search, import.meta.env.DEV);
+  const stagesDemo = flowDemo ?? resolveFiveAStagesDemo(window.location.search, import.meta.env.DEV);
+  const a3Demo = stagesDemo ? null : resolveFiveAA3Demo(window.location.search, import.meta.env.DEV);
+  const activeDemo = stagesDemo ?? a3Demo;
+  const consumerProvider = createV2ConsumerProvider(activeDemo ? { fiveASnapshot: activeDemo.snapshot } : undefined);
   const fiveAConsumer = consumerProvider.getFiveA();
   const brandMindConsumer = consumerProvider.getBrandMind();
   const fiveADataPanel = createFiveADataPanel(fiveAConsumer);
@@ -89,6 +101,58 @@ export function initializeEngine() {
     },
     isBrandMindDataPanelOpen: brandMindDataPanel.isOpen
   });
+  const a3VisualState = a3Demo ? fiveAConsumer.buildVisualState() : null;
+  const a3Plan = a3Demo ? buildVisualBindingPlan(a3VisualState) : null;
+  const a3Adapter = a3Demo ? createFiveAA3RendererAdapter(
+    sceneManager.scenes.find((candidate) => candidate.name === 'FiveAScene').resolveStageBindingTarget
+  ) : null;
+  a3Adapter?.apply(a3Plan);
+  const stagesVisualState = stagesDemo ? fiveAConsumer.buildVisualState() : null;
+  const stagesPlan = stagesDemo ? buildVisualBindingPlan(stagesVisualState) : null;
+  const stagesAdapter = stagesDemo ? createFiveAStageRendererAdapter(
+    sceneManager.scenes.find((candidate) => candidate.name === 'FiveAScene').resolveStageRendererTarget
+  ) : null;
+  stagesAdapter?.apply(stagesPlan);
+  const flowAdapter = flowDemo ? (transitionsDemo ? createFiveATransitionFlowRendererAdapter : createFiveAFlowRendererAdapter)(
+    sceneManager.scenes.find((candidate) => candidate.name === 'FiveAScene').resolveTransitionRendererTarget
+  ) : null;
+  flowAdapter?.apply(stagesPlan);
+  let stagesProofFramesRemaining = stagesDemo ? 120 : 0;
+  function publishStagesProof() {
+    if (stagesProofFramesRemaining === 0 || --stagesProofFramesRemaining !== 0) return;
+    document.documentElement.dataset.v2FiveAStagesProof = JSON.stringify({
+      state: stagesDemo.state, canonical: fiveAConsumer.snapshot.fiveA.stages,
+      visualState: stagesVisualState.fiveA.stages, binding: stagesPlan.fiveA.stages,
+      execution: stagesAdapter.getReport(),
+      camera: { position: camera.position.toArray(), quaternion: camera.quaternion.toArray(), fov: camera.fov },
+      sampleTime: flowDemo?.sampleTime ?? (stagesDemo.capture ? 12 : null), loop: getLoopStatus()
+    });
+    if (flowDemo) {
+      const transitionId = transitionsDemo?.transitionId ?? 'A2_TO_A3';
+      document.documentElement.dataset.v2FiveAFlowProof = JSON.stringify({
+      state: flowDemo.state, transitionId, snapshotId: fiveAConsumer.snapshot.metadata.snapshotId,
+      canonical: fiveAConsumer.snapshot.fiveA.transitions[transitionId],
+      visual: stagesVisualState.fiveA.transitions[transitionId],
+      execution: flowAdapter.getReport(), sampleTime: flowDemo.sampleTime,
+      camera: { position: camera.position.toArray(), quaternion: camera.quaternion.toArray(), fov: camera.fov },
+      stages: stagesAdapter.getReport(), loop: getLoopStatus()
+      });
+    }
+  }
+  let proofFramesRemaining = a3Demo ? 120 : 0;
+  function publishA3Proof() {
+    if (proofFramesRemaining === 0 || --proofFramesRemaining !== 0) return;
+    document.documentElement.dataset.v2FiveAA3Proof = JSON.stringify({
+      state: a3Demo.state,
+      canonical: fiveAConsumer.snapshot.fiveA.stages.A3,
+      visualState: a3VisualState.fiveA.stages.A3,
+      binding: a3Plan.fiveA.stages.filter((entry) => entry.stageId === 'A3'),
+      execution: a3Adapter.getReport(),
+      camera: { position: camera.position.toArray(), quaternion: camera.quaternion.toArray(), fov: camera.fov },
+      sampleTime: a3Demo.capture ? 12 : null,
+      loop: getLoopStatus()
+    });
+  }
   const fiveADataPanelDebugRequested = import.meta.env.DEV
     && new URLSearchParams(window.location.search).get('fiveADataPanel') === '1';
 
@@ -132,6 +196,7 @@ export function initializeEngine() {
     renderState,
     applyRenderState,
     renderFrame: postProcessing.render,
+    sampleTime: flowDemo?.sampleTime ?? (activeDemo?.capture ? 12 : null),
     updates: [
       updateNarrative,
       updateDepth,
@@ -140,7 +205,9 @@ export function initializeEngine() {
       updateAtmosphere,
       updateCohesion,
       updateShaderCore,
-      sceneManager.update
+      sceneManager.update,
+      publishA3Proof,
+      publishStagesProof
     ]
   });
 
@@ -156,6 +223,12 @@ export function initializeEngine() {
       fiveADataPanel.destroy();
       brandMindDataPanel.destroy();
       interaction.dispose();
+      a3Adapter?.dispose();
+      stagesAdapter?.dispose();
+      flowAdapter?.dispose();
+      delete document.documentElement.dataset.v2FiveAA3Proof;
+      delete document.documentElement.dataset.v2FiveAStagesProof;
+      delete document.documentElement.dataset.v2FiveAFlowProof;
       sceneManager.dispose();
       environmentMap.dispose();
       postProcessing.dispose();

@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { assertFiveAStageValues, FIVE_A_RENDERER_STAGE_IDS } from '../v2/renderer-adapters/fiveAStageRendererAdapter.js';
+import { assertFiveAFlowValues } from '../v2/renderer-adapters/fiveAFlowRendererAdapter.js';
 
 const FIVE_A_STAGES = [
   {
@@ -318,6 +320,10 @@ export function createFiveAScene() {
     getPrimaryInteractionTarget,
     setPanelPresentationOpen,
     getPanelPresentationState,
+    resolveStageBindingTarget: orbitSystem.resolveStageBindingTarget,
+    resolveStageRendererTarget: orbitSystem.resolveStageRendererTarget,
+    resolveTransitionRendererTarget: transferFlow.resolveTarget,
+    readTransitionRendererStates: transferFlow.readStates,
     update,
     dispose
   };
@@ -627,9 +633,26 @@ function createSoftParticleMaterial() {
 
 function createFiveAOrbitSystem() {
   const group = new THREE.Group();
-  const orbits = FIVE_A_STAGES.map((stage, index) => createFiveAOrbit(stage, index));
+  const bindings = new Map(FIVE_A_STAGES.map(({ id }) => [id, { scale: 1, energy: 1 }]));
+  const orbits = FIVE_A_STAGES.map((stage, index) => createFiveAOrbit(stage, index, bindings.get(stage.id)));
+  const orbitById = new Map(FIVE_A_STAGES.map((stage, index) => [stage.id, orbits[index]]));
   const labels = FIVE_A_STAGES.map((stage, index) => createFiveALabel(stage, index));
-  const stageParticleSpheres = createBatchedStageParticleSpheres();
+  const stageParticleSpheres = createBatchedStageParticleSpheres(bindings);
+  let disposed = false;
+  const stageTargets = new Map(FIVE_A_RENDERER_STAGE_IDS.map((stageId) => [stageId, Object.freeze({
+    stageId,
+    read() {
+      if (disposed) throw new Error('Stage target disposed');
+      return { binding: { ...bindings.get(stageId) }, ...stageParticleSpheres.readStage(stageId) };
+    },
+    write(values) {
+      if (disposed) throw new Error('Stage target disposed');
+      assertFiveAStageValues(values);
+      Object.assign(bindings.get(stageId), values);
+      orbitById.get(stageId).refreshBinding();
+      stageParticleSpheres.refreshBinding(stageId);
+    }
+  })]));
   const stageRoots = FIVE_A_STAGES.map(() => ({
     matrix: new THREE.Matrix4(),
     localPosition: new THREE.Vector3(),
@@ -665,6 +688,10 @@ function createFiveAOrbitSystem() {
   }
 
   function dispose() {
+    disposed = true;
+    bindings.clear();
+    orbitById.clear();
+    stageTargets.clear();
     orbits.forEach((orbit) => orbit.dispose());
     labels.forEach((label) => label.dispose());
     stageParticleSpheres.dispose();
@@ -675,6 +702,14 @@ function createFiveAOrbitSystem() {
     group,
     update,
     dispose,
+    resolveStageBindingTarget(stageId) {
+      if (disposed) throw new Error('FiveA targets disposed');
+      return stageId === 'A3' ? stageTargets.get(stageId) : null;
+    },
+    resolveStageRendererTarget(stageId) {
+      if (disposed) throw new Error('FiveA targets disposed');
+      return stageTargets.get(stageId) ?? null;
+    },
     getJourneyStagePositions() {
       return journeyStagePositions;
     },
@@ -684,11 +719,11 @@ function createFiveAOrbitSystem() {
   };
 }
 
-function createFiveAOrbit(stage, index) {
+function createFiveAOrbit(stage, index, binding) {
   const group = new THREE.Group();
   const orbitLines = createBrokenOrbitLines(stage, index);
   const population = createOrbitPopulationParticles(stage, index);
-  const stageNode = createStageNode(stage, index);
+  const stageNode = createStageNode(stage, index, binding);
 
   group.name = `FiveAOrbit${stage.id}`;
   group.rotation.x = 0.78 + index * 0.055;
@@ -721,6 +756,7 @@ function createFiveAOrbit(stage, index) {
       stageNode.group.updateMatrix();
       return target.multiplyMatrices(group.matrix, stageNode.group.matrix);
     },
+    refreshBinding: stageNode.refreshBinding,
     getStatus(motion) {
       return stageNode.getStatus(motion, orbitLines.getDrawProgress());
     }
@@ -954,7 +990,7 @@ function createOrbitPopulationParticles(stage, index) {
   return { points, update, dispose };
 }
 
-function createBatchedStageParticleSpheres() {
+function createBatchedStageParticleSpheres(bindings) {
   const primaryStages = FIVE_A_STAGES.slice(1);
   const random = seededRandom(14731);
   const geometry = new THREE.BufferGeometry();
@@ -1192,8 +1228,33 @@ function createBatchedStageParticleSpheres() {
   points.name = 'FiveAStageGpuParticleSpheres';
   points.frustumCulled = false;
 
+  const slotsById = new Map(primaryStages.map((stage, slot) => [stage.id, slot]));
+  const baseScales = new Float64Array(primaryStages.length).fill(1);
+  const baseOpacities = new Float64Array(primaryStages.length);
+  const referenceScales = new Float64Array(primaryStages.length).fill(1);
+  const referenceMatrices = nodeMatrices.map((matrix) => matrix.clone());
+  function refreshBinding(stageId) {
+    const slot = slotsById.get(stageId);
+    const binding = bindings.get(stageId);
+    // Scale only the basis columns, not the translation / permanent position.
+    const ratio = binding.scale / referenceScales[slot];
+    // Always derive from the last animation sample, never compound prior writes.
+    nodeMatrices[slot].copy(referenceMatrices[slot]);
+    const matrix = nodeMatrices[slot].elements;
+    for (let column = 0; column < 3; column += 1) {
+      for (let row = 0; row < 3; row += 1) matrix[column * 4 + row] *= ratio;
+    }
+    nodeScales[slot] = baseScales[slot] * binding.scale;
+    nodeOpacities[slot] = baseOpacities[slot] * binding.energy;
+  }
+
   return {
     points,
+    refreshBinding,
+    readStage(stageId) {
+      const slot = slotsById.get(stageId);
+      return { matrix: nodeMatrices[slot].toArray(), pointScale: nodeScales[slot], opacity: nodeOpacities[slot] };
+    },
     update(time, stable, stageRoots, motions) {
       material.uniforms.uTime.value = time;
       material.uniforms.uStable.value = stable;
@@ -1202,10 +1263,13 @@ function createBatchedStageParticleSpheres() {
         const sparkle = (0.5 + Math.sin(time * (0.5 + nodeIndex * 0.06) + nodeIndex) * 0.5) * motion.stable;
 
         nodeMatrices[nodeIndex].copy(stageRoots[nodeIndex + 1].matrix);
-        nodeOpacities[nodeIndex] = motion.release * stage.nodeBrightness * (
+        referenceScales[nodeIndex] = bindings.get(stage.id).scale;
+        referenceMatrices[nodeIndex].copy(nodeMatrices[nodeIndex]);
+        baseOpacities[nodeIndex] = motion.release * stage.nodeBrightness * (
           0.22 + motion.capture * 0.34 + sparkle * 0.035
         );
-        nodeScales[nodeIndex] = motion.scale * motion.depthScale * stage.nodeScale;
+        baseScales[nodeIndex] = motion.scale * motion.depthScale * stage.nodeScale;
+        refreshBinding(stage.id);
       });
     },
     dispose() {
@@ -1215,8 +1279,10 @@ function createBatchedStageParticleSpheres() {
   };
 }
 
-function createStageNode(stage, index) {
+function createStageNode(stage, index, binding) {
   const group = new THREE.Group();
+  let baseScale = 1;
+  function refreshBinding() { group.scale.setScalar(baseScale * binding.scale); }
   const angle = getStageFinalAngle(index);
   const particleNode = index === 0 ? createStageNodeParticles(stage, index) : null;
   const wireGeometry = index === 0
@@ -1245,7 +1311,8 @@ function createStageNode(stage, index) {
 
     group.position.set(motion.position.x, motion.position.y, motion.position.z);
     group.rotation.set(motion.rotation.x, motion.rotation.y, motion.rotation.z);
-    group.scale.setScalar(motion.scale * motion.depthScale * stage.nodeScale);
+    baseScale = motion.scale * motion.depthScale * stage.nodeScale;
+    refreshBinding();
     particleNode?.update(time, motion, sparkle);
     if (wireMaterial) {
       wire.rotation.y = time * (0.018 + index * 0.0015) * motion.stable;
@@ -1276,7 +1343,8 @@ function createStageNode(stage, index) {
         orbitDrawProgress: roundStatusValue(drawProgress),
         uuid: group.uuid
       };
-    }
+    },
+    refreshBinding
   };
 }
 
@@ -1419,6 +1487,14 @@ function createFiveATransferFlow() {
   const colors = new Float32Array(TRANSFER_PARTICLE_COUNT * 3);
   const sizes = new Float32Array(TRANSFER_PARTICLE_COUNT);
   const alphas = new Float32Array(TRANSFER_PARTICLE_COUNT);
+  // CPU reference values for existing aAlpha; no new GPU geometry or attribute.
+  const baseAlphas = new Float32Array(TRANSFER_PARTICLE_COUNT);
+  const segments = new Map(FIVE_A_STAGES.map((stage, index) => {
+    const sourceId = index === 0 ? 'CORE' : FIVE_A_STAGES[index - 1].id;
+    return [`${sourceId}_TO_${stage.id}`, { sourceId, targetId: stage.id, strength: 1, particles: [] }];
+  }));
+  const segmentByTargetId = new Map([...segments.values()].map(segment => [segment.targetId, segment]));
+  let disposed = false;
   const phases = new Float32Array(TRANSFER_PARTICLE_COUNT);
   const stageIndices = new Uint8Array(TRANSFER_PARTICLE_COUNT);
   const curlSeeds = new Float32Array(TRANSFER_PARTICLE_COUNT);
@@ -1444,6 +1520,7 @@ function createFiveATransferFlow() {
       ? (Math.floor(stageParticleOrdinal / 12) * 0.137 + migrationClusterRole * 0.014 + stageIndex * 0.021) % 0.88
       : (random() * 0.82 + (i % 7) * 0.027) % 1;
     stageIndices[i] = stageIndex;
+    segmentByTargetId.get(stage.id).particles.push(i);
     curlSeeds[i] = random() * Math.PI * 2;
     freedom[i] = random() < 0.16 ? 1 : 0;
     gapWeights[i] = isMigrationCluster ? 1 : random() < 0.22 ? 0.18 : 0.72 + random() * 0.28;
@@ -1578,7 +1655,7 @@ function createFiveATransferFlow() {
       positionArray[i3] = path.x;
       positionArray[i3 + 1] = path.y;
       positionArray[i3 + 2] = path.z;
-      alphaArray[i] = Math.min(
+      baseAlphas[i] = Math.min(
         0.86,
         (
           chargeAlpha
@@ -1586,6 +1663,7 @@ function createFiveATransferFlow() {
           + motion.stable * 0.126
         ) * depthCue * gapWeights[i] * brokenCadence * microStreakGain * packetGain
       );
+      alphaArray[i] = baseAlphas[i] * segmentByTargetId.get(stage.id).strength;
     }
 
     positionAttribute.needsUpdate = true;
@@ -1593,14 +1671,43 @@ function createFiveATransferFlow() {
   }
 
   function dispose() {
+    disposed = true;
+    transitionTargets.clear();
+    segments.clear();
+    segmentByTargetId.clear();
     geometry.dispose();
     material.dispose();
   }
 
+  function readSegment(id, segment) {
+    if (disposed) throw new Error('Flow target disposed');
+    return { id, sourceId: segment.sourceId, targetId: segment.targetId,
+      binding: { flowStrength: segment.strength },
+      particleIndices: [...segment.particles],
+      alphas: segment.particles.map(i => alphas[i]),
+      baseAlphas: segment.particles.map(i => baseAlphas[i]) };
+  }
+  const transitionTargets = new Map(['A1_TO_A2', 'A2_TO_A3', 'A3_TO_A4', 'A4_TO_A5'].map(id => [id, Object.freeze({
+    transitionId: id,
+    read: () => readSegment(id, segments.get(id)),
+    write(values) {
+      if (disposed) throw new Error('Flow target disposed');
+      assertFiveAFlowValues(values);
+      const segment = segments.get(id);
+      segment.strength = values.flowStrength;
+      for (const i of segment.particles) alphas[i] = baseAlphas[i] * segment.strength;
+      alphaAttribute.needsUpdate = true;
+    }
+  })]));
   return {
     points,
     update,
     dispose,
+    resolveTarget(id) {
+      if (disposed) throw new Error('Flow target disposed');
+      return transitionTargets.get(id) ?? null;
+    },
+    readStates() { return Object.fromEntries([...segments].map(([id, segment]) => [id, readSegment(id, segment)])); },
     particleCount: TRANSFER_PARTICLE_COUNT,
     uuid: points.uuid
   };
@@ -1968,7 +2075,7 @@ function getLayerCaptureCurve(index, value) {
 
 function createFiveAMotionDiagnostics(group, orbitSystem, transferFlow) {
   const params = new URLSearchParams(window.location.search);
-  const isDebugEnabled = import.meta.env.DEV && params.get('debugFiveAMotion') === '1';
+  const isDebugEnabled = import.meta.env?.DEV && params.get('debugFiveAMotion') === '1';
   const requestedProgress = Number.parseFloat(params.get('progress'));
   const progressOverride = isDebugEnabled && Number.isFinite(requestedProgress)
     ? clamp01(requestedProgress)
@@ -1992,7 +2099,7 @@ function createFiveAMotionDiagnostics(group, orbitSystem, transferFlow) {
   };
 
   function publish() {
-    if (!import.meta.env.DEV) return;
+    if (!import.meta.env?.DEV) return;
     const serialized = JSON.stringify(status);
 
     window.__FIVE_A_MOTION_STATUS__ = status;
@@ -2015,7 +2122,7 @@ function createFiveAMotionDiagnostics(group, orbitSystem, transferFlow) {
       publish();
     },
     dispose() {
-      if (!import.meta.env.DEV) return;
+      if (!import.meta.env?.DEV) return;
       if (window.__FIVE_A_MOTION_STATUS__ === status) {
         delete window.__FIVE_A_MOTION_STATUS__;
       }

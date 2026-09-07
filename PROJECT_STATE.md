@@ -34,10 +34,12 @@
 
 ## Blocked / not ready
 
-- **Actual V2-3B renderer binding is blocked** until the Brand Mind Association
+- **Whole-project V2-3B renderer binding remains blocked** until the Brand Mind Association
   Stable Registry (`associationId -> runtime node`) and Brand Mind Relationship
   Stable Registry (`sourceId + targetId -> runtime path`) are established and
-  revalidated. No actual Three.js binding may begin before that gate is READY.
+  revalidated on the integrated line. The explicitly user-authorized A3-only
+  vertical slice below is independent of those Brand Mind targets; it does not
+  declare all 46 channels ready.
 - Galaxy experiments and Blender visual routes remain experimental unless their
   own human visual review explicitly marks them ready. No visual parameter is
   automatically adopted into the Home baseline.
@@ -56,3 +58,112 @@
    visual behavior change; rerun V2-3B preflight.
 2. If and only if preflight is READY, hand off the actual renderer-adapter scope
    for separate approval. HOME remains responsible for high-load visual work.
+
+## FiveA A3 vertical slice — scoped feature checkpoint
+
+- Branch: `feat/active-theory-v2-3b-fivea-a3-vertical-slice`, created from actual
+  remote Master `660d8a0c5d938b31eccd3d4da4c9aea559a37e2b` in an independent
+  worktree. Master is not modified or merged by this task.
+- The reported 464-test history includes separate Brand Mind registry work
+  (`22fa32ed10e24f133d3a7cc219402a47fda49316`), which was not in this Master.
+  This feature retains all 450 tests actually present in its base.
+- Only A3 scale + existing opacity/energy are connected to the real renderer,
+  through the same Canonical consumer as the FiveA panel. Density is deferred;
+  static GPU geometry and all shader art remain unchanged.
+- Development-only LOW / BASELINE / HIGH / PARTIAL queries are documented in
+  `src/v2/README.md`. Normal and production entry points preserve the frozen art.
+- No A1/A2/A4/A5, transitions, Brand Mind, or GEO binding is implemented. Any
+  expansion requires a separate milestone; the current task stops after A3.
+- Engineering validation: 486/486 tests (450 inherited + 36 new), build and
+  diff check PASS; normal/direct/demo browser entry, panel open/close/ESC and
+  wheel isolation PASS. One Canvas and one primary RAF chain; no browser
+  error/warning observed. Screenshot/value evidence stays local under
+  `art/v2-3b-fivea-a3/`. This is an opt-in technical checkpoint, not art approval.
+
+## FiveA A1-A5 stage expansion — scoped feature checkpoint
+
+- Independent branch `feat/active-theory-v2-3b-fivea-stages` starts at A3 remote
+  `928acdc78ee72aed67211a7b358ad2aa9cbc7ae0`. Master and original worktrees
+  remain untouched. This milestone supersedes only the prior A3 scope limit.
+- One stable-ID adapter binds scale + energy for A1-A5, using the same Canonical
+  provider as the Panel. The A3 API remains a compatibility wrapper.
+- Atomic apply/rollback, idempotence, 200 repeated snapshot cycles, per-stage
+  isolation, partial/missing metadata and restore/dispose are verified against
+  actual Three.js matrices and uniforms. No geometry rebuild or GLSL edits.
+- BALANCED / CONTRAST / PARTIAL are opt-in synthetic engineering fixtures.
+  Existing transitions and Opportunity facts remain unchanged; these are not
+  claimed to be realistic funnel datasets. Normal URLs preserve unbound art.
+- 532/532 tests (486 inherited + 46 new), build and diff check PASS. Browser
+  proof uses the same camera/time/viewport for all three states. Canvas=1 and
+  primary RAF chain=1. Local evidence stays under `art/v2-3b-fivea-stages/`.
+- Density remains TODO. Transition binding is the next separately approved
+  milestone; no transition, GEO, Brand Mind, camera or composition binding is
+  authorized by this feature. No high-load visual rendering was executed.
+
+## FiveA A2_TO_A3 flow strength — scoped feature
+
+- Branch `feat/active-theory-v2-3b-fivea-a2-a3-flow` starts at verified remote
+  A1-A5 stage checkpoint `05248fea01c1fc350afba77084c69c1ddde0c7bd`, in an
+  independent worktree. Original worktrees and integration Master are untouched.
+- Actual supported channels: A1-A5 SCALE/ENERGY plus A2_TO_A3 FLOW_STRENGTH.
+  One shared transfer batch has CPU-updated aAlpha. Stable endpoint IDs identify
+  the A2_TO_A3 particle subset; only its reference alpha is multiplied. No new
+  geometry, shader, particles, paths, anchors, batches or render loops.
+- flowSpeed is deferred: the existing travel and stable drift use shared
+  absolute time, not an independently accumulated segment phase. Applying a
+  speed multiplier would jump phases. Formal Mapping still maps volume to speed;
+  the adapter intentionally does not execute that channel.
+- LOW/BASELINE/HIGH use an explicitly SYNTHETIC tracked cohort of 1000 entrants,
+  with 100/500/900 observed exits and consistent rates. These are independent
+  of stage snapshot populations. PARTIAL keeps observed exits/rate missing.
+  All fixtures remain MOCK; no source verification or real history is invented.
+- Same Canonical provider supplies Panel and both real adapters. Other stages,
+  transitions and Opportunity facts/bindings are unchanged. Normal and existing
+  demo URLs retain their prior opt-in behavior.
+- Derived revision 2 removes the invalid fallback from missing transition cohort
+  in/out to stage snapshot populations. Missing Panel counts now stay missing;
+  no Panel UI or rate Mapping was changed.
+- 556/556 tests PASS (532 inherited + 24 flow tests), build/diff PASS. Real alpha
+  readbacks verify monotonicity, rollback, 100 HIGH/LOW cycles, idempotence and
+  disposal. Local browser evidence includes 12 fixed-time JPEG frames, identical
+  camera/viewport/seed, Panel checks, one Canvas and one primary RAF chain.
+- No Transition expansion, high-load rendering, or visual art approval implied.
+
+## FiveA four-transition flow-strength expansion — scoped feature
+
+- Branch `feat/active-theory-v2-3b-fivea-transitions` starts from verified
+  remote A2_TO_A3 checkpoint `7dd7f662f6f057b8a12d50565ea643bc557cf8b7` in an
+  independent worktree. No integration or Master branch is changed.
+- A single stable-ID adapter now applies only `FLOW_STRENGTH` to
+  `A1_TO_A2`, `A2_TO_A3`, `A3_TO_A4`, and `A4_TO_A5`. Each target is the
+  corresponding existing subset of the shared transfer batch; the adapter
+  changes only that subset's existing alpha reference multiplier.
+- Development fixtures select exactly one transition and use a labelled
+  MOCK/SYNTHETIC tracked cohort of 1000 entrants: LOW=100 exits, BASELINE=500,
+  HIGH=900, PARTIAL=null. They never derive a conversion rate from adjacent
+  stage populations. The same snapshot is supplied to the panel and renderer.
+- `flowSpeed` and density remain unbound. Shared absolute-time animation,
+  geometry, paths, particles, batches, stage scale/energy, Opportunity, camera,
+  composition, shader art and UI layout remain unchanged.
+- The generic adapter validates the full four-transition plan before writing,
+  is idempotent, rolls back atomically on errors, preserves missing metadata,
+  restores on dispose and creates no per-frame business work. Local-only
+  evidence is written beneath `art/v2-3b-fivea-transitions/`.
+- Engineering validation: 584/584 Node tests, production build and diff check
+  pass. Browser proof confirms four MOCK/SYNTHETIC snapshots, one Canvas, one
+  primary RAF chain, panel close/ESC isolation and normal wheel ownership after
+  close. No high-load visual rendering was executed.
+
+## Master integration: FiveA stage and transition bindings
+
+- The integration line includes the verified FiveA renderer-binding history from
+  `946723cdda962b8e0ec43e3d9a2eedce909c8cdd`: A1-A5 scale/energy and the four
+  adjacent transition `FLOW_STRENGTH` channels are real stable-target bindings.
+- All development verification scenarios remain explicitly MOCK/SYNTHETIC.
+  This is not a real business-data rollout and normal/default entries do not
+  force a demonstration mode.
+- `flowSpeed` and density remain unbound. GEO and Brand Mind real renderer
+  binding are not completed by this integration.
+- HOME retains ownership of approved camera, composition, Galaxy, Earth and
+  high-load visual work. COMPANY remains limited to source, contracts, tests,
+  configuration and low-load validation.
