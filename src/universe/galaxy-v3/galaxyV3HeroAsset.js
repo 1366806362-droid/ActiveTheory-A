@@ -155,8 +155,8 @@ function createLdiHeroAsset(config, layerVisibility) {
     }
     const cameraX = camera.position.x - initialCameraPosition.x;
     const cameraY = camera.position.y - initialCameraPosition.y;
-    const pointerX = interaction?.parallaxX ?? 0;
-    const pointerY = interaction?.parallaxY ?? 0;
+    const pointerX = limitHeroPointerParallax(interaction?.parallaxX ?? 0, config.pointerParallaxLimit);
+    const pointerY = limitHeroPointerParallax(interaction?.parallaxY ?? 0, config.pointerParallaxLimit);
 
     // The five textures share one image projection. Compensate their z offsets
     // before adding the existing restrained parallax, so detail stays registered.
@@ -210,6 +210,10 @@ function createLdiHeroAsset(config, layerVisibility) {
       });
     }
   };
+}
+
+export function limitHeroPointerParallax(value, limit) {
+  return Number.isFinite(limit) && limit > 0 ? limit * Math.tanh(value / limit) : value;
 }
 
 export function validateHeroAssetConfig(config) {

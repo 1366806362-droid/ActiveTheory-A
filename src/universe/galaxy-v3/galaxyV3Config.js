@@ -167,6 +167,20 @@ export const GALAXY_V3_REPAIRED_M3_CONFIG = Object.freeze({
   })
 });
 
+// Independent art candidate: baseline repaired M3 remains an exact rollback.
+export const HOME_FINAL_ART_M3_CONFIG = Object.freeze({
+  ...GALAXY_V3_REPAIRED_M3_CONFIG,
+  mode: 'home-final-art-candidate',
+  galaxyHeroAsset: Object.freeze({
+    ...GALAXY_V3_REPAIRED_M3_CONFIG.galaxyHeroAsset,
+    pointerParallaxLimit: 0.12,
+    source: '/assets/galaxy-v3/hero/home-final-art/galaxy-home-final-art-core.webp',
+    layers: Object.freeze(GALAXY_V3_REPAIRED_M3_CONFIG.galaxyHeroAsset.layers.map(layer => Object.freeze({
+      ...layer, source: layer.source.replaceAll('repaired-m3', 'home-final-art')
+    })))
+  })
+});
+
 export function readGalaxyV3State(search = readLocationSearch()) {
   const params = new URLSearchParams(search);
   const enabled = params.get('galaxyV3') === '1';
@@ -179,6 +193,7 @@ export function readGalaxyV3State(search = readLocationSearch()) {
   return Object.freeze({
     enabled,
     heroVersion,
+    finalArtDirection: heroVersion === 'repaired_m3' && params.get('homeArt') === 'final',
     isolated: cinematicHero && readBooleanParam(params, 'debugV4Isolated', false),
     useGpuStars: enabled && readBooleanParam(params, 'v3UseGpuStars', true),
     debug: Object.freeze({

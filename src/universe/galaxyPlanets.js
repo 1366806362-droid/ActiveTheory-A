@@ -212,7 +212,31 @@ const BUSINESS_NEBULA_POINT_COUNT = BRAND_GROWTH_NEBULAE.reduce((total, config) 
   + config.nodeCount
 ), 0);
 
-export function createGalaxyPlanets({ homeComposition = 'default' } = {}) {
+export const HOME_FINAL_NEBULA_ART = Object.freeze({
+  'GEO Nebula': Object.freeze({
+    color: 0x79b4cf, accent: 0xd0e6ef, scale: 0.92,
+    layers: Object.freeze({ cluster: 1.35, flow: 0.95, dust: 0.6, nodes: 1.3, visibleCore: 1.2, core: 1.0 }),
+    identity: Object.freeze({ coreConcentration: 0.74 })
+  }),
+  '5A Nebula': Object.freeze({
+    color: 0x779dbf, accent: 0xdde8f2, scale: 1.06,
+    position: Object.freeze([-0.58, 0.64, -0.36]),
+    hover: Object.freeze([0.15, 0.64]),
+    layers: Object.freeze({ cluster: 1.28, flow: 2.0, dust: 1.3, nodes: 0.65, visibleCore: 0.18, core: 0.025 }),
+    identity: Object.freeze({}),
+    pointSizes: Object.freeze({ cluster: 0.031, flow: 0.095, nodes: 0.039 })
+  }),
+  'Brand Mind Nebula': Object.freeze({
+    color: 0x77849f, accent: 0xc3d4e5, scale: 0.94,
+    position: Object.freeze([-1.04, -2.05, -0.72]),
+    hover: Object.freeze([0.0, -0.60]),
+    layers: Object.freeze({ cluster: 1.08, flow: 4.0, dust: 1.8, nodes: 0.38, visibleCore: 0.10, core: 0.018 }),
+    identity: Object.freeze({ haloSpread: 1.15, memoryClumps: true, softMemoryField: true }),
+    pointSizes: Object.freeze({ cluster: 0.018, dust: 0.015, flow: 0.38, nodes: 0.035 })
+  })
+});
+
+export function createGalaxyPlanets({ homeComposition = 'default', finalArtDirection = false } = {}) {
   const group = new THREE.Group();
   const particleTexture = createNebulaParticleTexture();
   const businessInteraction = {
@@ -221,7 +245,7 @@ export function createGalaxyPlanets({ homeComposition = 'default' } = {}) {
     forcedHoverTarget: homeComposition === 'v4' ? readBusinessHoverTarget() : null
   };
   const configs = homeComposition === 'v4'
-    ? createV4HomeConfigs()
+    ? createV4HomeConfigs(finalArtDirection)
     : BRAND_GROWTH_NEBULAE;
   const nebulae = configs.map((config, index) => (
     createBusinessNebula(config, particleTexture, 9107 + index * 193, businessInteraction)
@@ -338,24 +362,31 @@ export function createGalaxyPlanets({ homeComposition = 'default' } = {}) {
   };
 }
 
-function createV4HomeConfigs() {
+export function createV4HomeConfigs(finalArtDirection = false) {
   const presetByName = new Map(
     BRAND_GROWTH_V4_HOME_COMPOSITION.map((preset) => [preset.name, preset])
   );
 
   return BRAND_GROWTH_NEBULAE.map((config) => {
     const preset = presetByName.get(config.name);
+    const art = finalArtDirection ? HOME_FINAL_NEBULA_ART[config.name] : null;
     return {
       ...config,
-      anchor: preset.position,
-      hoverX: preset.hover[0],
-      hoverY: preset.hover[1],
+      color: art?.color ?? config.color,
+      accent: art?.accent ?? config.accent,
+      finalArtDirection: Boolean(art),
+      anchor: art?.position ?? preset.position,
+      hoverX: (art?.hover ?? preset.hover)[0],
+      hoverY: (art?.hover ?? preset.hover)[1],
       labelScale: preset.labelScale,
-      visualScale: config.visualScale.map((value) => value * preset.scale),
+      visualScale: config.visualScale.map((value) => value * preset.scale * (art?.scale ?? 1)),
       compositionScale: preset.scale,
       compositionOpacity: preset.opacity,
-      compositionLayers: preset.layers,
-      homeIdentity: preset.identity
+      compositionLayers: art?.layers ?? preset.layers,
+      homeIdentity: art ? {
+        ...preset.identity, ...art.identity,
+        pointSizes: { ...preset.identity.pointSizes, ...art.pointSizes }
+      } : preset.identity
     };
   });
 }
@@ -408,6 +439,12 @@ function createBusinessNebula(config, particleTexture, seed, businessInteraction
   );
   nebulaGroup.add(visualGroup);
   orbitalGroup.add(nebulaGroup, label.sprite);
+  if (config.finalArtDirection) {
+    // Nested Groups otherwise reset Three's groupOrder to zero. Honor the
+    // existing V3 BusinessNebulaLayer (7), after HeroAssetLayer (5), throughout
+    // this subtree. Keep real Z positions, depth testing and parallax intact.
+    orbitalGroup.traverse(object => { if (object.isGroup) object.renderOrder = 7; });
+  }
 
   function update(
     delta,
@@ -752,11 +789,11 @@ function createLocalNebula(config, texture, seed) {
     size: 0.075,
     sizeAttenuation: true,
     map: texture,
-    alphaTest: 0.006,
+    alphaTest: config.homeIdentity?.softMemoryField ? 0.0005 : 0.006,
     vertexColors: true,
     transparent: true,
     opacity: 0.18,
-    blending: THREE.NormalBlending,
+    blending: config.homeIdentity?.softMemoryField ? THREE.AdditiveBlending : THREE.NormalBlending,
     depthWrite: false,
     fog: false
   });
@@ -767,7 +804,8 @@ function createLocalNebula(config, texture, seed) {
   function update(delta, time, pulse, visibility, hoverBoost, homeBlend, motionBoost = 1) {
     applyHomeIdentityPositions(geometry, positions, identityPositions, homeBlend);
     points.rotation.z += delta * config.spin * 0.18 * motionBoost;
-    material.opacity = (0.16 + pulse * 0.045) * visibility * hoverBoost;
+    material.opacity = (0.16 + pulse * 0.045) * visibility * hoverBoost
+      * (config.homeIdentity?.softMemoryField ? 0.60 : 1);
     const legacySize = 0.072 + Math.sin(time * 0.18 + config.phase) * 0.003;
     const identitySize = (config.homeIdentity?.pointSizes.flow ?? legacySize)
       + Math.sin(time * 0.18 + config.phase) * 0.002;
@@ -1215,6 +1253,13 @@ function createHomeIdentityPositions(config, layer, count, seed) {
       x = Math.cos(angle) * radius + gaussianX * size * 0.04;
       y = Math.sin(angle) * radius * 0.7 + gaussianY * size * 0.035;
       z = gaussianZ * size * 0.17 * layerSpread;
+      if (identity.memoryClumps && layer !== 'nodes' && layer !== 'highlights') {
+        const centers = [[-0.38, 0.04, -0.09], [0.2, 0.18, 0.1], [0.12, -0.24, -0.15]];
+        const center = centers[index % centers.length];
+        x = x * 0.55 + center[0] * size;
+        y = y * 0.55 + center[1] * size;
+        z += center[2] * size;
+      }
     }
 
     positions[stride] = x;
