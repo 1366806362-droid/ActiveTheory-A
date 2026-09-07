@@ -51,8 +51,8 @@ import { buildVisualBindingPlan } from '../v2/binding/bindingPlanner.js';
 import { createFiveAA3RendererAdapter } from '../v2/renderer-adapters/fiveAA3RendererAdapter.js';
 import { createFiveAStageRendererAdapter } from '../v2/renderer-adapters/fiveAStageRendererAdapter.js';
 import { resolveFiveAStagesDemo } from '../v2/runtime/fiveAStagesDemo.js';
-import { resolveFiveAFlowDemo } from '../v2/runtime/fiveAFlowDemo.js';
-import { createFiveAFlowRendererAdapter } from '../v2/renderer-adapters/fiveAFlowRendererAdapter.js';
+import { resolveFiveAFlowDemo, resolveFiveATransitionsDemo } from '../v2/runtime/fiveAFlowDemo.js';
+import { createFiveAFlowRendererAdapter, createFiveATransitionFlowRendererAdapter } from '../v2/renderer-adapters/fiveAFlowRendererAdapter.js';
 
 const ENGINE_INSTANCE_KEY = '__ACTIVE_THEORY_ENGINE__';
 
@@ -79,7 +79,8 @@ export function initializeEngine() {
   const activeScene = getActiveScene();
   const lights = createLights();
   const heroScene = createHeroScene();
-  const flowDemo = resolveFiveAFlowDemo(window.location.search, import.meta.env.DEV);
+  const transitionsDemo = resolveFiveATransitionsDemo(window.location.search, import.meta.env.DEV);
+  const flowDemo = transitionsDemo ?? resolveFiveAFlowDemo(window.location.search, import.meta.env.DEV);
   const stagesDemo = flowDemo ?? resolveFiveAStagesDemo(window.location.search, import.meta.env.DEV);
   const a3Demo = stagesDemo ? null : resolveFiveAA3Demo(window.location.search, import.meta.env.DEV);
   const activeDemo = stagesDemo ?? a3Demo;
@@ -112,7 +113,7 @@ export function initializeEngine() {
     sceneManager.scenes.find((candidate) => candidate.name === 'FiveAScene').resolveStageRendererTarget
   ) : null;
   stagesAdapter?.apply(stagesPlan);
-  const flowAdapter = flowDemo ? createFiveAFlowRendererAdapter(
+  const flowAdapter = flowDemo ? (transitionsDemo ? createFiveATransitionFlowRendererAdapter : createFiveAFlowRendererAdapter)(
     sceneManager.scenes.find((candidate) => candidate.name === 'FiveAScene').resolveTransitionRendererTarget
   ) : null;
   flowAdapter?.apply(stagesPlan);
@@ -126,14 +127,17 @@ export function initializeEngine() {
       camera: { position: camera.position.toArray(), quaternion: camera.quaternion.toArray(), fov: camera.fov },
       sampleTime: flowDemo?.sampleTime ?? (stagesDemo.capture ? 12 : null), loop: getLoopStatus()
     });
-    if (flowDemo) document.documentElement.dataset.v2FiveAFlowProof = JSON.stringify({
-      state: flowDemo.state, snapshotId: fiveAConsumer.snapshot.metadata.snapshotId,
-      canonical: fiveAConsumer.snapshot.fiveA.transitions.A2_TO_A3,
-      visual: stagesVisualState.fiveA.transitions.A2_TO_A3,
+    if (flowDemo) {
+      const transitionId = transitionsDemo?.transitionId ?? 'A2_TO_A3';
+      document.documentElement.dataset.v2FiveAFlowProof = JSON.stringify({
+      state: flowDemo.state, transitionId, snapshotId: fiveAConsumer.snapshot.metadata.snapshotId,
+      canonical: fiveAConsumer.snapshot.fiveA.transitions[transitionId],
+      visual: stagesVisualState.fiveA.transitions[transitionId],
       execution: flowAdapter.getReport(), sampleTime: flowDemo.sampleTime,
       camera: { position: camera.position.toArray(), quaternion: camera.quaternion.toArray(), fov: camera.fov },
       stages: stagesAdapter.getReport(), loop: getLoopStatus()
-    });
+      });
+    }
   }
   let proofFramesRemaining = a3Demo ? 120 : 0;
   function publishA3Proof() {

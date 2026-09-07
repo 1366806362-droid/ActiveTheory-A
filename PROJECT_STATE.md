@@ -128,3 +128,28 @@
   disposal. Local browser evidence includes 12 fixed-time JPEG frames, identical
   camera/viewport/seed, Panel checks, one Canvas and one primary RAF chain.
 - No Transition expansion, high-load rendering, or visual art approval implied.
+
+## FiveA four-transition flow-strength expansion — scoped feature
+
+- Branch `feat/active-theory-v2-3b-fivea-transitions` starts from verified
+  remote A2_TO_A3 checkpoint `7dd7f662f6f057b8a12d50565ea643bc557cf8b7` in an
+  independent worktree. No integration or Master branch is changed.
+- A single stable-ID adapter now applies only `FLOW_STRENGTH` to
+  `A1_TO_A2`, `A2_TO_A3`, `A3_TO_A4`, and `A4_TO_A5`. Each target is the
+  corresponding existing subset of the shared transfer batch; the adapter
+  changes only that subset's existing alpha reference multiplier.
+- Development fixtures select exactly one transition and use a labelled
+  MOCK/SYNTHETIC tracked cohort of 1000 entrants: LOW=100 exits, BASELINE=500,
+  HIGH=900, PARTIAL=null. They never derive a conversion rate from adjacent
+  stage populations. The same snapshot is supplied to the panel and renderer.
+- `flowSpeed` and density remain unbound. Shared absolute-time animation,
+  geometry, paths, particles, batches, stage scale/energy, Opportunity, camera,
+  composition, shader art and UI layout remain unchanged.
+- The generic adapter validates the full four-transition plan before writing,
+  is idempotent, rolls back atomically on errors, preserves missing metadata,
+  restores on dispose and creates no per-frame business work. Local-only
+  evidence is written beneath `art/v2-3b-fivea-transitions/`.
+- Engineering validation: 584/584 Node tests, production build and diff check
+  pass. Browser proof confirms four MOCK/SYNTHETIC snapshots, one Canvas, one
+  primary RAF chain, panel close/ESC isolation and normal wheel ownership after
+  close. No high-load visual rendering was executed.

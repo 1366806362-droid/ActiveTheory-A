@@ -299,3 +299,38 @@ Local actual-array and browser evidence: `art/v2-3b-a2-a3-flow/`.
 FiveA Derived revision 2 preserves missing cohort in/out instead of replacing
 them with stage populations. This fixes a pre-existing PARTIAL Panel mismatch;
 the UI and formal rate-to-strength Mapping remain unchanged.
+
+## V2-3B: Four FiveA transition flow strengths
+
+`createFiveATransitionFlowRendererAdapter()` is the one stable-ID execution
+adapter for `A1_TO_A2`, `A2_TO_A3`, `A3_TO_A4`, and `A4_TO_A5`. It accepts only
+one `FLOW_STRENGTH` plan entry for each ID and resolves each entry against its
+own existing transfer-flow particle subset. It does not use array ordering,
+change shared animation time, alter particle paths, rebuild geometry, or write
+shader parameters. The former A2_TO_A3 adapter remains a compatibility wrapper
+with its original single-transition scope.
+
+Development-only verification requires both query parameters:
+
+```text
+/?scene=fivea&v2FiveATransition=A1_TO_A2&v2FiveATransitionState=low|baseline|high|partial
+```
+
+Replace the transition ID with any of the other three adjacent transitions.
+`v2FiveATransitionFrame=0|1|2` fixes the normal loop to 12/12.25/12.5 seconds
+for comparable local evidence. Every scenario is explicitly MOCK/SYNTHETIC.
+Only the selected transition receives a tracked cohort of 1000 entrants:
+100/500/900 observed exits for LOW/BASELINE/HIGH, or null observations for
+PARTIAL. Conversion rate is exits divided by that cohort, never a ratio of
+stage snapshot populations. The provider supplies the exact same canonical
+snapshot to the panel, VisualState, BindingPlan and renderer adapter.
+
+`flowSpeed` and density are deliberately unbound. The current path animation
+uses shared absolute time; changing per-segment speed safely requires a future
+phase-continuity design. Missing values retain their diagnostic metadata and
+use the established renderer-safe strength fallback without becoming facts.
+
+Run `node src/v2/renderer-adapters/fiveATransitionFlowRendererAdapter.test.mjs
+--report` for real shared-batch alpha readbacks, atomic rollback, idempotence,
+per-transition isolation and disposal coverage. The optional report is local
+only under `art/v2-3b-fivea-transitions/`.

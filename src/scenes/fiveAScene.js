@@ -1672,6 +1672,7 @@ function createFiveATransferFlow() {
 
   function dispose() {
     disposed = true;
+    transitionTargets.clear();
     segments.clear();
     segmentByTargetId.clear();
     geometry.dispose();
@@ -1686,25 +1687,25 @@ function createFiveATransferFlow() {
       alphas: segment.particles.map(i => alphas[i]),
       baseAlphas: segment.particles.map(i => baseAlphas[i]) };
   }
-  const a2a3 = segments.get('A2_TO_A3');
-  const target = Object.freeze({
-    transitionId: 'A2_TO_A3',
-    read: () => readSegment('A2_TO_A3', a2a3),
+  const transitionTargets = new Map(['A1_TO_A2', 'A2_TO_A3', 'A3_TO_A4', 'A4_TO_A5'].map(id => [id, Object.freeze({
+    transitionId: id,
+    read: () => readSegment(id, segments.get(id)),
     write(values) {
       if (disposed) throw new Error('Flow target disposed');
       assertFiveAFlowValues(values);
-      a2a3.strength = values.flowStrength;
-      for (const i of a2a3.particles) alphas[i] = baseAlphas[i] * a2a3.strength;
+      const segment = segments.get(id);
+      segment.strength = values.flowStrength;
+      for (const i of segment.particles) alphas[i] = baseAlphas[i] * segment.strength;
       alphaAttribute.needsUpdate = true;
     }
-  });
+  })]));
   return {
     points,
     update,
     dispose,
     resolveTarget(id) {
       if (disposed) throw new Error('Flow target disposed');
-      return id === 'A2_TO_A3' ? target : null;
+      return transitionTargets.get(id) ?? null;
     },
     readStates() { return Object.fromEntries([...segments].map(([id, segment]) => [id, readSegment(id, segment)])); },
     particleCount: TRANSFER_PARTICLE_COUNT,
