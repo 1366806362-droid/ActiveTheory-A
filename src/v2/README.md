@@ -148,3 +148,29 @@ Run the compact dry-run report with:
 ```text
 node src/v2/renderer-dry-run/previewDryRun.mjs
 ```
+
+## V2-3B preflight: real renderer target inventory
+
+**This inventory does not render and does not import `three`.**
+`renderer-inventory/` is the read-only bridge between the frozen V2 binding
+channels and the current V1 scene implementation. It records a semantic target
+ID, source file and symbol, lifecycle, capability status, required adapter hook,
+and future implementation priority for every channel-to-target mapping.
+
+It explicitly protects Art Direction ownership: camera, global composition,
+scene layout, Earth/Galaxy position, permanent stage positions, route, scroll,
+handoff, typography, and Panel layout are never inventory targets.
+
+The current audit finds that Home, GEO, FiveA, and the Brand Mind Core have
+stable semantic objects but no renderer-safe V2 setters (`NEEDS_ADAPTER_HOOK`).
+Brand Mind association nodes and relationship paths are presently created by
+scene-array order, rather than canonical `associationId` and
+`sourceId + targetId` registries. They are therefore explicit P0
+`DYNAMIC_TARGET` blockers; the preflight must remain `BLOCKED` until V2-3B
+creates safe stable registries. The inventory does not attempt that work.
+
+Run the compact preflight report with:
+
+```text
+node src/v2/renderer-inventory/previewRendererInventory.mjs
+```
