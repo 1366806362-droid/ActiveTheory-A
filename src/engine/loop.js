@@ -1,4 +1,11 @@
 let animationFrameId = null;
+let loopFrameCount = 0;
+let measuredSeconds = 0;
+
+export function getLoopStatus() {
+  return { activeRafChains: animationFrameId === null ? 0 : 1,
+    frames: loopFrameCount, averageFps: measuredSeconds > 0 ? (loopFrameCount - 1) / measuredSeconds : null };
+}
 
 export function stopLoop() {
   if (animationFrameId === null) {
@@ -16,9 +23,12 @@ export function startLoop({
   renderState,
   applyRenderState,
   renderFrame = null,
-  updates = []
+  updates = [],
+  sampleTime = null
 }) {
   stopLoop();
+  loopFrameCount = 0;
+  measuredSeconds = 0;
 
   let lastTime = 0;
   let elapsedTime = 0;
@@ -30,12 +40,14 @@ export function startLoop({
     const delta = Math.min(Math.max(rawDelta, 0), maxDelta);
     lastTime = currentSeconds;
     elapsedTime += delta;
+    loopFrameCount += 1;
+    measuredSeconds += rawDelta;
 
     updates.forEach((update) => {
-      update(renderState, delta, elapsedTime);
+      update(renderState, sampleTime === null ? delta : 0, sampleTime ?? elapsedTime);
     });
 
-    applyRenderState(renderState, elapsedTime);
+    applyRenderState(renderState, sampleTime ?? elapsedTime);
     if (renderFrame) {
       renderFrame();
     } else {

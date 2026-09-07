@@ -34,10 +34,12 @@
 
 ## Blocked / not ready
 
-- **Actual V2-3B renderer binding is blocked** until the Brand Mind Association
+- **Whole-project V2-3B renderer binding remains blocked** until the Brand Mind Association
   Stable Registry (`associationId -> runtime node`) and Brand Mind Relationship
   Stable Registry (`sourceId + targetId -> runtime path`) are established and
-  revalidated. No actual Three.js binding may begin before that gate is READY.
+  revalidated on the integrated line. The explicitly user-authorized A3-only
+  vertical slice below is independent of those Brand Mind targets; it does not
+  declare all 46 channels ready.
 - Galaxy experiments and Blender visual routes remain experimental unless their
   own human visual review explicitly marks them ready. No visual parameter is
   automatically adopted into the Home baseline.
@@ -56,3 +58,24 @@
    visual behavior change; rerun V2-3B preflight.
 2. If and only if preflight is READY, hand off the actual renderer-adapter scope
    for separate approval. HOME remains responsible for high-load visual work.
+
+## FiveA A3 vertical slice — scoped feature checkpoint
+
+- Branch: `feat/active-theory-v2-3b-fivea-a3-vertical-slice`, created from actual
+  remote Master `660d8a0c5d938b31eccd3d4da4c9aea559a37e2b` in an independent
+  worktree. Master is not modified or merged by this task.
+- The reported 464-test history includes separate Brand Mind registry work
+  (`22fa32ed10e24f133d3a7cc219402a47fda49316`), which was not in this Master.
+  This feature retains all 450 tests actually present in its base.
+- Only A3 scale + existing opacity/energy are connected to the real renderer,
+  through the same Canonical consumer as the FiveA panel. Density is deferred;
+  static GPU geometry and all shader art remain unchanged.
+- Development-only LOW / BASELINE / HIGH / PARTIAL queries are documented in
+  `src/v2/README.md`. Normal and production entry points preserve the frozen art.
+- No A1/A2/A4/A5, transitions, Brand Mind, or GEO binding is implemented. Any
+  expansion requires a separate milestone; the current task stops after A3.
+- Engineering validation: 486/486 tests (450 inherited + 36 new), build and
+  diff check PASS; normal/direct/demo browser entry, panel open/close/ESC and
+  wheel isolation PASS. One Canvas and one primary RAF chain; no browser
+  error/warning observed. Screenshot/value evidence stays local under
+  `art/v2-3b-fivea-a3/`. This is an opt-in technical checkpoint, not art approval.

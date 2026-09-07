@@ -15,7 +15,7 @@ import {
 import { initializeDepthSystem, updateDepth } from './depth.js';
 import { initializeIdentitySystem } from './identity.js';
 import { createLights } from './light.js';
-import { startLoop } from './loop.js';
+import { getLoopStatus, startLoop } from './loop.js';
 import { createBrandMaterial } from './material.js';
 import { createEnvironmentMap } from './environmentMap.js';
 import {
@@ -46,6 +46,9 @@ import { createSceneManager } from '../world/sceneManager.js';
 import { createFiveADataPanel } from '../ui/fiveA-data-panel/fiveADataPanel.js';
 import { createBrandMindDataPanel } from '../ui/brandMind-data-panel/brandMindDataPanel.js';
 import { createV2ConsumerProvider } from '../v2/runtime/consumerProvider.js';
+import { resolveFiveAA3Demo } from '../v2/runtime/fiveAA3Demo.js';
+import { buildVisualBindingPlan } from '../v2/binding/bindingPlanner.js';
+import { createFiveAA3RendererAdapter } from '../v2/renderer-adapters/fiveAA3RendererAdapter.js';
 
 const ENGINE_INSTANCE_KEY = '__ACTIVE_THEORY_ENGINE__';
 
@@ -72,7 +75,8 @@ export function initializeEngine() {
   const activeScene = getActiveScene();
   const lights = createLights();
   const heroScene = createHeroScene();
-  const consumerProvider = createV2ConsumerProvider();
+  const a3Demo = resolveFiveAA3Demo(window.location.search, import.meta.env.DEV);
+  const consumerProvider = createV2ConsumerProvider(a3Demo ? { fiveASnapshot: a3Demo.snapshot } : undefined);
   const fiveAConsumer = consumerProvider.getFiveA();
   const brandMindConsumer = consumerProvider.getBrandMind();
   const fiveADataPanel = createFiveADataPanel(fiveAConsumer);
@@ -89,6 +93,26 @@ export function initializeEngine() {
     },
     isBrandMindDataPanelOpen: brandMindDataPanel.isOpen
   });
+  const a3VisualState = a3Demo ? fiveAConsumer.buildVisualState() : null;
+  const a3Plan = a3Demo ? buildVisualBindingPlan(a3VisualState) : null;
+  const a3Adapter = a3Demo ? createFiveAA3RendererAdapter(
+    sceneManager.scenes.find((candidate) => candidate.name === 'FiveAScene').resolveStageBindingTarget
+  ) : null;
+  a3Adapter?.apply(a3Plan);
+  let proofFramesRemaining = a3Demo ? 120 : 0;
+  function publishA3Proof() {
+    if (proofFramesRemaining === 0 || --proofFramesRemaining !== 0) return;
+    document.documentElement.dataset.v2FiveAA3Proof = JSON.stringify({
+      state: a3Demo.state,
+      canonical: fiveAConsumer.snapshot.fiveA.stages.A3,
+      visualState: a3VisualState.fiveA.stages.A3,
+      binding: a3Plan.fiveA.stages.filter((entry) => entry.stageId === 'A3'),
+      execution: a3Adapter.getReport(),
+      camera: { position: camera.position.toArray(), quaternion: camera.quaternion.toArray(), fov: camera.fov },
+      sampleTime: a3Demo.capture ? 12 : null,
+      loop: getLoopStatus()
+    });
+  }
   const fiveADataPanelDebugRequested = import.meta.env.DEV
     && new URLSearchParams(window.location.search).get('fiveADataPanel') === '1';
 
@@ -132,6 +156,7 @@ export function initializeEngine() {
     renderState,
     applyRenderState,
     renderFrame: postProcessing.render,
+    sampleTime: a3Demo?.capture ? 12 : null,
     updates: [
       updateNarrative,
       updateDepth,
@@ -140,7 +165,8 @@ export function initializeEngine() {
       updateAtmosphere,
       updateCohesion,
       updateShaderCore,
-      sceneManager.update
+      sceneManager.update,
+      publishA3Proof
     ]
   });
 
@@ -156,6 +182,8 @@ export function initializeEngine() {
       fiveADataPanel.destroy();
       brandMindDataPanel.destroy();
       interaction.dispose();
+      a3Adapter?.dispose();
+      delete document.documentElement.dataset.v2FiveAA3Proof;
       sceneManager.dispose();
       environmentMap.dispose();
       postProcessing.dispose();

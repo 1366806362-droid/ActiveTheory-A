@@ -174,3 +174,61 @@ Run the compact preflight report with:
 ```text
 node src/v2/renderer-inventory/previewRendererInventory.mjs
 ```
+
+## V2-3B: opt-in FiveA A3 real renderer vertical slice
+
+This explicitly scoped milestone connects **only A3 SCALE and ENERGY**. The
+inventory above is a historical whole-project audit, not permission to bind
+other stages, transitions, GEO, Home, or Brand Mind. Their adapters remain out
+of scope. Brand Mind registry work on its separate branch is not merged here.
+
+`runtime/fiveAA3Demo.js` derives deterministic LOW / BASELINE / HIGH / PARTIAL
+synthetic snapshots from `CANONICAL_FIVE_A_MOCK`. One existing consumer provider
+supplies the same snapshot and derived metrics to the panel and VisualState.
+BindingPlan is built once on initialization, not each frame.
+
+`renderer-adapters/fiveAA3RendererAdapter.js` consumes only the validated plan.
+It selects exactly A3 scale and energy by stable channel + stage + target ID,
+then validates both before writing. Other valid channels in the full plan are
+intentionally not executed by this narrow capability. Missing paths and lineage
+remain attached to the execution report. Invalid input leaves prior state intact;
+write failure rolls back, reapply is idempotent, and dispose restores multipliers
+to the original art values before releasing its target reference.
+
+The real target is `FiveAStageNodeA3` plus the A3 slot in the existing
+`FiveAStageGpuParticleSpheres` draw. Scale multiplies the existing node transform
+and GPU point-size uniform (matrix translation is untouched). Energy multiplies
+the existing A3 opacity uniform. No GLSL, colors, material construction, particle
+counts, geometry, permanent positions, camera, route, or panel layout changes.
+Density is deferred: the static batched geometry has no safe per-stage density
+control. No second renderer, Canvas, RAF, or business-fact source is created.
+
+Development URLs (Vite dev only):
+
+```text
+/?scene=fivea&v2FiveAA3State=low
+/?scene=fivea&v2FiveAA3State=baseline
+/?scene=fivea&v2FiveAA3State=high
+/?scene=fivea&v2FiveAA3State=partial
+```
+
+No demo query / production builds preserve the unbound V1 art. For comparable
+screenshots append `&v2FiveAA3Capture=1`: the existing single loop samples time
+12 seconds with zero simulation delta (including drifting dust), without changing
+its camera path or starting a second loop. Omit capture mode for interaction
+tests: it intentionally freezes time-based transitions for screenshots. After
+120 frames, a development-only `data-v2-five-a-a3-proof` document attribute
+records canonical, VisualState, BindingPlan, actual GPU readback, camera, and RAF
+chain count. It is removed on engine disposal. This is a one-time evidence
+sample, not live performance telemetry or a new UI control.
+
+```text
+node src/v2/renderer-adapters/fiveAA3RendererAdapter.test.mjs --report
+node src/engine/loop.test.mjs
+```
+
+The first command instantiates real Three.js scene objects in Node, stubbing only
+2D label texture drawing, and writes local-only `art/v2-3b-fivea-a3/a3-values.json`.
+It verifies actual matrices/uniforms, not just an adapter mock. Browser screenshots
+and interaction observations complement these deterministic engineering tests;
+they do not authorize a new visual art direction.

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { assertFiveAA3Values } from '../v2/renderer-adapters/fiveAA3RendererAdapter.js';
 
 const FIVE_A_STAGES = [
   {
@@ -318,6 +319,7 @@ export function createFiveAScene() {
     getPrimaryInteractionTarget,
     setPanelPresentationOpen,
     getPanelPresentationState,
+    resolveStageBindingTarget: orbitSystem.resolveStageBindingTarget,
     update,
     dispose
   };
@@ -627,9 +629,26 @@ function createSoftParticleMaterial() {
 
 function createFiveAOrbitSystem() {
   const group = new THREE.Group();
-  const orbits = FIVE_A_STAGES.map((stage, index) => createFiveAOrbit(stage, index));
+  const bindings = new Map(FIVE_A_STAGES.map(({ id }) => [id, { scale: 1, energy: 1 }]));
+  const orbits = FIVE_A_STAGES.map((stage, index) => createFiveAOrbit(stage, index, bindings.get(stage.id)));
+  const orbitById = new Map(FIVE_A_STAGES.map((stage, index) => [stage.id, orbits[index]]));
   const labels = FIVE_A_STAGES.map((stage, index) => createFiveALabel(stage, index));
-  const stageParticleSpheres = createBatchedStageParticleSpheres();
+  const stageParticleSpheres = createBatchedStageParticleSpheres(bindings);
+  let disposed = false;
+  const a3Target = Object.freeze({
+    stageId: 'A3',
+    read() {
+      if (disposed) throw new Error('A3 target disposed');
+      return { binding: { ...bindings.get('A3') }, ...stageParticleSpheres.readStage('A3') };
+    },
+    write(values) {
+      if (disposed) throw new Error('A3 target disposed');
+      assertFiveAA3Values(values);
+      Object.assign(bindings.get('A3'), values);
+      orbitById.get('A3').refreshBinding();
+      stageParticleSpheres.refreshBinding('A3');
+    }
+  });
   const stageRoots = FIVE_A_STAGES.map(() => ({
     matrix: new THREE.Matrix4(),
     localPosition: new THREE.Vector3(),
@@ -665,6 +684,9 @@ function createFiveAOrbitSystem() {
   }
 
   function dispose() {
+    disposed = true;
+    bindings.clear();
+    orbitById.clear();
     orbits.forEach((orbit) => orbit.dispose());
     labels.forEach((label) => label.dispose());
     stageParticleSpheres.dispose();
@@ -675,6 +697,10 @@ function createFiveAOrbitSystem() {
     group,
     update,
     dispose,
+    resolveStageBindingTarget(stageId) {
+      if (disposed) throw new Error('FiveA targets disposed');
+      return stageId === 'A3' ? a3Target : null;
+    },
     getJourneyStagePositions() {
       return journeyStagePositions;
     },
@@ -684,11 +710,11 @@ function createFiveAOrbitSystem() {
   };
 }
 
-function createFiveAOrbit(stage, index) {
+function createFiveAOrbit(stage, index, binding) {
   const group = new THREE.Group();
   const orbitLines = createBrokenOrbitLines(stage, index);
   const population = createOrbitPopulationParticles(stage, index);
-  const stageNode = createStageNode(stage, index);
+  const stageNode = createStageNode(stage, index, binding);
 
   group.name = `FiveAOrbit${stage.id}`;
   group.rotation.x = 0.78 + index * 0.055;
@@ -721,6 +747,7 @@ function createFiveAOrbit(stage, index) {
       stageNode.group.updateMatrix();
       return target.multiplyMatrices(group.matrix, stageNode.group.matrix);
     },
+    refreshBinding: stageNode.refreshBinding,
     getStatus(motion) {
       return stageNode.getStatus(motion, orbitLines.getDrawProgress());
     }
@@ -954,7 +981,7 @@ function createOrbitPopulationParticles(stage, index) {
   return { points, update, dispose };
 }
 
-function createBatchedStageParticleSpheres() {
+function createBatchedStageParticleSpheres(bindings) {
   const primaryStages = FIVE_A_STAGES.slice(1);
   const random = seededRandom(14731);
   const geometry = new THREE.BufferGeometry();
@@ -1192,8 +1219,31 @@ function createBatchedStageParticleSpheres() {
   points.name = 'FiveAStageGpuParticleSpheres';
   points.frustumCulled = false;
 
+  const slotsById = new Map(primaryStages.map((stage, slot) => [stage.id, slot]));
+  const baseScales = new Float64Array(primaryStages.length).fill(1);
+  const baseOpacities = new Float64Array(primaryStages.length);
+  const appliedScales = new Float64Array(primaryStages.length).fill(1);
+  function refreshBinding(stageId) {
+    const slot = slotsById.get(stageId);
+    const binding = bindings.get(stageId);
+    // Scale only the basis columns, not the translation / permanent position.
+    const ratio = binding.scale / appliedScales[slot];
+    const matrix = nodeMatrices[slot].elements;
+    for (let column = 0; column < 3; column += 1) {
+      for (let row = 0; row < 3; row += 1) matrix[column * 4 + row] *= ratio;
+    }
+    appliedScales[slot] = binding.scale;
+    nodeScales[slot] = baseScales[slot] * binding.scale;
+    nodeOpacities[slot] = baseOpacities[slot] * binding.energy;
+  }
+
   return {
     points,
+    refreshBinding,
+    readStage(stageId) {
+      const slot = slotsById.get(stageId);
+      return { matrix: nodeMatrices[slot].toArray(), pointScale: nodeScales[slot], opacity: nodeOpacities[slot] };
+    },
     update(time, stable, stageRoots, motions) {
       material.uniforms.uTime.value = time;
       material.uniforms.uStable.value = stable;
@@ -1202,10 +1252,12 @@ function createBatchedStageParticleSpheres() {
         const sparkle = (0.5 + Math.sin(time * (0.5 + nodeIndex * 0.06) + nodeIndex) * 0.5) * motion.stable;
 
         nodeMatrices[nodeIndex].copy(stageRoots[nodeIndex + 1].matrix);
-        nodeOpacities[nodeIndex] = motion.release * stage.nodeBrightness * (
+        appliedScales[nodeIndex] = bindings.get(stage.id).scale;
+        baseOpacities[nodeIndex] = motion.release * stage.nodeBrightness * (
           0.22 + motion.capture * 0.34 + sparkle * 0.035
         );
-        nodeScales[nodeIndex] = motion.scale * motion.depthScale * stage.nodeScale;
+        baseScales[nodeIndex] = motion.scale * motion.depthScale * stage.nodeScale;
+        refreshBinding(stage.id);
       });
     },
     dispose() {
@@ -1215,8 +1267,10 @@ function createBatchedStageParticleSpheres() {
   };
 }
 
-function createStageNode(stage, index) {
+function createStageNode(stage, index, binding) {
   const group = new THREE.Group();
+  let baseScale = 1;
+  function refreshBinding() { group.scale.setScalar(baseScale * binding.scale); }
   const angle = getStageFinalAngle(index);
   const particleNode = index === 0 ? createStageNodeParticles(stage, index) : null;
   const wireGeometry = index === 0
@@ -1245,7 +1299,8 @@ function createStageNode(stage, index) {
 
     group.position.set(motion.position.x, motion.position.y, motion.position.z);
     group.rotation.set(motion.rotation.x, motion.rotation.y, motion.rotation.z);
-    group.scale.setScalar(motion.scale * motion.depthScale * stage.nodeScale);
+    baseScale = motion.scale * motion.depthScale * stage.nodeScale;
+    refreshBinding();
     particleNode?.update(time, motion, sparkle);
     if (wireMaterial) {
       wire.rotation.y = time * (0.018 + index * 0.0015) * motion.stable;
@@ -1276,7 +1331,8 @@ function createStageNode(stage, index) {
         orbitDrawProgress: roundStatusValue(drawProgress),
         uuid: group.uuid
       };
-    }
+    },
+    refreshBinding
   };
 }
 
@@ -1968,7 +2024,7 @@ function getLayerCaptureCurve(index, value) {
 
 function createFiveAMotionDiagnostics(group, orbitSystem, transferFlow) {
   const params = new URLSearchParams(window.location.search);
-  const isDebugEnabled = import.meta.env.DEV && params.get('debugFiveAMotion') === '1';
+  const isDebugEnabled = import.meta.env?.DEV && params.get('debugFiveAMotion') === '1';
   const requestedProgress = Number.parseFloat(params.get('progress'));
   const progressOverride = isDebugEnabled && Number.isFinite(requestedProgress)
     ? clamp01(requestedProgress)
@@ -1992,7 +2048,7 @@ function createFiveAMotionDiagnostics(group, orbitSystem, transferFlow) {
   };
 
   function publish() {
-    if (!import.meta.env.DEV) return;
+    if (!import.meta.env?.DEV) return;
     const serialized = JSON.stringify(status);
 
     window.__FIVE_A_MOTION_STATUS__ = status;
@@ -2015,7 +2071,7 @@ function createFiveAMotionDiagnostics(group, orbitSystem, transferFlow) {
       publish();
     },
     dispose() {
-      if (!import.meta.env.DEV) return;
+      if (!import.meta.env?.DEV) return;
       if (window.__FIVE_A_MOTION_STATUS__ === status) {
         delete window.__FIVE_A_MOTION_STATUS__;
       }
