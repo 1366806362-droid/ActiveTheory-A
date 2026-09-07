@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createGalaxyCoreCluster } from './galaxyCoreCluster.js';
 import { UNIVERSE_RENDER_DEBUG } from './universeRenderDebug.js';
+import { createBrandMindMemoryField, readMemoryFieldCandidate, MEMORY_COUNTS } from './brandMindMemoryField.js';
 
 const TAU = Math.PI * 2;
 export const BUSINESS_INTERACTION_DEBUG_PARAMS = Object.freeze({
@@ -236,9 +237,11 @@ export const HOME_FINAL_NEBULA_ART = Object.freeze({
   })
 });
 
-export function createGalaxyPlanets({ homeComposition = 'default', finalArtDirection = false } = {}) {
+export function createGalaxyPlanets({ homeComposition = 'default', finalArtDirection = false,
+  memoryCandidate = readMemoryFieldCandidate(readLocationSearch()) } = {}) {
   const group = new THREE.Group();
   const particleTexture = createNebulaParticleTexture();
+  const useMemoryField = homeComposition === 'v4' && finalArtDirection && memoryCandidate;
   const businessInteraction = {
     labels: homeComposition === 'v4' && BUSINESS_INTERACTION_DEBUG.labels,
     hover: homeComposition === 'v4' && BUSINESS_INTERACTION_DEBUG.hover,
@@ -248,7 +251,8 @@ export function createGalaxyPlanets({ homeComposition = 'default', finalArtDirec
     ? createV4HomeConfigs(finalArtDirection)
     : BRAND_GROWTH_NEBULAE;
   const nebulae = configs.map((config, index) => (
-    createBusinessNebula(config, particleTexture, 9107 + index * 193, businessInteraction)
+    createBusinessNebula(config, particleTexture, 9107 + index * 193, businessInteraction,
+      useMemoryField && config.name === 'Brand Mind Nebula' ? memoryCandidate : null)
   ));
   const targetPosition = new THREE.Vector3();
   const entryState = {
@@ -356,7 +360,8 @@ export function createGalaxyPlanets({ homeComposition = 'default', finalArtDirec
         })))
       });
     },
-    pointCount: BUSINESS_NEBULA_POINT_COUNT,
+    pointCount: BUSINESS_NEBULA_POINT_COUNT + (useMemoryField
+      ? Object.values(MEMORY_COUNTS).reduce((a,b)=>a+b,0) - 380 : 0),
     update,
     dispose
   };
@@ -391,16 +396,17 @@ export function createV4HomeConfigs(finalArtDirection = false) {
   });
 }
 
-function createBusinessNebula(config, particleTexture, seed, businessInteraction) {
+function createBusinessNebula(config, particleTexture, seed, businessInteraction, memoryCandidate = null) {
   const orbitalGroup = new THREE.Group();
   const nebulaGroup = new THREE.Group();
   const visualGroup = new THREE.Group();
-  const cluster = createNebulaCluster(config, particleTexture, seed);
-  const dust = createNebulaDust(config, particleTexture, seed + 37);
-  const nodes = createNebulaNodes(config, particleTexture, seed + 71);
-  const nebula = createLocalNebula(config, particleTexture, seed + 89);
-  const visibleCore = createVisibleCore(config, particleTexture, seed + 101);
-  const coreCluster = createGalaxyCoreCluster({
+  const memory = memoryCandidate ? createBrandMindMemoryField({candidate:memoryCandidate}) : null;
+  const cluster = memory ? null : createNebulaCluster(config, particleTexture, seed);
+  const dust = memory ? null : createNebulaDust(config, particleTexture, seed + 37);
+  const nodes = memory ? null : createNebulaNodes(config, particleTexture, seed + 71);
+  const nebula = memory ? null : createLocalNebula(config, particleTexture, seed + 89);
+  const visibleCore = memory ? null : createVisibleCore(config, particleTexture, seed + 101);
+  const coreCluster = memory ? null : createGalaxyCoreCluster({
     name: `${config.name.replace(/\s+/g, '')}CoreCluster`,
     starCount: config.coreStars,
     highlightCount: config.coreCount,
@@ -429,7 +435,8 @@ function createBusinessNebula(config, particleTexture, seed, businessInteraction
   visualGroup.name = `${config.name.replace(/\s+/g, '')}VisualEnvelope`;
   visualGroup.scale.copy(baseVisualScale);
   visualGroup.rotation.z = config.visualRotation;
-  visualGroup.add(
+  if (memory) visualGroup.add(memory.group);
+  else visualGroup.add(
     nebula.points,
     dust.points,
     cluster.points,
@@ -519,6 +526,9 @@ function createBusinessNebula(config, particleTexture, seed, businessInteraction
       nebulaGroup.position.z + config.labelOffset[2]
     );
     visualGroup.scale.copy(baseVisualScale).multiplyScalar(1 - intentPulse * 0.025);
+    if (memory) {
+      memory.update(time,visibility*compositionOpacity,hoverAmount,intentPulse);
+    } else {
     cluster.update(
       delta,
       time,
@@ -572,16 +582,18 @@ function createBusinessNebula(config, particleTexture, seed, businessInteraction
       entryFocus,
       transitionBoost * hoverProfile.core
     );
+    }
     label.update(delta, labelVisibility, hoverAmount, intentPulse, labelVisible);
   }
 
   function dispose() {
-    cluster.dispose();
-    nebula.dispose();
-    dust.dispose();
-    nodes.dispose();
-    visibleCore.dispose();
-    coreCluster.dispose();
+    memory?.dispose();
+    cluster?.dispose();
+    nebula?.dispose();
+    dust?.dispose();
+    nodes?.dispose();
+    visibleCore?.dispose();
+    coreCluster?.dispose();
     label.dispose();
     orbitalGroup.clear();
   }

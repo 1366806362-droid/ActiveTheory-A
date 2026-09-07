@@ -1,7 +1,7 @@
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {chromium}=require('playwright');
-const out=path.resolve(__dirname,'../art/home-final-art');
-const base='http://127.0.0.1:5180/?galaxyV3=1&galaxyHero=repaired_m3&homeArt=final&v3UseGpuStars=1&debugV3GpuStars=1&debugV4SupportStars=1&debugV3BusinessNebula=1&debugV3Foreground=0&earthV2=1&earthV3=1';
+const out=path.resolve(__dirname,'..',process.env.HOME_REGRESSION_OUTPUT||'art/home-final-art');
+const base=process.env.HOME_REGRESSION_URL||'http://127.0.0.1:5180/?galaxyV3=1&galaxyHero=repaired_m3&homeArt=final&v3UseGpuStars=1&debugV3GpuStars=1&debugV4SupportStars=1&debugV3BusinessNebula=1&debugV3Foreground=0&earthV2=1&earthV3=1';
 function validate(report){
   assert.equal(report.errors.length,0);assert.equal(report.entries.length,3);assert.equal(report.bindings.length,5);
   assert.equal(report.loop.activeRafChains,1);assert.equal(report.loop.canvas,1);
@@ -25,6 +25,7 @@ function validate(report){
   return {entries:report.entries.map(e=>({key:e.key,entry:e.entered.currentChapter,return:e.returned.currentChapter,panelOpened:e.panelOpen,panelClosed:e.panelClosed})),bindings:report.bindings.length,applicationListeners:counts,canvas:report.loop.canvas,raf:report.loop.activeRafChains,errors:report.errors};
 }
 (async()=>{
+  fs.mkdirSync(out,{recursive:true});
   if(process.argv.includes('--verify-report')){console.log(JSON.stringify(validate(JSON.parse(fs.readFileSync(path.join(out,'interaction-report.json'),'utf8')))));return}
   const b=await chromium.launch({channel:'msedge',headless:true});const report={errors:[],entries:[],bindings:[]};
   try{
