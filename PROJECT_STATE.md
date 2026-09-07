@@ -25,19 +25,23 @@
 - The integration must preserve Home visual code as the visual source of truth
   and use the latest V2 code only under `src/v2/`.
 
-## In progress
+## Confirmed / frozen (continued)
 
 - **V2-3B preflight inventory:**
   `5f5bd3c` on `feat/active-theory-v2-renderer-target-inventory` inventories 46
   binding channels and 27 observed runtime targets. It is a read-only,
   non-rendering checkpoint.
+- **V2-3B.0 Brand Mind Stable Target Registry:** the follow-up branch establishes
+  explicit `associationId -> runtime node` and ordered
+  `sourceId + targetId -> runtime path` mappings in the live scene. It changes
+  no visual value, shader, particle, position, camera, route, or panel layout.
 
-## Blocked / not ready
+## Not ready
 
-- **Actual V2-3B renderer binding is blocked** until the Brand Mind Association
-  Stable Registry (`associationId -> runtime node`) and Brand Mind Relationship
-  Stable Registry (`sourceId + targetId -> runtime path`) are established and
-  revalidated. No actual Three.js binding may begin before that gate is READY.
+- **Actual V2-3B renderer binding is not started.** The Brand Mind stable-ID
+  preflight is READY, but all 27 observed renderer targets still explicitly
+  require bounded adapter hooks. Any real adapter must consume the registries,
+  preserve Art Direction ownership, and be separately approved.
 - Galaxy experiments and Blender visual routes remain experimental unless their
   own human visual review explicitly marks them ready. No visual parameter is
   automatically adopted into the Home baseline.
@@ -52,7 +56,6 @@
 
 ## Next
 
-1. COMPANY: implement only the two Brand Mind stable target registries with no
-   visual behavior change; rerun V2-3B preflight.
-2. If and only if preflight is READY, hand off the actual renderer-adapter scope
-   for separate approval. HOME remains responsible for high-load visual work.
+1. Hand off the actual V2-3B renderer-adapter scope for separate approval;
+   no adapter should start merely because preflight is READY.
+2. HOME remains responsible for high-load visual work and human visual review.

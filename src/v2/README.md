@@ -161,13 +161,19 @@ It explicitly protects Art Direction ownership: camera, global composition,
 scene layout, Earth/Galaxy position, permanent stage positions, route, scroll,
 handoff, typography, and Panel layout are never inventory targets.
 
-The current audit finds that Home, GEO, FiveA, and the Brand Mind Core have
-stable semantic objects but no renderer-safe V2 setters (`NEEDS_ADAPTER_HOOK`).
-Brand Mind association nodes and relationship paths are presently created by
-scene-array order, rather than canonical `associationId` and
-`sourceId + targetId` registries. They are therefore explicit P0
-`DYNAMIC_TARGET` blockers; the preflight must remain `BLOCKED` until V2-3B
-creates safe stable registries. The inventory does not attempt that work.
+The current audit finds that Home, GEO, FiveA, the Brand Mind Core, and the
+Brand Mind association/path targets have no renderer-safe V2 setters
+(`NEEDS_ADAPTER_HOOK`). V2-3B.0 establishes `BrandMindStableTargetRegistry` in
+the live Brand Mind scene: it reconciles canonical `associationId -> runtime
+node` and ordered `sourceId + targetId -> runtime path` mappings without using
+incoming array order. The registry explicitly retires missing mappings,
+releases capacity, rejects duplicate identities, reports exhausted capacity,
+and disposes with the scene. It does not set visual values or alter any visual
+art direction.
+
+The P0 identity gate is therefore `READY`; actual V2-3B renderer adapters are
+still not started and remain explicit P1 work. They must consume the registry
+and expose only bounded setters while preserving the locked scene composition.
 
 Run the compact preflight report with:
 

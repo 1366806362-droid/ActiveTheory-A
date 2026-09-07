@@ -46,19 +46,23 @@ test('FiveA stage target IDs are stable semantic IDs', () => {
   assert.ok(entries.every((entry) => /^A[1-5]$/.test(entry.targetId) && entry.observedName.endsWith(entry.targetId)));
 });
 
-test('Brand Mind associations declare a stable registry policy', () => {
+test('Brand Mind associations declare the completed stable registry policy', () => {
   const entries = RENDERER_TARGET_MANIFEST.entries.filter((entry) => entry.targetKind === 'BrandMindAssociationNode');
-  assert.ok(entries.every((entry) => entry.requiredHook.includes('NEEDS_STABLE_REGISTRY_HOOK')));
+  assert.ok(entries.every((entry) => entry.requiredHook.includes('STABLE_REGISTRY_READY')));
+  assert.ok(entries.every((entry) => entry.status === RENDERER_TARGET_STATUS.NEEDS_ADAPTER_HOOK));
 });
 
-test('Brand Mind relationships declare a stable key policy', () => {
+test('Brand Mind relationships declare the completed stable key policy', () => {
   const entries = RENDERER_TARGET_MANIFEST.entries.filter((entry) => entry.targetKind === 'BrandMindRelationshipPath');
-  assert.ok(entries.every((entry) => entry.targetId === 'relationship:<sourceId>:<targetId>' && entry.requiredHook.includes('sourceId+targetId')));
+  assert.ok(entries.every((entry) => entry.targetId === 'relationship:<sourceId>:<targetId>' && entry.requiredHook.includes('STABLE_REGISTRY_READY')));
+  assert.ok(entries.every((entry) => entry.status === RENDERER_TARGET_STATUS.NEEDS_ADAPTER_HOOK));
 });
 
-test('dynamic Brand Mind lifecycle is explicitly classified', () => {
+test('Brand Mind stable registry removes all P0 dynamic targets without claiming an adapter exists', () => {
   const entries = RENDERER_TARGET_MANIFEST.entries.filter((entry) => entry.status === RENDERER_TARGET_STATUS.DYNAMIC_TARGET);
-  assert.ok(entries.length > 0 && entries.every((entry) => entry.lifecycle === 'REBUILT'));
+  assert.deepEqual(entries, []);
+  const brandMind = RENDERER_TARGET_MANIFEST.entries.filter((entry) => entry.domain === 'BRAND_MIND');
+  assert.ok(brandMind.every((entry) => entry.lifecycle === 'REBUILT'));
 });
 
 test('GEO Answer is classified', () => assert.ok(RENDERER_TARGET_MANIFEST.entries.some((entry) => entry.targetId === 'ANSWER')));
@@ -100,15 +104,15 @@ test('report separates channel and target coverage', () => {
   assert.equal(report.channelCoverage.totalChannelTypes, 46);
   assert.equal(report.targetCoverage.totalRuntimeTargets, 27);
 });
-test('preflight is blocked by the two unresolved stable registries', () => {
+test('preflight is ready after the two stable registries are established', () => {
   const report = buildRendererTargetReport();
-  assert.equal(report.status, 'BLOCKED');
-  assert.equal(report.priorities.P0.length, 2);
+  assert.equal(report.status, 'READY');
+  assert.equal(report.priorities.P0.length, 0);
 });
 test('preview report stays compact and explicit', () => {
   const output = formatRendererTargetReport();
   assert.match(output, /ACTIVE THEORY V2-3B PREFLIGHT/);
-  assert.match(output, /V2-3B STATUS: BLOCKED/);
+  assert.match(output, /V2-3B STATUS: READY/);
 });
 
 let passed = 0;

@@ -1,7 +1,7 @@
 import { deepFreeze, FIVE_A_TRANSITIONS } from '../contracts/brandUniverseContract.js';
 import { BINDING_CHANNEL } from '../binding/bindingChannels.js';
 
-export const RENDERER_TARGET_INVENTORY_VERSION = 'ACTIVE_THEORY_V2_RENDERER_TARGET_INVENTORY_1.0';
+export const RENDERER_TARGET_INVENTORY_VERSION = 'ACTIVE_THEORY_V2_RENDERER_TARGET_INVENTORY_1.1';
 
 export const RENDERER_TARGET_STATUS = deepFreeze({
   AVAILABLE: 'AVAILABLE',
@@ -25,7 +25,6 @@ export const IMPLEMENTATION_PRIORITY = deepFreeze({
 });
 
 const NEEDS_HOOK = RENDERER_TARGET_STATUS.NEEDS_ADAPTER_HOOK;
-const DYNAMIC = RENDERER_TARGET_STATUS.DYNAMIC_TARGET;
 const REBUILT = RENDERER_TARGET_LIFECYCLE.REBUILT;
 
 const HOME_TARGETS = [
@@ -138,7 +137,7 @@ const BRAND_MIND_ASSOCIATION_TARGET = target(
   'BrandMindAssociationNode1..6',
   'BrandMindAssociationNode',
   'src/scenes/brandMindScene.js',
-  'ASSOCIATION_NODE_LAYOUT > createAssociationNodes',
+  'ASSOCIATION_NODE_LAYOUT > createAssociationNodes > BrandMindStableTargetRegistry',
   6
 );
 
@@ -148,12 +147,12 @@ const BRAND_MIND_RELATIONSHIP_TARGET = target(
   'BrandMindAssociationPath1..3',
   'BrandMindRelationshipPath',
   'src/scenes/brandMindScene.js',
-  'ASSOCIATION_PATH_NODE_INDICES > createAssociationPaths',
+  'ASSOCIATION_PATH_NODE_INDICES > createAssociationPaths > BrandMindStableTargetRegistry',
   3
 );
 
-const P0_ASSOCIATION_REGISTRY = 'brand-mind-association-stable-registry';
-const P0_RELATIONSHIP_REGISTRY = 'brand-mind-relationship-stable-registry';
+const P1_ASSOCIATION_ADAPTER = 'brand-mind-association-adapter';
+const P1_RELATIONSHIP_ADAPTER = 'brand-mind-relationship-adapter';
 
 export const RENDERER_TARGET_MANIFEST = deepFreeze({
   inventoryVersion: RENDERER_TARGET_INVENTORY_VERSION,
@@ -232,11 +231,11 @@ export const RENDERER_TARGET_MANIFEST = deepFreeze({
       channel,
       domain: 'BRAND_MIND',
       target: BRAND_MIND_ASSOCIATION_TARGET,
-      status: DYNAMIC,
-      priority: IMPLEMENTATION_PRIORITY.P0,
-      implementationId: P0_ASSOCIATION_REGISTRY,
-      requiredHook: 'NEEDS_STABLE_REGISTRY_HOOK: register associationId -> current node object on create, update the registry on lifecycle changes, and retire missing associations safely.',
-      notes: 'Observed nodes are currently created from ASSOCIATION_NODE_LAYOUT by array order as BrandMindAssociationNode1..6. No canonical associationId mapping exists.'
+      status: NEEDS_HOOK,
+      priority: IMPLEMENTATION_PRIORITY.P1,
+      implementationId: P1_ASSOCIATION_ADAPTER,
+      requiredHook: 'STABLE_REGISTRY_READY: reconcile associationId -> current node object through BrandMindStableTargetRegistry, then add a bounded adapter setter without changing permanent node layout.',
+      notes: 'BrandMindStableTargetRegistry now owns explicit create, update, retire, disposal, and capacity-exhaustion policy. The renderer adapter setter remains unimplemented.'
     })),
     ...[
       BINDING_CHANNEL.BRAND_MIND_PATH_VISIBILITY,
@@ -245,11 +244,11 @@ export const RENDERER_TARGET_MANIFEST = deepFreeze({
       channel,
       domain: 'BRAND_MIND',
       target: BRAND_MIND_RELATIONSHIP_TARGET,
-      status: DYNAMIC,
-      priority: IMPLEMENTATION_PRIORITY.P0,
-      implementationId: P0_RELATIONSHIP_REGISTRY,
-      requiredHook: 'NEEDS_STABLE_REGISTRY_HOOK: register sourceId+targetId -> current path object on create and remove it safely when the relationship disappears.',
-      notes: 'Observed paths are currently created from ASSOCIATION_PATH_NODE_INDICES by array order as BrandMindAssociationPath1..3. No canonical relationship key mapping exists.'
+      status: NEEDS_HOOK,
+      priority: IMPLEMENTATION_PRIORITY.P1,
+      implementationId: P1_RELATIONSHIP_ADAPTER,
+      requiredHook: 'STABLE_REGISTRY_READY: reconcile sourceId+targetId -> current path object through BrandMindStableTargetRegistry, then add a bounded adapter setter without changing path composition.',
+      notes: 'BrandMindStableTargetRegistry now owns explicit create, update, retire, disposal, and capacity-exhaustion policy. The renderer adapter setter remains unimplemented.'
     }))
   ])
 });
@@ -258,12 +257,12 @@ export const V2_3B_IMPLEMENTATION_MANIFEST = deepFreeze({
   implementationVersion: RENDERER_TARGET_INVENTORY_VERSION,
   phase: 'V2-3B',
   actions: Object.freeze([
-    action(P0_ASSOCIATION_REGISTRY, IMPLEMENTATION_PRIORITY.P0, 'BRAND_MIND', 'Create a stable associationId -> node registry with explicit create, update, and retire lifecycle handling.', 6),
-    action(P0_RELATIONSHIP_REGISTRY, IMPLEMENTATION_PRIORITY.P0, 'BRAND_MIND', 'Create a stable sourceId+targetId -> path registry with explicit create, update, and retire lifecycle handling.', 3),
     action('home-business-nebula-adapter', IMPLEMENTATION_PRIORITY.P1, 'HOME', 'Expose bounded semantic setters for the three named business nebulae while preserving composition ownership.', 3),
     action('geo-visual-adapter', IMPLEMENTATION_PRIORITY.P1, 'GEO', 'Expose bounded Answer, Citation, Keyword, and Signal Core hooks that compose with GEO journey/profile updates.', 4),
     action('fivea-visual-adapter', IMPLEMENTATION_PRIORITY.P1, 'FIVE_A', 'Expose stable A1-A5, four transition-flow, and separate Opportunity Pool semantic setters.', 10),
     action('brand-mind-core-adapter', IMPLEMENTATION_PRIORITY.P1, 'BRAND_MIND', 'Expose bounded core density, energy, and concentration setters after P0 target identity is safe.', 1),
+    action(P1_ASSOCIATION_ADAPTER, IMPLEMENTATION_PRIORITY.P1, 'BRAND_MIND', 'Use the stable associationId registry to expose bounded node adapters without changing node layout or visual identity.', 6),
+    action(P1_RELATIONSHIP_ADAPTER, IMPLEMENTATION_PRIORITY.P1, 'BRAND_MIND', 'Use the stable sourceId+targetId registry to expose bounded path adapters without changing path composition or visual identity.', 3),
     action('bounded-value-smoothing', IMPLEMENTATION_PRIORITY.P2, 'ALL', 'Optionally add renderer-local interpolation for already-safe bounded values. This must not change camera, composition, route, or data truth.', 0)
   ])
 });

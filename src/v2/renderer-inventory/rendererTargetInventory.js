@@ -20,7 +20,18 @@ export function buildRendererTargetInventory(manifest = RENDERER_TARGET_MANIFEST
   const channelCoverage = summarizeChannels(entries);
   const targetCoverage = summarizeTargets(entries);
   const implementation = summarizeImplementation(V2_3B_IMPLEMENTATION_MANIFEST.actions);
-  const blockers = implementation.byPriority[IMPLEMENTATION_PRIORITY.P0];
+  const blockers = Object.freeze([
+    ...implementation.byPriority[IMPLEMENTATION_PRIORITY.P0],
+    ...entries
+      .filter((entry) => entry.status === RENDERER_TARGET_STATUS.NOT_FOUND)
+      .map((entry) => Object.freeze({
+        id: `missing-runtime-target:${entry.domain}:${entry.targetKey}`,
+        priority: IMPLEMENTATION_PRIORITY.P0,
+        domain: entry.domain,
+        description: `Observed runtime target is missing for ${entry.channel}; no renderer adapter may begin.`,
+        targetCount: entry.runtimeTargetCount
+      }))
+  ]);
 
   return Object.freeze({
     inventoryVersion: manifest.inventoryVersion,

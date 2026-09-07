@@ -72,13 +72,17 @@ function validateFiveA(entries, errors) {
 }
 
 function validateBrandMindIdentityPolicy(entries, errors) {
-  const dynamic = entries.filter((entry) => entry.domain === 'BRAND_MIND' && entry.status === RENDERER_TARGET_STATUS.DYNAMIC_TARGET);
-  dynamic.forEach((entry) => {
-    if (!entry.requiredHook.includes('NEEDS_STABLE_REGISTRY_HOOK')) {
-      errors.push(`Dynamic Brand Mind entry ${entry.channel} must declare NEEDS_STABLE_REGISTRY_HOOK.`);
+  const targetKinds = new Set(['BrandMindAssociationNode', 'BrandMindRelationshipPath']);
+  const registryEntries = entries.filter((entry) => targetKinds.has(entry.targetKind));
+  registryEntries.forEach((entry) => {
+    if (!entry.requiredHook.includes('STABLE_REGISTRY_READY')) {
+      errors.push(`Brand Mind entry ${entry.channel} must declare STABLE_REGISTRY_READY.`);
     }
-    if (entry.priority !== IMPLEMENTATION_PRIORITY.P0) {
-      errors.push(`Dynamic Brand Mind entry ${entry.channel} must remain P0 until a stable registry exists.`);
+    if (entry.status !== RENDERER_TARGET_STATUS.NEEDS_ADAPTER_HOOK) {
+      errors.push(`Brand Mind entry ${entry.channel} must remain an explicit adapter-hook requirement after stable registry completion.`);
+    }
+    if (entry.priority === IMPLEMENTATION_PRIORITY.P0) {
+      errors.push(`Brand Mind entry ${entry.channel} cannot remain P0 after stable registry completion.`);
     }
   });
 }

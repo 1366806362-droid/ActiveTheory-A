@@ -1,4 +1,9 @@
 import * as THREE from 'three';
+import {
+  associationSlotId,
+  createBrandMindStableTargetRegistry,
+  relationshipSlotId
+} from './brandMindStableTargetRegistry.js';
 
 const CORE_PARTICLE_LAYER_COUNTS = Object.freeze([96, 158, 218]);
 const CORE_PARTICLE_LAYER_RADII = Object.freeze([0.2, 0.5, 0.78]);
@@ -65,10 +70,11 @@ export function createBrandMindScene() {
   const group = new THREE.Group();
   const primaryRaycaster = new THREE.Raycaster();
   const primaryPointer = new THREE.Vector2();
+  const rendererTargetRegistry = createBrandMindStableTargetRegistry();
   const glowTexture = createRadialGlowTexture();
   const memoryHalo = createMemoryHalo();
-  const paths = createAssociationPaths();
-  const nodes = createAssociationNodes(glowTexture);
+  const paths = createAssociationPaths(rendererTargetRegistry);
+  const nodes = createAssociationNodes(glowTexture, rendererTargetRegistry);
   const core = createMindCore(glowTexture);
   const label = createLabel();
   let panelPresentationCurrent = 0;
@@ -110,6 +116,7 @@ export function createBrandMindScene() {
     core.dispose();
     label.dispose();
     glowTexture.dispose();
+    rendererTargetRegistry.dispose();
     group.clear();
   }
 
@@ -136,6 +143,22 @@ export function createBrandMindScene() {
     });
   }
 
+  function reconcileRendererTargets(snapshot) {
+    return rendererTargetRegistry.reconcile(snapshot);
+  }
+
+  function getRendererTargetRegistrySnapshot() {
+    return rendererTargetRegistry.getSnapshot();
+  }
+
+  function getAssociationRendererTarget(associationId) {
+    return rendererTargetRegistry.getAssociationTarget(associationId);
+  }
+
+  function getRelationshipRendererTarget(sourceId, targetId) {
+    return rendererTargetRegistry.getRelationshipTarget(sourceId, targetId);
+  }
+
   return {
     name: 'BrandMindScene',
     group,
@@ -143,6 +166,10 @@ export function createBrandMindScene() {
     getPrimaryInteractionTarget,
     setPanelPresentationOpen,
     getPanelPresentationState,
+    reconcileRendererTargets,
+    getRendererTargetRegistrySnapshot,
+    getAssociationRendererTarget,
+    getRelationshipRendererTarget,
     update,
     dispose,
     isShell: false
@@ -548,7 +575,7 @@ function createCoreParticleLayers() {
   };
 }
 
-function createAssociationNodes(glowTexture) {
+function createAssociationNodes(glowTexture, rendererTargetRegistry) {
   const group = new THREE.Group();
   const pointGeometries = Object.fromEntries(
     Object.entries(NODE_PARTICLE_COUNTS).map(([depth, count], index) => (
@@ -601,6 +628,7 @@ function createAssociationNodes(glowTexture) {
       glow.scale.set(2.35, 2.35, 1);
       node.add(glow);
     }
+    rendererTargetRegistry.registerAssociationSlot(associationSlotId(index + 1), node);
     group.add(node);
     return { node, definition };
   });
@@ -812,7 +840,7 @@ function createMemoryHalo() {
   };
 }
 
-function createAssociationPaths() {
+function createAssociationPaths(rendererTargetRegistry) {
   const group = new THREE.Group();
   const material = new THREE.LineBasicMaterial({
     vertexColors: true,
@@ -863,6 +891,7 @@ function createAssociationPaths() {
     const line = new THREE.LineSegments(geometry, material);
 
     line.name = `BrandMindAssociationPath${pathIndex + 1}`;
+    rendererTargetRegistry.registerRelationshipSlot(relationshipSlotId(pathIndex + 1), line);
     group.add(line);
     return { geometry, line };
   });
