@@ -7,6 +7,7 @@ import { createEarthTextureLoader } from './earthTextureLoader.js';
 import { createEarthFinalMaterial } from './earthFinalMaterial.js';
 import { readHomeFinalCandidate } from './homeFinalCandidate.js';
 import { createEarthRealismMaterial, readEarthRealism } from './earthRealismMaterial.js';
+import { createEarthOrbitalMaterial, readEarthOrbital, EARTH_ORBITAL_URLS } from './earthOrbitalMaterial.js';
 
 const EARTH_SURFACE_PERIOD = 210;
 const EARTH_CLOUD_SPEED_MULTIPLIER = 1.11;
@@ -67,7 +68,8 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
   const heroV3 = heroV2 && readEarthV3State().enabled;
   const finalCandidate = heroV3 ? readHomeFinalCandidate().earth : null;
   const realismCandidate = heroV3 ? readEarthRealism() : null;
-  const realismDebug = import.meta.env?.DEV && realismCandidate
+  const orbitalCandidate = heroV3 ? readEarthOrbital() : null;
+  const realismDebug = import.meta.env?.DEV && (realismCandidate || orbitalCandidate || new URLSearchParams(readLocationSearch()).get('earthAudit') === '1')
     ? new URLSearchParams(readLocationSearch()) : null;
   const cloudOffset = { value: 0 };
   const group = new THREE.Group();
@@ -78,25 +80,25 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
   const sunriseGlow = new THREE.Group();
   const surfaceGeometry = new THREE.SphereGeometry(
     heroV3 ? EARTH_V3_CINEMATIC_PROFILE.surfaceRadius : 1.85,
-    64,
-    40
+    orbitalCandidate ? 128 : 64,
+    orbitalCandidate ? 80 : 40
   );
   const cityLightsGeometry = new THREE.SphereGeometry(
-    heroV3 ? EARTH_V3_CINEMATIC_PROFILE.cityRadius : 1.859,
-    64,
-    40
+    orbitalCandidate ? 1.8506 : heroV3 ? EARTH_V3_CINEMATIC_PROFILE.cityRadius : 1.859,
+    orbitalCandidate ? 128 : 64,
+    orbitalCandidate ? 80 : 40
   );
   const cloudGeometry = new THREE.SphereGeometry(
-    heroV3 ? EARTH_V3_CINEMATIC_PROFILE.cloudRadius : 1.86,
-    64,
-    40
+    orbitalCandidate ? 1.8546 : heroV3 ? EARTH_V3_CINEMATIC_PROFILE.cloudRadius : 1.86,
+    orbitalCandidate ? 128 : 64,
+    orbitalCandidate ? 80 : 40
   );
   const atmosphereGeometry = new THREE.SphereGeometry(
-    heroV3
+    orbitalCandidate ? 1.89 : heroV3
       ? EARTH_V3_CINEMATIC_PROFILE.atmosphereRadius
       : heroV2 ? EARTH_V2_HERO_COMPOSITION.atmosphereRadius : 1.865,
-    96,
-    64
+    orbitalCandidate ? 128 : 96,
+    orbitalCandidate ? 80 : 64
   );
   const sharedTime = { value: 0 };
   const seamDebug = createEarthSeamDebug();
@@ -108,7 +110,9 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
   const surfaceMaterial = createSurfaceMaterial(sharedTime, seamDebug.enabled);
   const cityLightsMaterial = createCityLightsMaterial(sharedTime);
   const cloudMaterial = createCloudMaterial(sharedTime, seamDebug.enabled);
-  const atmosphereMaterial = realismCandidate
+  const atmosphereMaterial = orbitalCandidate
+    ? createEarthOrbitalMaterial('atmosphere', { candidate: orbitalCandidate, sharedTime })
+    : realismCandidate
     ? createEarthRealismMaterial('atmosphere', { candidate: realismCandidate, sharedTime })
     : finalCandidate
     ? createEarthFinalMaterial('atmosphere', { candidate: finalCandidate, sharedTime })
@@ -125,7 +129,9 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
   const atmosphereDebugSilhouette = atmosphereDebug.enabled
     ? createAtmosphereDebugSilhouette(surfaceGeometry)
     : null;
-  const textureLoader = createEarthTextureLoader({ anisotropy: 6 });
+  const textureLoader = createEarthTextureLoader(orbitalCandidate
+    ? { urls: EARTH_ORBITAL_URLS, anisotropy: 8, colorSpaces: {clouds: THREE.NoColorSpace} }
+    : { anisotropy: 6 });
   const textureLayers = createEarthTextureLayers({
     surfaceGeometry,
     cityGeometry: cityLightsGeometry,
@@ -134,6 +140,7 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
     cinematic: heroV3,
     finalCandidate,
     realismCandidate,
+    orbitalCandidate,
     cloudOffset,
     sharedTime
   });
@@ -297,6 +304,7 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
       heroV3,
       finalCandidate,
       realismCandidate,
+      orbitalCandidate,
       version: heroV3 ? EARTH_V3_CINEMATIC_PROFILE.version : heroV2 ? 'v2' : 'legacy',
       textureStatus,
       textureAssets: textureLayers.isReady(),

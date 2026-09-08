@@ -235,3 +235,37 @@
   `tools/home-final-art-regression.cjs`; all image/report outputs remain in `art/`.
 - **EARTH V1.1 READY FOR HUMAN REVIEW**, not HUMAN PASS or production replacement.
   At close range the existing city/cloud atlas resolution remains a visible limit.
+
+## Earth Orbital V1.2 — independent human-review candidate
+
+- Branch: `feat/home-earth-realism-v12-orbital`, independent worktree based on
+  V1.1 `dccc33ee8fa075c14bce72bde477d0bde89aa706`, which includes verified latest
+  integration `42b33bfc6e873e29cc6fb2b0e2a9fa992f101f66`. No Master merge or
+  replacement of the HUMAN PASS / VISUAL FREEZE HOME baseline.
+- Opt in with `earthOrbital=1&earthV2=1&earthV3=1`; B is selected. Three candidates
+  compared, one visual correction (land direct response/saturation, cloud response,
+  weak night bounce). No global exposure, bloom, camera, layout or rotation changes.
+- Genuine 8K Solar System Scope / INOVE CC BY 4.0 maps deterministically become
+  four 4K lossless runtime maps: albedo, normal/land, urban tiers, cloud scales.
+  Original files stay in art; runtime attribution and content hashes are committed.
+  Exact WebP preserves normal RGB under zero land-mask alpha. Historic assets intact.
+- Geographic rough land, grazing dark ocean response, three night-city tiers with
+  water exclusion/cloud occlusion, source-backed weather and thin cloud/ground
+  interaction, eight-sample camera-relative Rayleigh/Mie-inspired atmosphere.
+  Single-scattering approximation, not measured physical or offline ground truth.
+- Same-camera 1600x900 DPR1 A/B and four layer views, 640x360 small read, three
+  live parallax positions and 6.9-second actual runtime video saved under art/earth-v12.
+  Closeup and HOME visibly improve weather/terrain/air separation; midnight remains
+  deliberately dark. Human review is still required, especially on a darker display.
+- Node: all 36 current test files / 44 runner cases PASS; Python visual 12 PASS;
+  build and diff check PASS. Real Edge RTX 5060 Ti HOME 120.0 FPS, P95 8.4ms,
+  53 draws; closeup 120.0 FPS, P95 8.5ms, 18 draws. Earth four draws in both.
+  GPU whole-frame ~2.66ms HOME / 1.29ms closeup (not isolated Earth timing).
+  Board VRAM ~1990/16311MiB HOME, includes other applications; texture mip estimate
+  170.7MiB, not a dedicated process-memory measurement.
+- GEO/FiveA/Brand Mind entry/return, two panels, five stage scale/energy and four
+  flowStrength renderer binding proofs PASS. Console/runtime 0; Canvas/RAF/Wheel
+  1/1/1. Frozen shader paths, Galaxy, bindings and unrelated WIP untouched.
+- Audit: `EARTH_V12_ASSET_AUDIT.md`. Reproduce using earth-orbital asset/gate/evidence/
+  motion tools and existing home-final-art-regression. No Blender was needed.
+- **EARTH V1.2 READY FOR HUMAN REVIEW**. Candidate only; no HUMAN PASS claimed.

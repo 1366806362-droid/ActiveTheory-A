@@ -1,0 +1,89 @@
+{
+  "author": "Solar System Scope / INOVE",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "sourcePage": "https://www.solarsystemscope.com/textures/",
+  "changes": "4K Lanczos resampling; normal+land packing; urban emission tiers; continuous multiscale cloud packing. No sharpening or random synthesis.",
+  "sources": [
+    {
+      "file": "8k_earth_daymap.jpg",
+      "size": [
+        8192,
+        4096
+      ],
+      "sha256": "88ab060b6e7d241cfc590c69f528fab2b3247b738d40124cb590999a6fe44abc"
+    },
+    {
+      "file": "8k_earth_nightmap.jpg",
+      "size": [
+        8192,
+        4096
+      ],
+      "sha256": "9894e83a585a22c1c425e7ca4f987a9ba625bf08ecee45d3c9dcacae3c2ad5f7"
+    },
+    {
+      "file": "8k_earth_clouds.jpg",
+      "size": [
+        8192,
+        4096
+      ],
+      "sha256": "c792eca228989d36ebb45d3ea6ff1198be5e21a25d70d2fbcb2124ffd14ba7f5"
+    },
+    {
+      "file": "8k_earth_normal_map.tif",
+      "size": [
+        8192,
+        4096
+      ],
+      "sha256": "79d6dbbde340c653f435f5a012c026a9bed94bdcfd9714e77885f4cba046635a"
+    },
+    {
+      "file": "8k_earth_specular_map.tif",
+      "size": [
+        8192,
+        4096
+      ],
+      "sha256": "194e67ef7f14dd50b402a1a6f8c7ed55810e16515b95f7736091951efe8dc3fb"
+    }
+  ],
+  "outputs": [
+    {
+      "file": "earth-orbital-surface.webp",
+      "size": [
+        4096,
+        2048
+      ],
+      "bytes": 4274088,
+      "sha256": "45d6cb890a3a72bf4e10767fe92be89bcc3deb9a4a5dc1bc37061d21aea0f2e1"
+    },
+    {
+      "file": "earth-orbital-normal-land.webp",
+      "size": [
+        4096,
+        2048
+      ],
+      "bytes": 1992056,
+      "sha256": "1482e3442ef8e149362dadda2d74d52ce2fbf17be9209d29c61819cac050bb20"
+    },
+    {
+      "file": "earth-orbital-city.webp",
+      "size": [
+        4096,
+        2048
+      ],
+      "bytes": 331332,
+      "sha256": "0e58e2a8e50f2f16a6a8a6fb377b54021228943b049a6ea058ed278e696b42b3"
+    },
+    {
+      "file": "earth-orbital-cloud.webp",
+      "size": [
+        4096,
+        2048
+      ],
+      "bytes": 8862138,
+      "sha256": "95ddc6fedeeb37dff8285b17d83e618c36143ac4cb46fdb7f1dd0b742555e547"
+    }
+  ],
+  "estimatedMipRGBABytes": 178956970.66666666,
+  "cityOceanMax": 0.0
+}
