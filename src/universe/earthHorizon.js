@@ -4,6 +4,8 @@ import {
   EARTH_TEXTURE_V2_QUALITY
 } from './earthTextureMaterial.js';
 import { createEarthTextureLoader } from './earthTextureLoader.js';
+import { createEarthFinalMaterial } from './earthFinalMaterial.js';
+import { readHomeFinalCandidate } from './homeFinalCandidate.js';
 
 const EARTH_SURFACE_PERIOD = 210;
 const EARTH_CLOUD_SPEED_MULTIPLIER = 1.11;
@@ -62,6 +64,7 @@ const EARTH_HYBRID_MODES = new Set([
 
 export function createEarthHorizon({ heroV2 = false } = {}) {
   const heroV3 = heroV2 && readEarthV3State().enabled;
+  const finalCandidate = heroV3 ? readHomeFinalCandidate().earth : null;
   const group = new THREE.Group();
   const surfaceGroup = new THREE.Group();
   const cityLightsGroup = new THREE.Group();
@@ -100,7 +103,9 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
   const surfaceMaterial = createSurfaceMaterial(sharedTime, seamDebug.enabled);
   const cityLightsMaterial = createCityLightsMaterial(sharedTime);
   const cloudMaterial = createCloudMaterial(sharedTime, seamDebug.enabled);
-  const atmosphereMaterial = createAtmosphereMaterial(
+  const atmosphereMaterial = finalCandidate
+    ? createEarthFinalMaterial('atmosphere', { candidate: finalCandidate, sharedTime })
+    : createAtmosphereMaterial(
     atmosphereDebug.enabled,
     heroV2,
     heroV3,
@@ -119,7 +124,9 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
     cityGeometry: cityLightsGeometry,
     cloudGeometry,
     sunDirection: EARTH_SUN_DIRECTION,
-    cinematic: heroV3
+    cinematic: heroV3,
+    finalCandidate,
+    sharedTime
   });
   const rotationDebug = createEarthRotationDebug();
   const inverseSurfaceRotation = new THREE.Quaternion();
@@ -272,6 +279,7 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
     return Object.freeze({
       heroV2,
       heroV3,
+      finalCandidate,
       version: heroV3 ? EARTH_V3_CINEMATIC_PROFILE.version : heroV2 ? 'v2' : 'legacy',
       textureStatus,
       textureAssets: textureLayers.isReady(),
@@ -345,7 +353,9 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
     cityLights.visible = false;
     clouds.visible = false;
     atmosphere.visible = mode === 'combined';
-    textureLayers.setWeights(heroV3
+    textureLayers.setWeights(finalCandidate
+      ? { surface: 1, city: .64, clouds: .62 }
+      : heroV3
       ? EARTH_V3_CINEMATIC_PROFILE.textureWeights
       : heroV2
         ? { surface: 0.96, city: 0.22, clouds: 0.11 }

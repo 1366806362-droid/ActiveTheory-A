@@ -167,3 +167,33 @@
 - HOME retains ownership of approved camera, composition, Galaxy, Earth and
   high-load visual work. COMPANY remains limited to source, contracts, tests,
   configuration and low-load validation.
+
+## HOME final candidate V1 (human visual review pending)
+
+- Independent branch `feat/home-final-candidate-v1` starts at verified visual
+  checkpoint `5ee248174c96b5cc8d550267948e2fb23604dfde`, which already contains
+  integration `a6cffbbe3442dbec3bf37463bfdd7f8bba71da04`. No merge was needed.
+- Opt in with `homeFinalV1=1` alongside `galaxyV3=1&galaxyHero=repaired_m3&homeArt=final`.
+  Keep `earthV2=1&earthV3=1&brandMindMemory=1` for the complete reviewed home.
+  `homeJourney=0` and `earthFinal=0` independently select the old presentations.
+- Journey B: five irregular non-coplanar migration clusters, interrupted GPU
+  flow and sparse dust; 18,000 static particles in one draw batch. It reuses the
+  existing 5A entrance, label, hover and update/dispose ownership, not internal stages.
+- Earth Balanced: existing surface/city/cloud textures and four existing sphere
+  draws. A shared lighting frame and ground-limb impact parameter remove the
+  detached atmosphere band. Night material, urban tiers and eroded cloud alpha
+  are local-only; no exposure, camera, pose or scale changes.
+- Three candidates per component were compared; each received one visual
+  correction. Galaxy assets/LDI, Brand Mind memory field, GEO, typography,
+  routes, scene internals, panels and V2 bindings are unchanged.
+- Validation: 614 Node tests, nine existing Python visual tests, build and
+  diff check pass. Actual RTX 5060 Ti / Edge runtime: steady 120 FPS, P95 8.5 ms,
+  53 measured draws including postprocessing (previous 62), 156,237 visible
+  point vertices. Earth four draws, Galaxy five; one Canvas/RAF/wheel listener.
+- Real browser entry/return and both panels pass; all five stage scale/energy
+  and four transition flowStrength bindings retain their explicit MOCK proof.
+- Reproducible evidence: `tools/home-final-v1-gate.cjs`,
+  `tools/home-final-v1-evidence.py`, `tools/home-final-v1-motion.cjs` and the
+  existing `tools/home-final-art-regression.cjs`. Outputs stay local in `art/`.
+- Ready for human visual review, not a production freeze. Do not merge the
+  candidate into integration until human approval.

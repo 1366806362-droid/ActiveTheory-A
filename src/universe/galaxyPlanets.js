@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { createGalaxyCoreCluster } from './galaxyCoreCluster.js';
 import { UNIVERSE_RENDER_DEBUG } from './universeRenderDebug.js';
 import { createBrandMindMemoryField, readMemoryFieldCandidate, MEMORY_COUNTS } from './brandMindMemoryField.js';
+import { createFiveAJourneyNebula, JOURNEY_COUNTS } from './fiveAJourneyNebula.js';
+import { readHomeFinalCandidate } from './homeFinalCandidate.js';
 
 const TAU = Math.PI * 2;
 export const BUSINESS_INTERACTION_DEBUG_PARAMS = Object.freeze({
@@ -238,10 +240,12 @@ export const HOME_FINAL_NEBULA_ART = Object.freeze({
 });
 
 export function createGalaxyPlanets({ homeComposition = 'default', finalArtDirection = false,
-  memoryCandidate = readMemoryFieldCandidate(readLocationSearch()) } = {}) {
+  memoryCandidate = readMemoryFieldCandidate(readLocationSearch()),
+  journeyCandidate = readHomeFinalCandidate().journey } = {}) {
   const group = new THREE.Group();
   const particleTexture = createNebulaParticleTexture();
   const useMemoryField = homeComposition === 'v4' && finalArtDirection && memoryCandidate;
+  const useJourney = homeComposition === 'v4' && finalArtDirection && journeyCandidate;
   const businessInteraction = {
     labels: homeComposition === 'v4' && BUSINESS_INTERACTION_DEBUG.labels,
     hover: homeComposition === 'v4' && BUSINESS_INTERACTION_DEBUG.hover,
@@ -252,7 +256,8 @@ export function createGalaxyPlanets({ homeComposition = 'default', finalArtDirec
     : BRAND_GROWTH_NEBULAE;
   const nebulae = configs.map((config, index) => (
     createBusinessNebula(config, particleTexture, 9107 + index * 193, businessInteraction,
-      useMemoryField && config.name === 'Brand Mind Nebula' ? memoryCandidate : null)
+      useMemoryField && config.name === 'Brand Mind Nebula' ? memoryCandidate : null,
+      useJourney && config.name === '5A Nebula' ? journeyCandidate : null)
   ));
   const targetPosition = new THREE.Vector3();
   const entryState = {
@@ -361,7 +366,8 @@ export function createGalaxyPlanets({ homeComposition = 'default', finalArtDirec
       });
     },
     pointCount: BUSINESS_NEBULA_POINT_COUNT + (useMemoryField
-      ? Object.values(MEMORY_COUNTS).reduce((a,b)=>a+b,0) - 380 : 0),
+      ? Object.values(MEMORY_COUNTS).reduce((a,b)=>a+b,0) - 380 : 0)
+      + (useJourney ? Object.values(JOURNEY_COUNTS).reduce((a,b)=>a+b,0) - 548 : 0),
     update,
     dispose
   };
@@ -396,11 +402,12 @@ export function createV4HomeConfigs(finalArtDirection = false) {
   });
 }
 
-function createBusinessNebula(config, particleTexture, seed, businessInteraction, memoryCandidate = null) {
+function createBusinessNebula(config, particleTexture, seed, businessInteraction, memoryCandidate = null, journeyCandidate = null) {
   const orbitalGroup = new THREE.Group();
   const nebulaGroup = new THREE.Group();
   const visualGroup = new THREE.Group();
-  const memory = memoryCandidate ? createBrandMindMemoryField({candidate:memoryCandidate}) : null;
+  const memory = memoryCandidate ? createBrandMindMemoryField({candidate:memoryCandidate})
+    : journeyCandidate ? createFiveAJourneyNebula({candidate:journeyCandidate}) : null;
   const cluster = memory ? null : createNebulaCluster(config, particleTexture, seed);
   const dust = memory ? null : createNebulaDust(config, particleTexture, seed + 37);
   const nodes = memory ? null : createNebulaNodes(config, particleTexture, seed + 71);
