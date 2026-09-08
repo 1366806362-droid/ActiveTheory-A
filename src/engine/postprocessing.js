@@ -11,6 +11,7 @@ import {
   resolveGeoCinematicGrade
 } from '../scenes/geo/geoCinematicGrade.js';
 import { readViewportMetrics, subscribeViewport } from './viewport.js';
+import { createM3BloomCalibration } from '../universe/galaxy-v3/galaxyM3BloomCalibration.js';
 
 export function createPostProcessing({ renderer, scene, camera }) {
   const initialViewport = readViewportMetrics();
@@ -23,6 +24,7 @@ export function createPostProcessing({ renderer, scene, camera }) {
     0.78
   );
   const outputPass = new OutputPass();
+  const m3Bloom = createM3BloomCalibration(bloomPass, scene, camera);
   const gradeSelection = resolveGeoCinematicGrade();
   const gradeTarget = gradeSelection.enabled
     ? new THREE.WebGLRenderTarget(1, 1, {
@@ -82,10 +84,12 @@ export function createPostProcessing({ renderer, scene, camera }) {
         bloomPass.enabled = gradeActive ? false : showBloom;
       }
       if (gradeActive) renderSelectiveBloom();
+      m3Bloom.update();
       composer.render();
     },
     dispose() {
       disposeViewport();
+      m3Bloom.dispose();
       gradeController.dispose();
       gradePass?.material.dispose();
       gradeTarget?.dispose();

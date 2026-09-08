@@ -1,0 +1,33 @@
+<!doctype html><meta charset="utf-8"><style>body{margin:0;background:black}canvas{display:block}</style>
+<script type="module">
+// Single-canvas diagnostic page, never loaded by HOME. No RAF or interaction.
+import * as THREE from 'three';
+import {EffectComposer} from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import {RenderPass} from 'three/examples/jsm/postprocessing/RenderPass.js';
+import {OutputPass} from 'three/examples/jsm/postprocessing/OutputPass.js';
+import {UnrealBloomPass} from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import {createGalaxyV3HeroAsset} from '/src/universe/galaxy-v3/galaxyV3HeroAsset.js';
+import {createM3BloomCalibration} from '/src/universe/galaxy-v3/galaxyM3BloomCalibration.js';
+import {GALAXY_V3_REPAIRED_M3_CONFIG} from '/src/universe/galaxy-v3/galaxyV3Config.js';
+const renderer=new THREE.WebGLRenderer({antialias:false,preserveDrawingBuffer:true});
+renderer.setSize(1600,900);renderer.setPixelRatio(1);
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.76;
+document.body.append(renderer.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0);
+const camera=new THREE.PerspectiveCamera(45,16/9,.01,100);
+camera.position.z=.5/Math.tan(THREE.MathUtils.degToRad(22.5));camera.updateMatrixWorld();
+const ready=new Promise(resolve=>THREE.DefaultLoadingManager.onLoad=resolve);
+const config={...GALAXY_V3_REPAIRED_M3_CONFIG.galaxyHeroAsset,position:[0,0,0],rotation:[0,0,0],scale:[1,1,1],depthBias:0,parallaxStrength:0};
+const asset=createGalaxyV3HeroAsset(config);scene.add(asset.group);
+const composer=new EffectComposer(renderer);composer.addPass(new RenderPass(scene,camera));
+const bloom=new UnrealBloomPass(new THREE.Vector2(1600,900),.3,.11,.78);composer.addPass(bloom);composer.addPass(new OutputPass());
+const calibration=createM3BloomCalibration(bloom,scene,camera);
+await ready;
+window.runBloomAudit=(mode)=>{
+  asset.update(camera);calibration.update();
+  bloom.enabled=mode!=='OFF';
+  if(mode==='ORIGINAL')bloom.materialHighPassFilter.uniforms.m3CoreEnabled.value=0;
+  composer.render();
+};
+window.runBloomAudit('OFF');window.auditReady=true;
+</script>

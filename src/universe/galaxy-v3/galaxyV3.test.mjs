@@ -9,6 +9,7 @@ import {
   GALAXY_V3_V5_CONFIG,
   GALAXY_V3_V51_CONFIG,
   GALAXY_V3_V6_CONFIG,
+  GALAXY_V3_FINAL_M3_CONFIG,
   GALAXY_V3_LAYER_ORDER,
   readGalaxyV3State
 } from './galaxyV3Config.js';
@@ -96,6 +97,49 @@ test('V6 structural-arm candidate is opt-in and preserves all prior rollback ass
   assert.ok(layers.every(({ source }) => source.includes('/hero/v6/galaxy-v6-')));
   assert.ok(GALAXY_V3_V51_CONFIG.galaxyHeroAsset.layers.every(({ source }) => source.includes('/hero/v5_1/')));
   assert.ok(GALAXY_V3_V5_CONFIG.galaxyHeroAsset.layers.every(({ source }) => source.includes('/hero/v5/')));
+});
+
+test('Final M3 candidate is opt-in and retains the existing five-layer parallax contract', () => {
+  const state = readGalaxyV3State('?galaxyV3=1&galaxyHero=final_m3&debugV4Isolated=1');
+  const layers = GALAXY_V3_FINAL_M3_CONFIG.galaxyHeroAsset.layers;
+  assert.equal(state.heroVersion, 'final_m3');
+  assert.equal(state.isolated, true);
+  assert.equal(layers.length, 5);
+  assert.deepEqual(layers.map(({ parallaxFactor }) => parallaxFactor), [0, 0.18, 0.30, 0.38, 0.48]);
+  assert.ok(layers.every(({ source }) => source.includes('/hero/final-m3/galaxy-final-m3-')));
+  assert.ok(GALAXY_V3_V51_CONFIG.galaxyHeroAsset.layers.every(({ source }) => source.includes('/hero/v5_1/')));
+  assert.ok(GALAXY_V3_V6_CONFIG.galaxyHeroAsset.layers.every(({ source }) => source.includes('/hero/v6/')));
+});
+
+test('Final M3 retains the existing support-star debug ownership', () => {
+  const state = readGalaxyV3State('?galaxyV3=1&galaxyHero=final_m3&debugV4SupportStars=0');
+  assert.equal(state.debug.v4.supportStars, false);
+});
+
+test('Final M3 layers register to the core plane under perspective and keep parallax', () => {
+  const load = THREE.TextureLoader.prototype.load;
+  THREE.TextureLoader.prototype.load = () => new THREE.Texture();
+  let asset;
+  try {
+    asset = createGalaxyV3HeroAsset(GALAXY_V3_FINAL_M3_CONFIG.galaxyHeroAsset);
+    const camera = new THREE.PerspectiveCamera(45,16/9,0.01,100);
+    camera.position.set(0.5,0.7,5);
+    camera.lookAt(0,0,0);
+    camera.updateMatrixWorld();
+    asset.update(camera,{parallaxX:0,parallaxY:0});
+    asset.group.updateMatrixWorld(true);
+    const core = asset.group.children[2];
+    for(const vertex of [[0,0,0],[0.8,0.4,0],[-0.8,-0.4,0]]) {
+      const expected = core.localToWorld(new THREE.Vector3(...vertex)).project(camera);
+      for(const mesh of asset.group.children) {
+        const actual = mesh.localToWorld(new THREE.Vector3(...vertex)).project(camera);
+        assert.ok(Math.abs(actual.x-expected.x)<1e-6 && Math.abs(actual.y-expected.y)<1e-6);
+      }
+    }
+    const x = asset.group.children[4].position.x;
+    asset.update(camera,{parallaxX:0.1,parallaxY:0});
+    assert.ok(asset.group.children[4].position.x>x);
+  } finally { asset?.dispose(); THREE.TextureLoader.prototype.load=load; }
 });
 
 test('V4 LDI uses five world-space planes with stable far-to-near ordering', () => {
@@ -229,6 +273,34 @@ test('Asset manifest uses only project-relative web paths', () => {
   assert.equal(manifest.galaxyHeroAsset.source, null);
   assert.ok(manifest.basePath.startsWith('/assets/galaxy-v3/'));
   assert.doesNotMatch(manifestText, /[A-Za-z]:\\\\|file:\/\//);
+});
+
+test('Final M3 zero-parallax still registers depth and decodes only its own display transport', () => {
+  const load = THREE.TextureLoader.prototype.load;
+  THREE.TextureLoader.prototype.load = () => new THREE.Texture();
+  const assets = [];
+  try {
+    const asset = createGalaxyV3HeroAsset({...GALAXY_V3_FINAL_M3_CONFIG.galaxyHeroAsset,parallaxStrength:0});
+    const legacy = createGalaxyV3HeroAsset(GALAXY_V3_V51_CONFIG.galaxyHeroAsset);
+    assets.push(asset,legacy);
+    const camera = new THREE.PerspectiveCamera(45,16/9,.01,100);
+    camera.position.set(.5,.7,5);camera.lookAt(0,0,0);camera.updateMatrixWorld();
+    asset.update(camera);asset.group.updateMatrixWorld(true);
+    for(const mesh of asset.group.children) {
+      const p=mesh.localToWorld(new THREE.Vector3(.8,.4,0)).project(camera);
+      const reference=asset.group.children[2].localToWorld(new THREE.Vector3(.8,.4,0)).project(camera);
+      assert.ok(Math.abs(p.x-reference.x)<1e-6 && Math.abs(p.y-reference.y)<1e-6);
+      assert.equal(mesh.material.color.r,8);
+      assert.equal(mesh.material.fog,false);
+      assert.equal(mesh.material.premultipliedAlpha,false);
+      assert.equal(mesh.material.map.premultiplyAlpha,false);
+      assert.equal(mesh.material.map.colorSpace,THREE.SRGBColorSpace);
+    }
+    for(const mesh of legacy.group.children) {
+      assert.equal(mesh.material.color.r,1);
+      assert.equal(mesh.material.fog,true);
+    }
+  } finally { assets.forEach(asset=>asset.dispose());THREE.TextureLoader.prototype.load=load; }
 });
 
 const failed = results.filter(({ status }) => status === 'fail');

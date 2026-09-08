@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createEarthFinalMaterial } from './earthFinalMaterial.js';
 
 export const EARTH_TEXTURE_V2_QUALITY = Object.freeze({
   combinedApproved: true,
@@ -11,11 +12,14 @@ export function createEarthTextureLayers({
   cityGeometry,
   cloudGeometry,
   sunDirection,
-  cinematic = false
+  cinematic = false,
+  finalCandidate = null,
+  sharedTime = { value: 0 }
 }) {
-  const surfaceMaterial = createTextureSurfaceMaterial(sunDirection, cinematic);
-  const cityMaterial = createTextureCityMaterial(sunDirection, cinematic);
-  const cloudMaterial = createTextureCloudMaterial(sunDirection, cinematic);
+  const finalOptions = { candidate: finalCandidate, sunDirection, sharedTime };
+  const surfaceMaterial = finalCandidate ? createEarthFinalMaterial('surface', finalOptions) : createTextureSurfaceMaterial(sunDirection, cinematic);
+  const cityMaterial = finalCandidate ? createEarthFinalMaterial('city', finalOptions) : createTextureCityMaterial(sunDirection, cinematic);
+  const cloudMaterial = finalCandidate ? createEarthFinalMaterial('cloud', finalOptions) : createTextureCloudMaterial(sunDirection, cinematic);
   const surface = new THREE.Mesh(surfaceGeometry, surfaceMaterial);
   const city = new THREE.Mesh(cityGeometry, cityMaterial);
   const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
