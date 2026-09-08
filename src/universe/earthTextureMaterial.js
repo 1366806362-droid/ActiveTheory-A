@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createEarthFinalMaterial } from './earthFinalMaterial.js';
+import { createEarthRealismMaterial } from './earthRealismMaterial.js';
 
 export const EARTH_TEXTURE_V2_QUALITY = Object.freeze({
   combinedApproved: true,
@@ -14,12 +15,15 @@ export function createEarthTextureLayers({
   sunDirection,
   cinematic = false,
   finalCandidate = null,
+  realismCandidate = null,
+  cloudOffset = { value: 0 },
   sharedTime = { value: 0 }
 }) {
   const finalOptions = { candidate: finalCandidate, sunDirection, sharedTime };
-  const surfaceMaterial = finalCandidate ? createEarthFinalMaterial('surface', finalOptions) : createTextureSurfaceMaterial(sunDirection, cinematic);
-  const cityMaterial = finalCandidate ? createEarthFinalMaterial('city', finalOptions) : createTextureCityMaterial(sunDirection, cinematic);
-  const cloudMaterial = finalCandidate ? createEarthFinalMaterial('cloud', finalOptions) : createTextureCloudMaterial(sunDirection, cinematic);
+  const realismOptions = { candidate: realismCandidate, sharedTime, cloudOffset };
+  const surfaceMaterial = realismCandidate ? createEarthRealismMaterial('surface', realismOptions) : finalCandidate ? createEarthFinalMaterial('surface', finalOptions) : createTextureSurfaceMaterial(sunDirection, cinematic);
+  const cityMaterial = realismCandidate ? createEarthRealismMaterial('city', realismOptions) : finalCandidate ? createEarthFinalMaterial('city', finalOptions) : createTextureCityMaterial(sunDirection, cinematic);
+  const cloudMaterial = realismCandidate ? createEarthRealismMaterial('cloud', realismOptions) : finalCandidate ? createEarthFinalMaterial('cloud', finalOptions) : createTextureCloudMaterial(sunDirection, cinematic);
   const surface = new THREE.Mesh(surfaceGeometry, surfaceMaterial);
   const city = new THREE.Mesh(cityGeometry, cityMaterial);
   const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
@@ -44,6 +48,10 @@ export function createEarthTextureLayers({
     surfaceMaterial.uniforms.uSurfaceMap.value = textures?.surface ?? null;
     cityMaterial.uniforms.uCityMap.value = textures?.city ?? null;
     cloudMaterial.uniforms.uCloudMap.value = textures?.clouds ?? null;
+    if (realismCandidate) {
+      surfaceMaterial.uniforms.uCloudMap.value = textures?.clouds ?? null;
+      cityMaterial.uniforms.uCloudMap.value = textures?.clouds ?? null;
+    }
     if (!ready) setVisibility({ surface: false, city: false, clouds: false });
   }
 

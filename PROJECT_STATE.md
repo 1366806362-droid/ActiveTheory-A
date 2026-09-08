@@ -200,3 +200,38 @@
   This preserves their approved hierarchy, negative space, camera and runtime
   ownership; subsequent work must be separately approved rather than changing
   the frozen HOME presentation.
+
+## Earth Realism V1.1 — independent human-review candidate
+
+- Base: `42b33bfc6e873e29cc6fb2b0e2a9fa992f101f66`, latest verified
+  `origin/integration/active-theory-master` on 2026-09-08. Candidate branch:
+  `feat/home-earth-realism-v11`; no integration into the frozen HOME baseline.
+- Explicit `earthRealism=1` with `earthV2=1&earthV3=1` selects B. Removing the
+  flag restores byte-identical frozen shader sources. A/B/C material interpretations
+  were captured; B retained, with one correction for double-darkened night atlas
+  and metropolitan readability. No second correction or additional visual scope.
+- Existing 2048x1024 WebP surface/cloud sRGB atlases and linear-intensity city
+  atlas reused unchanged (mipmapped linear filtering, anisotropy 6).
+- Four existing spheres: region-preserving rough land versus dark ocean glint;
+  atlas-driven settlement/metropolis tiers with cloud occlusion; multiscale cloud
+  optical thickness and relative-rotation shadow; single-shell tangent optical-depth
+  atmosphere with inner rim, outer haze and localized sunrise. These are lightweight
+  shading approximations, not physical volumetric scattering or measured terrain.
+- Same linear render path and final OutputPass; no global exposure, bloom,
+  renderer, camera, transform, speed, Galaxy or business visual modifications.
+- Dev-only `earthFreeze=1`, `earthDebugLayer=surface|cloud|city|atmosphere`, and
+  existing `debugEarthV3Closeup=1` provide layer audits, not product UI.
+- Validation: all 35 current Node test files pass (39 runner cases including
+  five new realism tests and existing custom suites); nine Python visual tests,
+  build and diff check pass. Real Edge / RTX 5060 Ti: HOME and closeup ~120 FPS,
+  frame P95 8.4ms; Earth four draws, total HOME 53 / closeup 18. GPU elapsed
+  whole-frame averages ~3.09ms HOME / ~1.51ms closeup; these include postprocessing,
+  not isolated Earth shader timings. Board VRAM ~2063/16311MiB (all applications).
+- GEO/FiveA/Brand Mind entry and return, both panels, all five stage scale/energy
+  and four flowStrength renderer binding proofs pass. Canvas/RAF/wheel = 1/1/1;
+  console/runtime errors = 0. Frozen source/assets and unrelated WIP untouched.
+- Reproduce with `tools/earth-realism-v11-gate.cjs`,
+  `tools/earth-realism-v11-evidence.py` and existing
+  `tools/home-final-art-regression.cjs`; all image/report outputs remain in `art/`.
+- **EARTH V1.1 READY FOR HUMAN REVIEW**, not HUMAN PASS or production replacement.
+  At close range the existing city/cloud atlas resolution remains a visible limit.

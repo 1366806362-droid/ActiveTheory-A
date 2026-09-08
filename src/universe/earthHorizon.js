@@ -6,6 +6,7 @@ import {
 import { createEarthTextureLoader } from './earthTextureLoader.js';
 import { createEarthFinalMaterial } from './earthFinalMaterial.js';
 import { readHomeFinalCandidate } from './homeFinalCandidate.js';
+import { createEarthRealismMaterial, readEarthRealism } from './earthRealismMaterial.js';
 
 const EARTH_SURFACE_PERIOD = 210;
 const EARTH_CLOUD_SPEED_MULTIPLIER = 1.11;
@@ -65,6 +66,10 @@ const EARTH_HYBRID_MODES = new Set([
 export function createEarthHorizon({ heroV2 = false } = {}) {
   const heroV3 = heroV2 && readEarthV3State().enabled;
   const finalCandidate = heroV3 ? readHomeFinalCandidate().earth : null;
+  const realismCandidate = heroV3 ? readEarthRealism() : null;
+  const realismDebug = import.meta.env?.DEV && realismCandidate
+    ? new URLSearchParams(readLocationSearch()) : null;
+  const cloudOffset = { value: 0 };
   const group = new THREE.Group();
   const surfaceGroup = new THREE.Group();
   const cityLightsGroup = new THREE.Group();
@@ -103,7 +108,9 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
   const surfaceMaterial = createSurfaceMaterial(sharedTime, seamDebug.enabled);
   const cityLightsMaterial = createCityLightsMaterial(sharedTime);
   const cloudMaterial = createCloudMaterial(sharedTime, seamDebug.enabled);
-  const atmosphereMaterial = finalCandidate
+  const atmosphereMaterial = realismCandidate
+    ? createEarthRealismMaterial('atmosphere', { candidate: realismCandidate, sharedTime })
+    : finalCandidate
     ? createEarthFinalMaterial('atmosphere', { candidate: finalCandidate, sharedTime })
     : createAtmosphereMaterial(
     atmosphereDebug.enabled,
@@ -126,6 +133,8 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
     sunDirection: EARTH_SUN_DIRECTION,
     cinematic: heroV3,
     finalCandidate,
+    realismCandidate,
+    cloudOffset,
     sharedTime
   });
   const rotationDebug = createEarthRotationDebug();
@@ -194,7 +203,7 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
     const requestedDelta = cityOnlyDebug && delta <= 0
       ? (now - debugWallTime) / 1000
       : delta;
-    const safeDelta = active && !atmosphereDebug.enabled
+    const safeDelta = active && !atmosphereDebug.enabled && realismDebug?.get('earthFreeze') !== '1'
       ? Math.min(Math.max(requestedDelta, 0), 0.1)
       : 0;
     const debugRotationActive = seamDebug.enabled || cityOnlyDebug || hybridDebug.enabled;
@@ -212,6 +221,7 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
     cloudAngle = wrapAngle(cloudAngle - safeDelta * cloudAngularSpeed);
     surfaceGroup.rotation.y = surfaceAngle;
     cloudGroup.rotation.y = cloudAngle;
+    cloudOffset.value = (surfaceAngle - cloudAngle) / (Math.PI * 2);
     inverseSurfaceRotation.setFromAxisAngle(EARTH_Y_AXIS, -surfaceAngle);
     surfaceMaterial.uniforms.uSunDirectionObject.value
       .copy(EARTH_SUN_DIRECTION)
@@ -249,6 +259,12 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
       cloudAngle
     });
     cinematicCloseupDebug.update({ group });
+    if (realismDebug?.has('earthDebugLayer')) {
+      const layer = realismDebug.get('earthDebugLayer');
+      textureLayers.city.visible = layer === 'city' && textureLayers.isReady();
+      textureLayers.clouds.visible = layer === 'cloud' && textureLayers.isReady();
+      atmosphere.visible = layer === 'atmosphere';
+    }
     if (seamDebug.enabled) setLayerMode(seamDebug.mode);
   }
 
@@ -280,6 +296,7 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
       heroV2,
       heroV3,
       finalCandidate,
+      realismCandidate,
       version: heroV3 ? EARTH_V3_CINEMATIC_PROFILE.version : heroV2 ? 'v2' : 'legacy',
       textureStatus,
       textureAssets: textureLayers.isReady(),
