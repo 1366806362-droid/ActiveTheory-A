@@ -8,6 +8,7 @@ import { createEarthFinalMaterial } from './earthFinalMaterial.js';
 import { readHomeFinalCandidate } from './homeFinalCandidate.js';
 import { createEarthRealismMaterial, readEarthRealism } from './earthRealismMaterial.js';
 import { createEarthOrbitalMaterial, readEarthOrbital, EARTH_ORBITAL_URLS } from './earthOrbitalMaterial.js';
+import { readEarthGroundTruth } from './earthGroundTruthProfile.js';
 
 const EARTH_SURFACE_PERIOD = 210;
 const EARTH_CLOUD_SPEED_MULTIPLIER = 1.11;
@@ -69,6 +70,7 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
   const finalCandidate = heroV3 ? readHomeFinalCandidate().earth : null;
   const realismCandidate = heroV3 ? readEarthRealism() : null;
   const orbitalCandidate = heroV3 ? readEarthOrbital() : null;
+  const groundTruth = orbitalCandidate ? readEarthGroundTruth() : null;
   const realismDebug = import.meta.env?.DEV && (realismCandidate || orbitalCandidate || new URLSearchParams(readLocationSearch()).get('earthAudit') === '1')
     ? new URLSearchParams(readLocationSearch()) : null;
   const cloudOffset = { value: 0 };
@@ -111,7 +113,7 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
   const cityLightsMaterial = createCityLightsMaterial(sharedTime);
   const cloudMaterial = createCloudMaterial(sharedTime, seamDebug.enabled);
   const atmosphereMaterial = orbitalCandidate
-    ? createEarthOrbitalMaterial('atmosphere', { candidate: orbitalCandidate, sharedTime })
+    ? createEarthOrbitalMaterial('atmosphere', { candidate: orbitalCandidate, sharedTime, groundTruth })
     : realismCandidate
     ? createEarthRealismMaterial('atmosphere', { candidate: realismCandidate, sharedTime })
     : finalCandidate
@@ -141,14 +143,16 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
     finalCandidate,
     realismCandidate,
     orbitalCandidate,
+    groundTruth,
     cloudOffset,
     sharedTime
   });
   const rotationDebug = createEarthRotationDebug();
   const inverseSurfaceRotation = new THREE.Quaternion();
-  const surfaceInitialPhase = -1.7;
+  const phaseOffset = groundTruth ? groundTruth.phaseDegrees * Math.PI / 180 : 0;
+  const surfaceInitialPhase = -1.7 + phaseOffset;
   let surfaceAngle = surfaceInitialPhase;
-  let cloudAngle = 0;
+  let cloudAngle = phaseOffset;
   let visualTime = 0;
   let debugWallTime = performance.now();
   let textureStatus = 'idle';
@@ -216,10 +220,10 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
     const debugRotationActive = seamDebug.enabled || cityOnlyDebug || hybridDebug.enabled;
     const surfaceAngularSpeed = debugRotationActive
       ? Math.PI * 2 / 12
-      : EARTH_SURFACE_ANGULAR_SPEED;
+      : groundTruth ? Math.PI * 2 / groundTruth.rotationPeriod : EARTH_SURFACE_ANGULAR_SPEED;
     const cloudAngularSpeed = debugRotationActive
       ? Math.PI * 2 / 12 * EARTH_CLOUD_SPEED_MULTIPLIER
-      : EARTH_CLOUD_ANGULAR_SPEED;
+      : groundTruth ? surfaceAngularSpeed * EARTH_CLOUD_SPEED_MULTIPLIER : EARTH_CLOUD_ANGULAR_SPEED;
 
     debugWallTime = now;
     visualTime += safeDelta;
@@ -242,8 +246,8 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
     group.userData.earthRotation = {
       surfaceAngle,
       cloudAngle,
-      surfacePeriod: EARTH_SURFACE_PERIOD,
-      cloudPeriod: EARTH_SURFACE_PERIOD / EARTH_CLOUD_SPEED_MULTIPLIER,
+      surfacePeriod: groundTruth?.rotationPeriod ?? EARTH_SURFACE_PERIOD,
+      cloudPeriod: (groundTruth?.rotationPeriod ?? EARTH_SURFACE_PERIOD) / EARTH_CLOUD_SPEED_MULTIPLIER,
       active
     };
     rotationDebug.update({ surfaceAngle, cloudAngle, active });

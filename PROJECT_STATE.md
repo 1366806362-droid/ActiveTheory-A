@@ -286,3 +286,24 @@
   Existing entries, panels and FiveA renderer-binding proofs retained.
 - Detailed reasoning and reproduction: `EARTH_V12_FINAL_POLISH.md`.
   Art, A/B, night crop, parallax and video evidence stay under `art/earth-v12-final/`.
+
+## Earth V1.3 Orbital Ground-Truth Convergence — experimental, NOT READY
+
+- Independent `feat/home-earth-realism-v13-ground-truth`, based on de43f5e;
+  preserves 802f3f5 and HOME FINAL V1. Frozen Earth is not replaced.
+- Real Blender 5.2 Cycles/OptiX reference using actual Web mesh/UV/camera/sun:
+  64 samples, closeup 6.234s, HOME crop 4.419s. No new runtime texture assets.
+- Four phases compared; original Asian phase retained. Three material profiles,
+  B / 12-step atmosphere selected; one bounded night-body/cloud correction.
+- Explicit `earthV13=1` plus existing orbital flags: geographic material separation,
+  continuous cloud optical depth, bounded footprint compensation, very slow
+  3600-second rotation. Old shader paths, composition and other modules unchanged.
+- **EARTH ROUTE NOT READY / EARTH V1.3 NOT READY FOR PRODUCTION**: native HOME
+  A/B improvement over 802f is still incremental, not the requested photographic
+  step-change. No further correction or automatic version; no Master promotion.
+- All Node 51 runner items and Python visual 12 PASS; build/diff PASS. HOME and
+  closeup ~120 FPS, P95 8.5ms, Earth 4 draws, HOME 53. Console/runtime 0,
+  Canvas/RAF/Wheel 1/1/1. Entries, two panels, FiveA stage/flow bindings PASS.
+- Reference limits, GPU timing caveats, assets, A/B conditions and reproduction:
+  `EARTH_V13_GROUND_TRUTH_AUDIT.md`. Review artifacts under `art/earth-v13/`.
+  Local experimental checkpoint only; not pushed as a production candidate.

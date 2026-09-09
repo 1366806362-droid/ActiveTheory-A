@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { earthGroundTruthBody } from './earthGroundTruthShaders.js';
 
 export const EARTH_ORBITAL_URLS = Object.freeze(Object.fromEntries([
   ['surface','surface'],['city','city'],['clouds','cloud'],['normal','normal-land']
@@ -48,7 +49,7 @@ const common=/*glsl*/`
   float phaseHG(float mu,float g){return (1.-g*g)/pow(max(1.+g*g-2.*g*mu,.015),1.5);}
 `;
 
-export function createEarthOrbitalMaterial(kind,{candidate='B',cloudOffset={value:0},sharedTime={value:0}}={}){
+export function createEarthOrbitalMaterial(kind,{candidate='B',cloudOffset={value:0},sharedTime={value:0},groundTruth=null}={}){
   const p=EARTH_ORBITAL_PROFILES[candidate];if(!p)throw new Error('Unknown orbital candidate');
   const uniforms={uOpacity:{value:1},uTime:sharedTime,uCloudOffset:cloudOffset,
     uSunDirectionObject:{value:new THREE.Vector3()},uDisplayMode:{value:0},uLayerMode:{value:5}};
@@ -197,7 +198,8 @@ export function createEarthOrbitalMaterial(kind,{candidate='B',cloudOffset={valu
         gl_FragColor=vec4(sum,1.);
       }`;
   }else throw new Error('Unknown orbital layer');
-  return new THREE.ShaderMaterial({name:`EarthOrbital-${kind}-${candidate}`,uniforms,
+  if(groundTruth)body=earthGroundTruthBody(kind,groundTruth);
+  return new THREE.ShaderMaterial({name:groundTruth?`EarthGroundTruth-${kind}-${groundTruth.candidate}`:`EarthOrbital-${kind}-${candidate}`,uniforms,
     vertexShader:vertex,fragmentShader:common+body,transparent:kind!=='surface',
     depthWrite:kind==='surface',depthTest:kind!=='atmosphere',
     blending:['city','atmosphere'].includes(kind)?THREE.AdditiveBlending:THREE.NormalBlending,

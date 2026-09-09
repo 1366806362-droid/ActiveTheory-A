@@ -18,12 +18,13 @@ export function createEarthTextureLayers({
   finalCandidate = null,
   realismCandidate = null,
   orbitalCandidate = null,
+  groundTruth = null,
   cloudOffset = { value: 0 },
   sharedTime = { value: 0 }
 }) {
   const finalOptions = { candidate: finalCandidate, sunDirection, sharedTime };
   const realismOptions = { candidate: realismCandidate, sharedTime, cloudOffset };
-  const orbitalOptions = { candidate: orbitalCandidate, sharedTime, cloudOffset };
+  const orbitalOptions = { candidate: orbitalCandidate, sharedTime, cloudOffset, groundTruth };
   const surfaceMaterial = orbitalCandidate ? createEarthOrbitalMaterial('surface',orbitalOptions) : realismCandidate ? createEarthRealismMaterial('surface', realismOptions) : finalCandidate ? createEarthFinalMaterial('surface', finalOptions) : createTextureSurfaceMaterial(sunDirection, cinematic);
   const cityMaterial = orbitalCandidate ? createEarthOrbitalMaterial('city',orbitalOptions) : realismCandidate ? createEarthRealismMaterial('city', realismOptions) : finalCandidate ? createEarthFinalMaterial('city', finalOptions) : createTextureCityMaterial(sunDirection, cinematic);
   const cloudMaterial = orbitalCandidate ? createEarthOrbitalMaterial('cloud',orbitalOptions) : realismCandidate ? createEarthRealismMaterial('cloud', realismOptions) : finalCandidate ? createEarthFinalMaterial('cloud', finalOptions) : createTextureCloudMaterial(sunDirection, cinematic);
