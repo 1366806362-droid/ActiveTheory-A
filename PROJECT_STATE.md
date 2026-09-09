@@ -307,3 +307,23 @@
 - Reference limits, GPU timing caveats, assets, A/B conditions and reproduction:
   `EARTH_V13_GROUND_TRUTH_AUDIT.md`. Review artifacts under `art/earth-v13/`.
   Local experimental checkpoint only; not pushed as a production candidate.
+
+## Earth Hybrid Cinematic V1 — candidate for human review
+
+- Independent `feat/home-earth-hybrid-cinematic-v1`, based on protected V1.3
+  `7a8d71591e8fcab2ef4da62cb866a1e5c4694fb4`. HOME FINAL V1 remains frozen;
+  no Master integration or automatic replacement.
+- Cycles / OptiX candidate B: 2048-square 96-sample independent Surface, City,
+  Cloud and reference Atmosphere passes. Existing legal 4K assets retained.
+- Explicit `earthHybrid=1` creates an Earth-local 16-bit depth-derived body,
+  independent slowly drifting cloud and existing live atmosphere: 3 draw calls.
+  Real-time Earth retained as loading / out-of-view-cone fallback.
+- Native HOME ROI visibly improves weather / ground separation over 802f and
+  V13. This is READY FOR HUMAN REVIEW, not HUMAN PASS. Closeup is a capture-view
+  inspection; no free-orbit capability is claimed.
+- HOME ~120 FPS / P95 8.5ms / 52 draws; console/runtime 0, Canvas/RAF/Wheel 1/1/1.
+  All 56 Node runner cases and 15 Python visual cases PASS, build/diff PASS.
+  Three entries/returns, two panels, five Stage and four Flow bindings PASS.
+- Scope, provenance, view limits, GPU caveats and reproduction are recorded in
+  `EARTH_HYBRID_FEASIBILITY.md`. All screenshots, .blend, EXR reference passes,
+  comparisons and video remain local under `art/earth-hybrid/`.

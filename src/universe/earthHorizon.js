@@ -9,6 +9,7 @@ import { readHomeFinalCandidate } from './homeFinalCandidate.js';
 import { createEarthRealismMaterial, readEarthRealism } from './earthRealismMaterial.js';
 import { createEarthOrbitalMaterial, readEarthOrbital, EARTH_ORBITAL_URLS } from './earthOrbitalMaterial.js';
 import { readEarthGroundTruth } from './earthGroundTruthProfile.js';
+import { createEarthCinematicHybrid, readEarthCinematicHybrid } from './earthCinematicHybrid.js';
 
 const EARTH_SURFACE_PERIOD = 210;
 const EARTH_CLOUD_SPEED_MULTIPLIER = 1.11;
@@ -190,6 +191,8 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
   atmosphereGroup.add(atmosphere);
   if (rotationDebug.guide) surfaceGroup.add(rotationDebug.guide);
   group.add(surfaceGroup, cloudGroup, atmosphereGroup, sunriseGlow);
+  const cinematicHybrid = heroV3 && readEarthCinematicHybrid(readLocationSearch())
+    ? createEarthCinematicHybrid(group, { search: readLocationSearch(), fallbackGroups: [surfaceGroup, cloudGroup], atmosphere }) : null;
   setLayerMode(seamDebug.enabled ? seamDebug.mode : layerModeOverride || 'combined');
   unsubscribeTextureLoader = textureLoader.subscribe(({ status, textures }) => {
     textureStatus = status;
@@ -277,9 +280,11 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
       atmosphere.visible = layer === 'atmosphere';
     }
     if (seamDebug.enabled) setLayerMode(seamDebug.mode);
+    cinematicHybrid?.update(safeDelta);
   }
 
   function dispose() {
+    cinematicHybrid?.dispose();
     surfaceGeometry.dispose();
     cityLightsGeometry.dispose();
     cloudGeometry.dispose();

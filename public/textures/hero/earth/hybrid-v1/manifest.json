@@ -1,0 +1,143 @@
+{
+  "candidate": "B",
+  "profile": {
+    "name": "Balanced Cinematic",
+    "sunOffset": 0,
+    "land": [
+      0.29,
+      0.36,
+      0.47
+    ],
+    "sun": 2.0,
+    "rough": 0.28,
+    "fill": 0.028,
+    "cloud": [
+      0.7,
+      0.79,
+      0.91
+    ],
+    "air": 1.0
+  },
+  "size": 2048,
+  "cameraWorld": [
+    -0.5832507610321045,
+    0.8122921586036682,
+    1.5003296027771285e-07,
+    0.0,
+    -0.0936066210269928,
+    -0.06721261888742447,
+    0.9933379292488098,
+    0.0,
+    0.8068806529045105,
+    0.579365074634552,
+    0.11523773521184921,
+    0.0,
+    1.180118203163147,
+    1.5873019695281982,
+    3.433176040649414,
+    1.0
+  ],
+  "cameraFov": 54.2135371218036,
+  "earthWorld": [
+    4.619297985636131,
+    2.245774083709028,
+    1.4970253454230014,
+    0,
+    -0.8407534357842665,
+    4.017091125244926,
+    -3.431998332123051,
+    0,
+    -2.5647065680336483,
+    2.7279988373200097,
+    3.8213613495017373,
+    0,
+    -18.29996253691092,
+    -12.4,
+    0.6510538746193945,
+    1
+  ],
+  "earthCenter": [
+    -18.29996253691092,
+    -12.4,
+    0.6510538746193945
+  ],
+  "earthRadiusWorld": 9.8975,
+  "sunWorld": [
+    0.4602603316307068,
+    0.3983652889728546,
+    -0.7933886647224426
+  ],
+  "color": "linear EXR; AgX PNG reference",
+  "cameraLocal": [
+    -0.030395114429592602,
+    0.13113533715718403,
+    0.12968118421503316,
+    0.0,
+    0.03157344128247659,
+    -0.1257903133203956,
+    0.13460112636585664,
+    0.0,
+    0.18170526874285187,
+    0.04379348077034852,
+    -0.001695862793044695,
+    0.0,
+    4.386811962038329,
+    1.0572830173032695,
+    -0.04094168555918354,
+    1.0
+  ],
+  "depthNear": 14.244961980757582,
+  "depthFar": 21.989525114435242,
+  "depthEncoding": "uint16 little endian, 0 invalid, 1..65535 normalized ray distance",
+  "depthMethod": "exact analytic Blender sphere intersection; vertex positions quantized to same 16-bit distance",
+  "vertices": 43009,
+  "indices": 256896,
+  "localRadius": 1.85,
+  "sunLocal": [
+    0.06404035722713347,
+    0.13752162759428843,
+    -0.10919791873159773
+  ],
+  "quantizationMaxWorldError": 5.90858887754564e-05,
+  "candidateStatus": "FEASIBILITY GATE ONLY",
+  "license": "CC BY 4.0",
+  "sourceManifest": "../orbital-v12/manifest.json",
+  "sourceManifestSha256": "6b3696f1094ff30decdddb2c414dd1a1328230b240d036c44b001adc1c92b020",
+  "outputs": [
+    {
+      "file": "earth-hybrid-body-index.bin",
+      "bytes": 1027584,
+      "sha256": "e48c572189b7adad4f2ac1ea3eacfd38b735169281e2e44a77606ca8d2919dd1"
+    },
+    {
+      "file": "earth-hybrid-body-mesh.bin",
+      "bytes": 860180,
+      "sha256": "125539bbad3ea25e974199332c39971aa40a5ce37ebf2e4a755521e042a19cd5"
+    },
+    {
+      "file": "earth-hybrid-city.exr",
+      "bytes": 1006832,
+      "sha256": "c72cfd9d69ef6f8dbaf3e1f960712f2d619606d30014a1ecf0a2afe01e27fe0b"
+    },
+    {
+      "file": "earth-hybrid-cloud.exr",
+      "bytes": 13251099,
+      "sha256": "90ca058510c4efc627b56e76a515962de864af71858871caf080c4c097666ee6"
+    },
+    {
+      "file": "earth-hybrid-depth-u16.bin",
+      "bytes": 8388608,
+      "sha256": "30702758c8490dcf66174bde03a1bc356b945edbb45b990807702dca9f617e57"
+    },
+    {
+      "file": "earth-hybrid-depth.png",
+      "bytes": 1626069,
+      "sha256": "c7a3c1e9bd3aebb0bb5747022571d074ccebd347cbe0b16f9d34209a0a35dacc"
+    },
+    {
+      "file": "earth-hybrid-surface.exr",
+      "bytes": 6919590,
+      "sha256": "dbb12a4e5242e76ab7d8fcee768c341ce50f7b96f3c83d85bc27a0b88f8d870c"
+    }
+  ]
+}
