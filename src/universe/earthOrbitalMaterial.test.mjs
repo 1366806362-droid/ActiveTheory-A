@@ -67,3 +67,46 @@ test('all-or-nothing texture readiness, mask binding and shared cloud rotation',
   assert.equal(layer.surface.geometry,g);assert.equal(layer.clouds.geometry,g);
   layer.dispose();g.dispose();Object.values(maps).forEach(t=>t.dispose());
 });
+
+test('final urban tiers keep real land masking and nonlinear slant cloud transmission',()=>{
+  const m=createEarthOrbitalMaterial('city');
+  assert.match(m.fragmentShader,/smoothstep\(\.75,\.98,texture2D\(uNormalMap,vUv\)\.a\)/);
+  assert.match(m.fragmentShader,/settlement\+urban\+hero/);
+  assert.match(m.fragmentShader,/cloudRayOffset\(vCameraLocal-vLocal,\.0040\)/);
+  assert.doesNotMatch(m.fragmentShader,/1\.-\.83\*clouds/);
+  // Evaluate the actual simple GLSL expression rather than a separately maintained model.
+  const expression=m.fragmentShader.match(/float cloudTransmission[^]*?return ([^;]+);/)[1]
+    .replace(/\b(exp|pow|max|sqrt)\(/g,'Math.$1(');
+  const transmission=new Function('density','viewCos',`return ${expression}`);
+  assert.equal(transmission(0,1),1);
+  assert.ok(transmission(.10,1)>.85);
+  assert.ok(transmission(1,1)<.05);
+  for(const d of [.1,.3,.6,1])assert.ok(transmission(d,.3)<=transmission(d,1));
+  m.dispose();
+});
+
+test('final clouds and ground use spherical light/view projection and stable geographic relief',()=>{
+  const s=createEarthOrbitalMaterial('surface'),c=createEarthOrbitalMaterial('cloud');
+  assert.match(s.fragmentShader,/cloudRayOffset\(vSunLocal,\.0046\)/);
+  assert.match(s.fragmentShader,/nightZone\*skyReach/);
+  assert.match(s.fragmentShader,/rawSpec\/\(1\.\+rawSpec\/\.20\)/);
+  assert.match(c.fragmentShader,/reliefNormal/);
+  assert.match(c.fragmentShader,/\.70\*data.g\+\.30\*data.b/);
+  assert.match(c.fragmentShader,/sunOffset\*2\./);
+  assert.doesNotMatch(c.fragmentShader,/fract\(|random\(|noise\(|uTime\s*\*/);
+  assert.match(c.fragmentShader,/1\.\/4096\./);
+  s.dispose();c.dispose();
+});
+
+test('atmosphere redistributes the same eight samples and keeps the night arc attenuated',()=>{
+  const m=createEarthOrbitalMaterial('atmosphere');
+  assert.match(m.fragmentShader,/i<8/);
+  assert.match(m.fragmentShader,/t1-t0/);
+  assert.match(m.fragmentShader,/\.004\*airglow\+lit\*1\.45/);
+  assert.match(m.fragmentShader,/leave=min\(leave,ground.x\)/);
+  const edges=Array.from({length:9},(_,i)=>.5-.5*Math.cos(Math.PI*i/8));
+  assert.equal(edges[0],0);assert.equal(edges[8],1);
+  assert.ok(edges[1]-edges[0]<edges[4]-edges[3]);
+  assert.ok(Object.values(EARTH_ORBITAL_PROFILES).every(p=>p.aerosol<.4&&p.relief<=.28));
+  m.dispose();
+});

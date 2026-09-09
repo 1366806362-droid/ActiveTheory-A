@@ -269,3 +269,20 @@
 - Audit: `EARTH_V12_ASSET_AUDIT.md`. Reproduce using earth-orbital asset/gate/evidence/
   motion tools and existing home-final-art-regression. No Blender was needed.
 - **EARTH V1.2 READY FOR HUMAN REVIEW**. Candidate only; no HUMAN PASS claimed.
+
+## Earth V1.2 Final Realism Polish — experiment, NOT READY
+
+- Continues the safe pushed `802f3f560ac788f822d8e89ce756d7715660f2c7` on the same
+  Earth feature branch; no Master integration or frozen HOME replacement.
+- Three strategies compared, B selected, two bounded corrections completed.
+  Geographic city tiers, nonlinear cloud transmission, local ray-projected shadows,
+  source-based cloud relief, eight-step atmosphere sampling and night material
+  separation improve closeup detail. Existing 4K asset bytes are unchanged.
+- **NOT READY FOR PRODUCTION**: the exact-camera HOME crop does not show a
+  sufficiently obvious improvement over 802f. Do not call it a final visual PASS.
+  Do not continue polishing automatically or change composition to force a pass.
+- All Node tests (47 runner cases), 12 Python visual tests, build and diff check
+  PASS. Real GPU HOME/closeup ~120 FPS, P95 8.5ms, Earth 4 draws, HOME 53 draws.
+  Existing entries, panels and FiveA renderer-binding proofs retained.
+- Detailed reasoning and reproduction: `EARTH_V12_FINAL_POLISH.md`.
+  Art, A/B, night crop, parallax and video evidence stay under `art/earth-v12-final/`.
