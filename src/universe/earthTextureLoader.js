@@ -10,7 +10,8 @@ let didReportEarthTextureFailure = false;
 
 export function createEarthTextureLoader({
   urls = EARTH_TEXTURE_URLS,
-  anisotropy = 6
+  anisotropy = 6,
+  colorSpaces = {}
 } = {}) {
   const loader = new THREE.TextureLoader();
   const listeners = new Set();
@@ -56,11 +57,8 @@ export function createEarthTextureLoader({
     const loadGeneration = ++generation;
 
     setStatus('loading');
-    activeLoad = Promise.allSettled([
-      loadTexture(urls.surface),
-      loadTexture(urls.city),
-      loadTexture(urls.clouds)
-    ]).then((results) => {
+    const keys = Object.keys(urls);
+    activeLoad = Promise.allSettled(keys.map(key => loadTexture(urls[key]))).then((results) => {
       const loaded = results
         .filter((result) => result.status === 'fulfilled')
         .map((result) => result.value);
@@ -75,12 +73,11 @@ export function createEarthTextureLoader({
         throw failed.reason;
       }
 
-      const [surface, city, clouds] = loaded;
-
-      configureTexture(surface, THREE.SRGBColorSpace);
-      configureTexture(city, THREE.NoColorSpace);
-      configureTexture(clouds, THREE.SRGBColorSpace);
-      textures = { surface, city, clouds };
+      textures = Object.fromEntries(keys.map((key,index) => {
+        const defaultSpace = key === 'surface' || key === 'clouds' ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+        configureTexture(loaded[index], colorSpaces[key] ?? defaultSpace);
+        return [key,loaded[index]];
+      }));
       setStatus('ready');
       return textures;
     }).catch((error) => {

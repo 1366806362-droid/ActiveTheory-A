@@ -1,10 +1,58 @@
 # ActiveTheory Project State
 
+## Earth Hybrid Cinematic Hero — production integration — 2026-09-10
+
+- Source: `origin/feat/home-earth-hybrid-hero-lock` at
+  `15ba52143f7af03664a59a0c2610676e5664caae`, retaining Hybrid `a4880f3` and
+  integrated HOME/bindings `42b33bf` ancestry. Final integration is the merge
+  commit titled `merge: integrate earth hybrid cinematic hero` on
+  `integration/active-theory-master`.
+- **HUMAN VISUAL PASS + PERFORMANCE PASS — PRODUCTION INTEGRATED.** The current
+  HOME Earth is the Hybrid Cinematic Hero Lock; its appearance, composition and
+  motion feel are frozen.
+- Explicit `earthHeroLock=1` on the Hybrid production path provides Earth-only
+  bounded 3D translation, tiny orientation, tanh input and dt-aware critical
+  damping; shared bounded phase and independent long-lived cloud drift.
+- Existing materials/assets, atmosphere, five business bindings, panels, global
+  camera, composition, route and input ownership unchanged. Normal Earth 3 draws.
+- Normal headed Edge after a 10-second excluded warmup: IDLE, NATURAL and STRESS
+  each ran for 120 seconds at 120.0 FPS with P95/P99 8.5ms. IDLE max was 8.6ms,
+  NATURAL max 8.8ms and STRESS max 16.6ms; no frame exceeded 16.7ms, no long
+  task occurred, GPU P95 stayed below 4.36ms, and fallback/nonfinite counts were
+  zero. The earlier isolated 129.8..146.9ms observations did not reproduce in
+  steady runtime or the separate recording comparison and are classified as
+  prior host/instrumentation transients, not an Earth shader stall.
+- Full safety fallback and asset-failure recovery remain functional. Node,
+  Python, build, entries, panels and renderer-binding regressions pass; normal
+  console/runtime 0 and Canvas/RAF/wheel 1/1/1.
+- Full strategy, limitations and reproduction: `EARTH_HERO_LOCK_REVIEW.md`.
+  Performance and visual evidence remains local under `art/earth-hero-lock/`.
+- Pure realtime Earth V1.2/V1.3 remain historical experiments and are not the
+  current HOME Earth or the current NEXT task.
+
+## Earth Hybrid production-readiness experiment — 2026-09-10
+
+- Independent `feat/home-earth-hybrid-production-readiness` from protected
+  `a4880f3d9bf00116991d8e64481c9216f5577d57`; no Master integration.
+- **NOT READY FOR PRODUCTION**: hard switching and geographic discontinuity
+  resolved, but full realtime fallback still visibly loses photographic cloud
+  quality. HOME FINAL and previous Hybrid remain unchanged by default.
+- Opt-in `earthHybridProd=1`: shared full-sphere material handoff (6..14 degrees,
+  .25-degree hysteresis), authoritative surface/cloud phase, finite slow Hero
+  drift, original single live atmosphere. No new assets, capture or depth rebake.
+- 61 Node runner cases / 15 Python visual cases / build / diff PASS. Real HOME
+  ~120 FPS, P95 8.4..8.5ms, Earth 3 / total 52 draws. Console/runtime 0;
+  Canvas/RAF/wheel 1/1/1. Entries, panels and all FiveA stage/flow bindings PASS.
+- Experimental local checkpoint only; no production promotion or Push under
+  the successful-visual-gate authorization. Evidence: `art/earth-prod/final/`;
+  architecture, reproduction and limitations: `EARTH_HYBRID_PRODUCTION_AUDIT.md`.
+
 ## Confirmed / frozen
 
-- **Home visual baseline:** `origin/feat/home-target-frame-v1` at
-  `e3d9a8279caeb8fb857fdd21746f8533808435a3`; this owns the approved Home
-  composition, Earth, Galaxy, camera, and visual assets.
+- **Home visual baseline:** HOME FINAL V1 from `42b33bf`, with the Earth surface
+  replaced only by the human-approved Hybrid Cinematic Hero Lock source
+  `15ba52143f7af03664a59a0c2610676e5664caae`. Galaxy, 5A, GEO, Brand Mind,
+  title, camera, routes and renderer bindings retain the frozen HOME baseline.
 - **V2 renderer-adapter dry-run:**
   `origin/feat/active-theory-v2-renderer-adapter-dry-run` at
   `69e01369335aca0c3f4aef79563686a6f22b3fec`; it is non-rendering and includes
@@ -200,3 +248,130 @@
   This preserves their approved hierarchy, negative space, camera and runtime
   ownership; subsequent work must be separately approved rather than changing
   the frozen HOME presentation.
+
+## Earth Realism V1.1 — independent human-review candidate
+
+- Base: `42b33bfc6e873e29cc6fb2b0e2a9fa992f101f66`, latest verified
+  `origin/integration/active-theory-master` on 2026-09-08. Candidate branch:
+  `feat/home-earth-realism-v11`; no integration into the frozen HOME baseline.
+- Explicit `earthRealism=1` with `earthV2=1&earthV3=1` selects B. Removing the
+  flag restores byte-identical frozen shader sources. A/B/C material interpretations
+  were captured; B retained, with one correction for double-darkened night atlas
+  and metropolitan readability. No second correction or additional visual scope.
+- Existing 2048x1024 WebP surface/cloud sRGB atlases and linear-intensity city
+  atlas reused unchanged (mipmapped linear filtering, anisotropy 6).
+- Four existing spheres: region-preserving rough land versus dark ocean glint;
+  atlas-driven settlement/metropolis tiers with cloud occlusion; multiscale cloud
+  optical thickness and relative-rotation shadow; single-shell tangent optical-depth
+  atmosphere with inner rim, outer haze and localized sunrise. These are lightweight
+  shading approximations, not physical volumetric scattering or measured terrain.
+- Same linear render path and final OutputPass; no global exposure, bloom,
+  renderer, camera, transform, speed, Galaxy or business visual modifications.
+- Dev-only `earthFreeze=1`, `earthDebugLayer=surface|cloud|city|atmosphere`, and
+  existing `debugEarthV3Closeup=1` provide layer audits, not product UI.
+- Validation: all 35 current Node test files pass (39 runner cases including
+  five new realism tests and existing custom suites); nine Python visual tests,
+  build and diff check pass. Real Edge / RTX 5060 Ti: HOME and closeup ~120 FPS,
+  frame P95 8.4ms; Earth four draws, total HOME 53 / closeup 18. GPU elapsed
+  whole-frame averages ~3.09ms HOME / ~1.51ms closeup; these include postprocessing,
+  not isolated Earth shader timings. Board VRAM ~2063/16311MiB (all applications).
+- GEO/FiveA/Brand Mind entry and return, both panels, all five stage scale/energy
+  and four flowStrength renderer binding proofs pass. Canvas/RAF/wheel = 1/1/1;
+  console/runtime errors = 0. Frozen source/assets and unrelated WIP untouched.
+- Reproduce with `tools/earth-realism-v11-gate.cjs`,
+  `tools/earth-realism-v11-evidence.py` and existing
+  `tools/home-final-art-regression.cjs`; all image/report outputs remain in `art/`.
+- **EARTH V1.1 READY FOR HUMAN REVIEW**, not HUMAN PASS or production replacement.
+  At close range the existing city/cloud atlas resolution remains a visible limit.
+
+## Earth Orbital V1.2 — independent human-review candidate
+
+- Branch: `feat/home-earth-realism-v12-orbital`, independent worktree based on
+  V1.1 `dccc33ee8fa075c14bce72bde477d0bde89aa706`, which includes verified latest
+  integration `42b33bfc6e873e29cc6fb2b0e2a9fa992f101f66`. No Master merge or
+  replacement of the HUMAN PASS / VISUAL FREEZE HOME baseline.
+- Opt in with `earthOrbital=1&earthV2=1&earthV3=1`; B is selected. Three candidates
+  compared, one visual correction (land direct response/saturation, cloud response,
+  weak night bounce). No global exposure, bloom, camera, layout or rotation changes.
+- Genuine 8K Solar System Scope / INOVE CC BY 4.0 maps deterministically become
+  four 4K lossless runtime maps: albedo, normal/land, urban tiers, cloud scales.
+  Original files stay in art; runtime attribution and content hashes are committed.
+  Exact WebP preserves normal RGB under zero land-mask alpha. Historic assets intact.
+- Geographic rough land, grazing dark ocean response, three night-city tiers with
+  water exclusion/cloud occlusion, source-backed weather and thin cloud/ground
+  interaction, eight-sample camera-relative Rayleigh/Mie-inspired atmosphere.
+  Single-scattering approximation, not measured physical or offline ground truth.
+- Same-camera 1600x900 DPR1 A/B and four layer views, 640x360 small read, three
+  live parallax positions and 6.9-second actual runtime video saved under art/earth-v12.
+  Closeup and HOME visibly improve weather/terrain/air separation; midnight remains
+  deliberately dark. Human review is still required, especially on a darker display.
+- Node: all 36 current test files / 44 runner cases PASS; Python visual 12 PASS;
+  build and diff check PASS. Real Edge RTX 5060 Ti HOME 120.0 FPS, P95 8.4ms,
+  53 draws; closeup 120.0 FPS, P95 8.5ms, 18 draws. Earth four draws in both.
+  GPU whole-frame ~2.66ms HOME / 1.29ms closeup (not isolated Earth timing).
+  Board VRAM ~1990/16311MiB HOME, includes other applications; texture mip estimate
+  170.7MiB, not a dedicated process-memory measurement.
+- GEO/FiveA/Brand Mind entry/return, two panels, five stage scale/energy and four
+  flowStrength renderer binding proofs PASS. Console/runtime 0; Canvas/RAF/Wheel
+  1/1/1. Frozen shader paths, Galaxy, bindings and unrelated WIP untouched.
+- Audit: `EARTH_V12_ASSET_AUDIT.md`. Reproduce using earth-orbital asset/gate/evidence/
+  motion tools and existing home-final-art-regression. No Blender was needed.
+- **EARTH V1.2 READY FOR HUMAN REVIEW**. Candidate only; no HUMAN PASS claimed.
+
+## Earth V1.2 Final Realism Polish — experiment, NOT READY
+
+- Continues the safe pushed `802f3f560ac788f822d8e89ce756d7715660f2c7` on the same
+  Earth feature branch; no Master integration or frozen HOME replacement.
+- Three strategies compared, B selected, two bounded corrections completed.
+  Geographic city tiers, nonlinear cloud transmission, local ray-projected shadows,
+  source-based cloud relief, eight-step atmosphere sampling and night material
+  separation improve closeup detail. Existing 4K asset bytes are unchanged.
+- **NOT READY FOR PRODUCTION**: the exact-camera HOME crop does not show a
+  sufficiently obvious improvement over 802f. Do not call it a final visual PASS.
+  Do not continue polishing automatically or change composition to force a pass.
+- All Node tests (47 runner cases), 12 Python visual tests, build and diff check
+  PASS. Real GPU HOME/closeup ~120 FPS, P95 8.5ms, Earth 4 draws, HOME 53 draws.
+  Existing entries, panels and FiveA renderer-binding proofs retained.
+- Detailed reasoning and reproduction: `EARTH_V12_FINAL_POLISH.md`.
+  Art, A/B, night crop, parallax and video evidence stay under `art/earth-v12-final/`.
+
+## Earth V1.3 Orbital Ground-Truth Convergence — experimental, NOT READY
+
+- Independent `feat/home-earth-realism-v13-ground-truth`, based on de43f5e;
+  preserves 802f3f5 and HOME FINAL V1. Frozen Earth is not replaced.
+- Real Blender 5.2 Cycles/OptiX reference using actual Web mesh/UV/camera/sun:
+  64 samples, closeup 6.234s, HOME crop 4.419s. No new runtime texture assets.
+- Four phases compared; original Asian phase retained. Three material profiles,
+  B / 12-step atmosphere selected; one bounded night-body/cloud correction.
+- Explicit `earthV13=1` plus existing orbital flags: geographic material separation,
+  continuous cloud optical depth, bounded footprint compensation, very slow
+  3600-second rotation. Old shader paths, composition and other modules unchanged.
+- **EARTH ROUTE NOT READY / EARTH V1.3 NOT READY FOR PRODUCTION**: native HOME
+  A/B improvement over 802f is still incremental, not the requested photographic
+  step-change. No further correction or automatic version; no Master promotion.
+- All Node 51 runner items and Python visual 12 PASS; build/diff PASS. HOME and
+  closeup ~120 FPS, P95 8.5ms, Earth 4 draws, HOME 53. Console/runtime 0,
+  Canvas/RAF/Wheel 1/1/1. Entries, two panels, FiveA stage/flow bindings PASS.
+- Reference limits, GPU timing caveats, assets, A/B conditions and reproduction:
+  `EARTH_V13_GROUND_TRUTH_AUDIT.md`. Review artifacts under `art/earth-v13/`.
+  Local experimental checkpoint only; not pushed as a production candidate.
+
+## Earth Hybrid Cinematic V1 — candidate for human review
+
+- Independent `feat/home-earth-hybrid-cinematic-v1`, based on protected V1.3
+  `7a8d71591e8fcab2ef4da62cb866a1e5c4694fb4`. HOME FINAL V1 remains frozen;
+  no Master integration or automatic replacement.
+- Cycles / OptiX candidate B: 2048-square 96-sample independent Surface, City,
+  Cloud and reference Atmosphere passes. Existing legal 4K assets retained.
+- Explicit `earthHybrid=1` creates an Earth-local 16-bit depth-derived body,
+  independent slowly drifting cloud and existing live atmosphere: 3 draw calls.
+  Real-time Earth retained as loading / out-of-view-cone fallback.
+- Native HOME ROI visibly improves weather / ground separation over 802f and
+  V13. This is READY FOR HUMAN REVIEW, not HUMAN PASS. Closeup is a capture-view
+  inspection; no free-orbit capability is claimed.
+- HOME ~120 FPS / P95 8.5ms / 52 draws; console/runtime 0, Canvas/RAF/Wheel 1/1/1.
+  All 56 Node runner cases and 15 Python visual cases PASS, build/diff PASS.
+  Three entries/returns, two panels, five Stage and four Flow bindings PASS.
+- Scope, provenance, view limits, GPU caveats and reproduction are recorded in
+  `EARTH_HYBRID_FEASIBILITY.md`. All screenshots, .blend, EXR reference passes,
+  comparisons and video remain local under `art/earth-hybrid/`.
