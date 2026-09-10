@@ -1,5 +1,25 @@
 # ActiveTheory Project State
 
+## Earth Hybrid Hero Lock V1 candidate — 2026-09-10
+
+- Independent `feat/home-earth-hybrid-hero-lock` from protected `9790a8e`,
+  retaining Hybrid `a4880f3` and integrated HOME/bindings `42b33bf` ancestry.
+- **READY FOR HUMAN REVIEW**; no replacement of frozen HOME or Master merge.
+- New explicit `earthHeroLock=1` on the Hybrid production candidate: Earth-only
+  bounded 3D translation, tiny orientation, tanh input and dt-aware critical
+  damping; shared bounded phase and independent long-lived cloud drift.
+- Existing materials/assets, atmosphere, five business bindings, panels, global
+  camera, composition, route and input ownership unchanged. Normal Earth 3 draws.
+- 61-second stress: fallback 0, nonfinite 0, max view 1.68 degrees; one-hour phase
+  plus corners 2.32 degrees. Real tab visibility and engine recreation preserve
+  phase. Full safety fallback and asset-failure recovery remain functional.
+- Node 68/68 / Python 15/15 / build / diff / entries / panels / bindings PASS;
+  normal console/runtime 0, Canvas/RAF/wheel 1/1/1. P95/P99 ~4.3ms on this run;
+  isolated 129.8..146.9ms pacing outliers retained, not claimed solved. Stable
+  recording runs ~240 FPS; host-dependent, not a claimed 2x performance upgrade.
+- Full strategy, limitations and reproduction: `EARTH_HERO_LOCK_REVIEW.md`.
+  Local-only evidence: `art/earth-hero-lock/final/index.html`.
+
 ## Earth Hybrid production-readiness experiment — 2026-09-10
 
 - Independent `feat/home-earth-hybrid-production-readiness` from protected

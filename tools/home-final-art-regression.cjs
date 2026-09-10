@@ -52,6 +52,7 @@ function validate(report){
     for(const [key,name,scene,panel] of [
       ['geo','GEONebula','GeoScene',null],['fivea','5ANebula','FiveAScene','__ACTIVE_THEORY_FIVEA_DATA_PANEL__'],
       ['brandmind','BrandMindNebula','BrandMindScene','__ACTIVE_THEORY_BRAND_MIND_DATA_PANEL__']]){
+      const earthBefore=base.includes('earthHeroLock=1')?await p.evaluate(()=>({...window.__ACTIVE_THEORY_EARTH_HYBRID__?.rotation})):null;
       const point=await p.evaluate(async name=>{
         const s=(await import('/src/engine/scenes.js')).getActiveScene(),c=(await import('/src/engine/camera.js')).getCamera();
         const T=await import('/node_modules/.vite/deps/three.js');const v=s.getObjectByName(name).getWorldPosition(new T.Vector3()).project(c);return [(v.x+1)*800,(1-v.y)*450];
@@ -73,6 +74,7 @@ function validate(report){
         await p.mouse.wheel(0,-500);await p.waitForTimeout(220);
       }
       await p.waitForTimeout(1800);entry.returned=await status();
+      if(earthBefore){entry.earthLifecycle={before:earthBefore,after:await p.evaluate(()=>({...window.__ACTIVE_THEORY_EARTH_HYBRID__?.rotation})),mix:await p.evaluate(()=>window.__ACTIVE_THEORY_EARTH_HYBRID__?.mix)};assert.ok(entry.earthLifecycle.after.time>=earthBefore.time);assert.equal(entry.earthLifecycle.mix,0);}
       assert.equal(entry.returned.routeIndex,0);assert.equal(entry.returned.activeScene,'HeroScene');
       report.entries.push(entry);fs.writeFileSync(path.join(out,'interaction-report.json'),JSON.stringify(report,null,2));
     }

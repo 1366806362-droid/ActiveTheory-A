@@ -11,6 +11,7 @@ import { createEarthOrbitalMaterial, readEarthOrbital, EARTH_ORBITAL_URLS } from
 import { readEarthGroundTruth } from './earthGroundTruthProfile.js';
 import { createEarthCinematicHybrid, readEarthCinematicHybrid } from './earthCinematicHybrid.js';
 import { earthHeroRotation } from './earthHybridHandoff.js';
+import { readEarthHeroLock, createEarthHeroLock, earthHeroSession, heroLockPhases } from './earthHeroLock.js';
 
 const EARTH_SURFACE_PERIOD = 210;
 const EARTH_CLOUD_SPEED_MULTIPLIER = 1.11;
@@ -73,6 +74,8 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
   const realismCandidate = heroV3 ? readEarthRealism() : null;
   const orbitalCandidate = heroV3 ? readEarthOrbital() : null;
   const groundTruth = orbitalCandidate ? readEarthGroundTruth() : null;
+  const heroLockStrategy = groundTruth ? readEarthHeroLock(readLocationSearch()) : null;
+  const heroSession = heroLockStrategy ? earthHeroSession(heroLockStrategy) : null;
   const boundedHeroMotion = !!groundTruth && readEarthCinematicHybrid(readLocationSearch())
     && new URLSearchParams(readLocationSearch()).get('earthHybridProd') === '1';
   const realismDebug = import.meta.env?.DEV && (realismCandidate || orbitalCandidate || new URLSearchParams(readLocationSearch()).get('earthAudit') === '1')
@@ -157,7 +160,7 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
   const surfaceInitialPhase = -1.7 + phaseOffset;
   let surfaceAngle = surfaceInitialPhase;
   let cloudAngle = phaseOffset;
-  let visualTime = 0;
+  let visualTime = heroSession?.time ?? 0;
   let debugWallTime = performance.now();
   let textureStatus = 'idle';
   let unsubscribeTextureLoader = null;
@@ -193,11 +196,15 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
   if (atmosphereDebugSilhouette) atmosphereGroup.add(atmosphereDebugSilhouette);
   atmosphereGroup.add(atmosphere);
   if (rotationDebug.guide) surfaceGroup.add(rotationDebug.guide);
-  group.add(surfaceGroup, cloudGroup, atmosphereGroup, sunriseGlow);
+  const heroMotionRoot = heroLockStrategy ? new THREE.Group() : group;
+  if (heroLockStrategy) { heroMotionRoot.name='EarthHeroMotion';group.add(heroMotionRoot); }
+  heroMotionRoot.add(surfaceGroup, cloudGroup, atmosphereGroup, sunriseGlow);
   const cinematicHybrid = heroV3 && readEarthCinematicHybrid(readLocationSearch())
-    ? createEarthCinematicHybrid(group, { search: readLocationSearch(), fallbackGroups: [surfaceGroup, cloudGroup], atmosphere,
+    ? createEarthCinematicHybrid(heroMotionRoot, { search: readLocationSearch(), fallbackGroups: [surfaceGroup, cloudGroup], atmosphere,
       fallbackLayers:textureLayers,initialSurface:surfaceInitialPhase,initialCloud:phaseOffset,
       rotationState:()=>({surfaceAngle,cloudAngle,time:visualTime}) }) : null;
+  const heroLock = heroLockStrategy ? createEarthHeroLock(group,heroMotionRoot,textureLayers.surface,
+    {strategy:heroLockStrategy,session:heroSession,afterApply:camera=>cinematicHybrid?.update(0,camera)}) : null;
   setLayerMode(seamDebug.enabled ? seamDebug.mode : layerModeOverride || 'combined');
   unsubscribeTextureLoader = textureLoader.subscribe(({ status, textures }) => {
     textureStatus = status;
@@ -235,8 +242,13 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
 
     debugWallTime = now;
     visualTime += safeDelta;
+    if (heroSession) heroSession.time=visualTime;
+    heroLock?.update(safeDelta,active);
     sharedTime.value = visualTime;
-    if (boundedHeroMotion && !debugRotationActive) {
+    if (heroLockStrategy && !debugRotationActive) {
+      ({surfaceAngle,cloudAngle}=heroLockPhases(visualTime,surfaceInitialPhase,phaseOffset));
+      cloudAngle+=heroLock.cloudOffset();
+    } else if (boundedHeroMotion && !debugRotationActive) {
       ({surfaceAngle,cloudAngle}=earthHeroRotation(visualTime,surfaceInitialPhase,phaseOffset,surfaceAngularSpeed,EARTH_CLOUD_SPEED_MULTIPLIER));
     } else {
       surfaceAngle = wrapAngle(surfaceAngle - safeDelta * surfaceAngularSpeed);
@@ -293,6 +305,7 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
   }
 
   function dispose() {
+    heroLock?.dispose();
     cinematicHybrid?.dispose();
     surfaceGeometry.dispose();
     cityLightsGeometry.dispose();
