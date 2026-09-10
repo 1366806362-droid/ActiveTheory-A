@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import { getCamera } from '../engine/camera.js';
+import { createEarthMaterialHandoff } from './earthHybridHandoff.js';
 
 export function readEarthCinematicHybrid(search=''){
   const p=new URLSearchParams(search);
@@ -20,8 +21,11 @@ export function decodeEarthHybridMesh(vertexBuffer,indexBuffer,manifest){
   return g;
 }
 
-export function createEarthCinematicHybrid(root,{search='',fallbackGroups=[],atmosphere=null}={}){
+export function createEarthCinematicHybrid(root,{search='',fallbackGroups=[],atmosphere=null,fallbackLayers=null,initialSurface=-1.7,initialCloud=0,rotationState=null}={}){
   const params=new URLSearchParams(search),debug=params.get('earthHybridDebug');
+  const production=params.get('earthHybridProd')==='1'&&fallbackLayers&&typeof rotationState==='function'
+    &&/^(EarthGroundTruth|EarthOrbital)-surface-/.test(fallbackLayers.surface?.material?.name||'');
+  let handoff=null;
   const group=new THREE.Group();group.name='EarthCinematicHybrid';group.visible=false;root.add(group);
   const base='/textures/hero/earth/hybrid-v1/',abort=new AbortController();
   let disposed=false,ready=false,error=null,time=0,geometry=null,body=null,cloud=null,aligned=false;
@@ -29,6 +33,7 @@ export function createEarthCinematicHybrid(root,{search='',fallbackGroups=[],atm
   const textures=[];const originals=fallbackGroups.map(g=>[g,g.visible]);
   const atmosphereVisible=atmosphere?.visible;
   const referenceView=new THREE.Vector3(),currentView=new THREE.Vector3();
+  const rotatedReference=new THREE.Vector3(),rotationAxis=new THREE.Vector3(0,1,0);
   const common=/*glsl*/`varying vec2 vUv;varying vec3 vLocal;
     vec3 orbitalGrade(vec3 c){float y=dot(c,vec3(.2126,.7152,.0722));return mix(vec3(y)*vec3(.83,.94,1.08),c,.30);}`;
   const vertex=/*glsl*/`varying vec2 vUv;varying vec3 vLocal;void main(){vUv=uv;vLocal=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`;
@@ -75,15 +80,36 @@ export function createEarthCinematicHybrid(root,{search='',fallbackGroups=[],atm
         transparent:true,depthWrite:false,side:THREE.DoubleSide,fog:false});
       cloud=new THREE.Mesh(geometry,cloudMaterial);cloud.name='EarthHybridCloud';cloud.scale.setScalar(1.00249);cloud.renderOrder=4;group.add(cloud);
       group.userData.referenceCamera=new THREE.Matrix4().fromArray(manifest.cameraLocal);
-      group.userData.manifest=manifest;ready=true;
+      group.userData.manifest=manifest;
+      if(production)handoff=createEarthMaterialHandoff({surface:fallbackLayers.surface,city:fallbackLayers.city,cloud:fallbackLayers.clouds,
+        manifest,maps:{surface:s,city:c,cloud:w},initialSurface,initialCloud});
+      ready=true;
       diagnostic={ready:true,candidate:manifest.candidate,vertices:manifest.vertices,drawCalls:3,depth:'quantized 16-bit sphere-ray mesh',cameraLimited:true};
       window.__ACTIVE_THEORY_EARTH_HYBRID__=diagnostic;
     }catch(e){abort.abort();textures.forEach(t=>t.dispose());if(!disposed){error=e.message;diagnostic={ready:false,error,fallback:true};window.__ACTIVE_THEORY_EARTH_HYBRID__=diagnostic;}}
   })();
   return {group,promise,
     update(dt,camera){
-      if(!ready||disposed)return;time+=Math.max(0,Math.min(dt,.1));
+      if(!ready||disposed)return;
+      time=production?rotationState().time:time+Math.max(0,Math.min(dt,.1));
       camera??=getCamera();
+      if(production){
+        if(!camera||!fallbackLayers.isReady())return;
+        root.updateWorldMatrix(true,false);
+        referenceView.setFromMatrixPosition(group.userData.referenceCamera).normalize();
+        currentView.copy(camera.getWorldPosition(currentView));root.worldToLocal(currentView).normalize();
+        const rotation=rotationState();let angle=0;
+        for(const phase of [rotation.surfaceAngle-initialSurface,rotation.cloudAngle-initialCloud]){
+          rotatedReference.copy(referenceView).applyAxisAngle(rotationAxis,phase);
+          angle=Math.max(angle,Math.acos(THREE.MathUtils.clamp(rotatedReference.dot(currentView),-1,1))*180/Math.PI);
+        }
+        const s=handoff.update(angle);group.visible=false;
+        for(const[g,visible]of originals)g.visible=visible;
+        Object.assign(diagnostic,{production:true,...s,time,rotation,fallback:s.mix===1,drawCalls:3,
+          vertices:fallbackLayers.surface.geometry.attributes.position.count,
+          referenceDepthVertices:group.userData.manifest.vertices,depth:'shared complete sphere aligned with captured depth'});
+        return;
+      }
       cloud.visible=!['depth','surface','city','atmosphere'].includes(debug);
       if(atmosphere)atmosphere.visible=!['depth','surface','city','cloud'].includes(debug);
       cloud.material.uniforms.uTime.value=time;
@@ -108,7 +134,7 @@ export function createEarthCinematicHybrid(root,{search='',fallbackGroups=[],atm
       diagnostic.fallback=!supported;
     },
     getStatus:()=>({ready,error,time}),
-    dispose(){disposed=true;abort.abort();textures.forEach(t=>t.dispose());body?.material.dispose();cloud?.material.dispose();geometry?.dispose();
+    dispose(){disposed=true;abort.abort();handoff?.dispose();textures.forEach(t=>t.dispose());body?.material.dispose();cloud?.material.dispose();geometry?.dispose();
       for(const[g,visible]of originals)g.visible=visible;if(atmosphere)atmosphere.visible=atmosphereVisible;root.remove(group);
       if(window.__ACTIVE_THEORY_EARTH_HYBRID__===diagnostic){if(previousDiagnostic)window.__ACTIVE_THEORY_EARTH_HYBRID__=previousDiagnostic;else delete window.__ACTIVE_THEORY_EARTH_HYBRID__;}}
   };

@@ -10,6 +10,7 @@ import { createEarthRealismMaterial, readEarthRealism } from './earthRealismMate
 import { createEarthOrbitalMaterial, readEarthOrbital, EARTH_ORBITAL_URLS } from './earthOrbitalMaterial.js';
 import { readEarthGroundTruth } from './earthGroundTruthProfile.js';
 import { createEarthCinematicHybrid, readEarthCinematicHybrid } from './earthCinematicHybrid.js';
+import { earthHeroRotation } from './earthHybridHandoff.js';
 
 const EARTH_SURFACE_PERIOD = 210;
 const EARTH_CLOUD_SPEED_MULTIPLIER = 1.11;
@@ -72,6 +73,8 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
   const realismCandidate = heroV3 ? readEarthRealism() : null;
   const orbitalCandidate = heroV3 ? readEarthOrbital() : null;
   const groundTruth = orbitalCandidate ? readEarthGroundTruth() : null;
+  const boundedHeroMotion = !!groundTruth && readEarthCinematicHybrid(readLocationSearch())
+    && new URLSearchParams(readLocationSearch()).get('earthHybridProd') === '1';
   const realismDebug = import.meta.env?.DEV && (realismCandidate || orbitalCandidate || new URLSearchParams(readLocationSearch()).get('earthAudit') === '1')
     ? new URLSearchParams(readLocationSearch()) : null;
   const cloudOffset = { value: 0 };
@@ -192,7 +195,9 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
   if (rotationDebug.guide) surfaceGroup.add(rotationDebug.guide);
   group.add(surfaceGroup, cloudGroup, atmosphereGroup, sunriseGlow);
   const cinematicHybrid = heroV3 && readEarthCinematicHybrid(readLocationSearch())
-    ? createEarthCinematicHybrid(group, { search: readLocationSearch(), fallbackGroups: [surfaceGroup, cloudGroup], atmosphere }) : null;
+    ? createEarthCinematicHybrid(group, { search: readLocationSearch(), fallbackGroups: [surfaceGroup, cloudGroup], atmosphere,
+      fallbackLayers:textureLayers,initialSurface:surfaceInitialPhase,initialCloud:phaseOffset,
+      rotationState:()=>({surfaceAngle,cloudAngle,time:visualTime}) }) : null;
   setLayerMode(seamDebug.enabled ? seamDebug.mode : layerModeOverride || 'combined');
   unsubscribeTextureLoader = textureLoader.subscribe(({ status, textures }) => {
     textureStatus = status;
@@ -231,8 +236,12 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
     debugWallTime = now;
     visualTime += safeDelta;
     sharedTime.value = visualTime;
-    surfaceAngle = wrapAngle(surfaceAngle - safeDelta * surfaceAngularSpeed);
-    cloudAngle = wrapAngle(cloudAngle - safeDelta * cloudAngularSpeed);
+    if (boundedHeroMotion && !debugRotationActive) {
+      ({surfaceAngle,cloudAngle}=earthHeroRotation(visualTime,surfaceInitialPhase,phaseOffset,surfaceAngularSpeed,EARTH_CLOUD_SPEED_MULTIPLIER));
+    } else {
+      surfaceAngle = wrapAngle(surfaceAngle - safeDelta * surfaceAngularSpeed);
+      cloudAngle = wrapAngle(cloudAngle - safeDelta * cloudAngularSpeed);
+    }
     surfaceGroup.rotation.y = surfaceAngle;
     cloudGroup.rotation.y = cloudAngle;
     cloudOffset.value = (surfaceAngle - cloudAngle) / (Math.PI * 2);

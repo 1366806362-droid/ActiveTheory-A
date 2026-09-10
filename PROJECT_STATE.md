@@ -1,5 +1,22 @@
 # ActiveTheory Project State
 
+## Earth Hybrid production-readiness experiment — 2026-09-10
+
+- Independent `feat/home-earth-hybrid-production-readiness` from protected
+  `a4880f3d9bf00116991d8e64481c9216f5577d57`; no Master integration.
+- **NOT READY FOR PRODUCTION**: hard switching and geographic discontinuity
+  resolved, but full realtime fallback still visibly loses photographic cloud
+  quality. HOME FINAL and previous Hybrid remain unchanged by default.
+- Opt-in `earthHybridProd=1`: shared full-sphere material handoff (6..14 degrees,
+  .25-degree hysteresis), authoritative surface/cloud phase, finite slow Hero
+  drift, original single live atmosphere. No new assets, capture or depth rebake.
+- 61 Node runner cases / 15 Python visual cases / build / diff PASS. Real HOME
+  ~120 FPS, P95 8.4..8.5ms, Earth 3 / total 52 draws. Console/runtime 0;
+  Canvas/RAF/wheel 1/1/1. Entries, panels and all FiveA stage/flow bindings PASS.
+- Experimental local checkpoint only; no production promotion or Push under
+  the successful-visual-gate authorization. Evidence: `art/earth-prod/final/`;
+  architecture, reproduction and limitations: `EARTH_HYBRID_PRODUCTION_AUDIT.md`.
+
 ## Confirmed / frozen
 
 - **Home visual baseline:** `origin/feat/home-target-frame-v1` at
