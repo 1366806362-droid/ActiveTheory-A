@@ -1,5 +1,31 @@
 # ActiveTheory Project State
 
+## FiveA Scene V1.1 — independent cinematic journey candidate — 2026-09-11
+
+- Feature `feat/fivea-scene-cinematic-v11` starts at verified latest common
+  baseline `d4f4a2c40b975dcbcbb96e6284b1aeff2629237c`, in an independent worktree.
+  **READY FOR HUMAN REVIEW**, not HUMAN PASS or a new production freeze.
+- Opt-in internal-only `fiveACinematic=B` / `1`: common layered particle material,
+  stage-root art spacing, readable existing labels, four continuous adjacent
+  migration paths. A preserves original spacing for comparison; two candidates
+  and two evidence-based corrections only. Camera and stage Z offsets unchanged.
+- Stage 4,500 / Core 2,200 / Flow 432; same GPU batches. Five stage scale/energy
+  and four flowStrength alpha bindings preserved; no density/flowSpeed activation.
+  DEV-only review harness switches existing synthetic Snapshots through the real
+  consumer/Derived/VisualState/BindingPlan/adapters and matching Panel.
+- HOME Hybrid Earth/Hero Lock, Galaxy, homepage entries, GEO/Brand Mind, panels,
+  routes/scroll/handoff and V2 rules unchanged. Native HOME comparison identical.
+- 41 Node files / 657 named cases PASS (9 new; 77 Node wrapper items), build,
+  evidence integrity and diff check PASS. Real entries/returns/panels/bindings
+  PASS; console/runtime 0, Canvas/RAF/Wheel 1/1/1.
+- Same headed Edge / RTX 5060 Ti / 1600x900 DPR1 / 120Hz: separate steady,
+  pointer and Snapshot+Panel 60s blocks ~120 FPS, P95/P99 8.5ms, max 25ms during
+  data/Panel changes, no >50ms frame. Whole-frame draw calls 45→39; separate
+  direct-scene GPU query P95 3.775ms, no process VRAM claim. See
+  `FIVEA_V11_REVIEW.md` for separate sampling conditions and limitations.
+- Native screenshots, timestamped real-browser video and machine-readable
+  records remain local in `art/fivea-v11/`; no Master integration.
+
 ## Earth Hybrid Cinematic Hero — production integration — 2026-09-10
 
 - Source: `origin/feat/home-earth-hybrid-hero-lock` at
