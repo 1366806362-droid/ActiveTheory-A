@@ -1,6 +1,6 @@
 // Separate GPU timing probe, not part of frame-pacing measurements or the app.
 const {chromium}=require('playwright');const fs=require('node:fs');
-const base='http://127.0.0.1:5191/?scene=fivea&v2FiveAState=balanced';
+const base=process.env.FIVEA_GPU_BASE_URL||'http://127.0.0.1:5191/?scene=fivea&v2FiveAState=balanced';
 (async()=>{
   const b=await chromium.launch({channel:'msedge',headless:false});const report={};
   try{for(const variant of ['baseline','B']){
@@ -20,9 +20,9 @@ const base='http://127.0.0.1:5191/?scene=fivea&v2FiveAState=balanced';
         try{cb(t);}finally{if(q){gl.endQuery(ext.TIME_ELAPSED_EXT);pending.push(q);}}
       });
     });
-    await p.goto(base+(variant==='B'?'&fiveACinematic=B':''),{waitUntil:'networkidle'});await p.waitForTimeout(10000);
+    await p.goto(base+(variant==='B'?(process.env.FIVEA_GPU_CANDIDATE_SUFFIX||'&fiveACinematic=B'):''),{waitUntil:'networkidle'});await p.waitForTimeout(10000);
     await p.evaluate(()=>{window.__GPU_PROBE__.enabled=true;});await p.waitForTimeout(15000);
     report[variant]=await p.evaluate(()=>{const s=window.__GPU_PROBE__;s.enabled=false;const a=s.samples.slice().sort((a,b)=>a-b);const q=p=>a[Math.floor((a.length-1)*p)];return {supported:s.supported,count:a.length,medianMs:q(.5),p95Ms:q(.95),p99Ms:q(.99),maxMs:a.at(-1),disjoint:s.disjoint,viewport:[innerWidth,innerHeight],dpr:devicePixelRatio};});
     console.log(variant,JSON.stringify(report[variant]));await c.close();
-  }}finally{fs.writeFileSync('art/fivea-v11/gpu-report.json',JSON.stringify({method:'EXT_disjoint_timer_query_webgl2; entire main render callback incl Composer; separate 15s sample after 10s warmup; 3-query pool, every 30th frame; not individual shader time',...report},null,2));await b.close();}
+  }}finally{fs.writeFileSync(process.env.FIVEA_GPU_OUTPUT||'art/fivea-v11/gpu-report.json',JSON.stringify({method:'EXT_disjoint_timer_query_webgl2; entire main render callback incl Composer; separate 15s sample after 10s warmup; 3-query pool, every 30th frame; not individual shader time',...report},null,2));await b.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

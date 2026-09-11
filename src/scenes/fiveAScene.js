@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { assertFiveAStageValues, FIVE_A_RENDERER_STAGE_IDS } from '../v2/renderer-adapters/fiveAStageRendererAdapter.js';
 import { assertFiveAFlowValues, FIVE_A_FLOW_TRANSITION_IDS } from '../v2/renderer-adapters/fiveAFlowRendererAdapter.js';
 import { resolveFiveACinematicArt, cinematicFlowTravel } from './fiveACinematicArt.js';
+import { resolveFiveAOrbital, createFiveAOrbitalParts, advanceOrbitalClock, orbitalFlowPoint } from './fiveAOrbitalArt.js';
+import { getInteractionState } from '../universe/interaction.js';
 
 const FIVE_A_STAGES = [
   {
@@ -219,24 +221,36 @@ export const FIVE_A_VISUAL_V2 = Object.freeze({
 // Kept as a compatibility alias for existing diagnostics and external review scripts.
 export const FIVE_A_VISUAL_V1 = FIVE_A_VISUAL_V2;
 
-export function createFiveAScene({ cinematicArt = resolveFiveACinematicArt(globalThis.window?.location?.search) } = {}) {
+export function createFiveAScene({ cinematicArt = resolveFiveACinematicArt(globalThis.window?.location?.search), orbitalArt = resolveFiveAOrbital(globalThis.window?.location?.search) } = {}) {
   const group = new THREE.Group();
   const primaryRaycaster = new THREE.Raycaster();
   const primaryPointer = new THREE.Vector2();
-  const core = createFiveACore();
-  const orbitSystem = createFiveAOrbitSystem(cinematicArt);
-  const transferFlow = createFiveATransferFlow(cinematicArt);
+  const orbital = orbitalArt ? createFiveAOrbitalParts(orbitalArt) : null;
+  const core = orbital?.core ?? createFiveACore();
+  const orbitSystem = orbital?.orbitSystem ?? createFiveAOrbitSystem(cinematicArt);
+  const transferFlow = createFiveATransferFlow(orbitalArt ? { orbital: orbitalArt } : cinematicArt);
   const dust = createFiveABackgroundDust();
   const title = createSceneTitle();
   let diagnostics;
   let lastMotionProgress = 0;
   let panelPresentationCurrent = 0;
   let panelPresentationTarget = 0;
+  let orbitalTime = 0;
+  let orbitalReviewTime = null;
+  let orbitalCamera = null;
+  if(orbital)core.hitTarget.onBeforeRender = (renderer,scene,camera)=>{orbitalCamera=camera;};
 
   group.name = 'FiveAScene';
   group.position.set(...FIVE_A_FINAL_POSITION);
   group.visible = false;
   group.add(dust.points, orbitSystem.group, transferFlow.points, core.group, title.group);
+  if (orbital) { title.group.visible = false; group.userData.orbital = orbital.read; }
+  if (orbital && import.meta.env?.DEV && new URLSearchParams(window.location.search).get('orbitalReview') === '1') {
+    group.userData.setOrbitalSampleTime = value => {
+      if(value !== null && (!Number.isFinite(value) || value < 0)) throw new Error('Invalid orbital sample time');
+      orbitalReviewTime = value;
+    };
+  }
   diagnostics = createFiveAMotionDiagnostics(group, orbitSystem, transferFlow);
 
   function update(renderState, delta, time, transitionProgress) {
@@ -258,12 +272,19 @@ export function createFiveAScene({ cinematicArt = resolveFiveACinematicArt(globa
       panelPresentationCurrent = panelPresentationTarget;
     }
     const panelPresentation = resolveFiveAPanelPresentation(panelPresentationCurrent);
+    if (orbital) {
+      orbitalTime = orbitalReviewTime ?? (orbitalArt.frozen ? time : advanceOrbitalClock(orbitalTime, delta, {
+        paused: panelPresentationTarget === 1, hidden: globalThis.document?.hidden === true,
+        active: transitionProgress > .99
+      }));
+    }
 
     group.visible = transitionProgress > 0.01 || diagnostics.isDebugEnabled;
     group.position.set(...panelPresentation.position);
     group.rotation.y = Math.sin(time * 0.025) * 0.04 * motion.stable;
     group.rotation.x = Math.sin(time * 0.018) * 0.02 * motion.stable;
     group.scale.setScalar(panelPresentation.scale);
+    if (orbital) { group.rotation.set(0,0,0); group.scale.setScalar(THREE.MathUtils.lerp(.68,.26,panelPresentationCurrent)); }
 
     renderState.cameraOffset.x += Math.sin(time * 0.038 + 0.6) * 0.18 * cameraExplore;
     renderState.cameraOffset.y += Math.sin(time * 0.032) * 0.07 * cameraExplore;
@@ -271,9 +292,14 @@ export function createFiveAScene({ cinematicArt = resolveFiveACinematicArt(globa
     renderState.cameraOffset.targetY += 0.08 * cameraExplore;
 
     dust.update(delta, time, motionProgress);
-    orbitSystem.update(delta, time, motionProgress);
-    transferFlow.update(delta, time, motionProgress, motion, orbitSystem.getJourneyStagePositions());
-    core.update(delta, time, motion);
+    orbitSystem.update(delta, orbital ? orbitalTime : time, motionProgress);
+    transferFlow.update(delta, orbital ? orbitalTime : time, motionProgress, motion, orbitSystem.getJourneyStagePositions());
+    core.update(delta, orbital ? orbitalTime : time, motion);
+    if(orbital && orbitalCamera && transitionProgress > .99 && panelPresentationTarget === 0){
+      const pointer=getInteractionState();
+      if(pointer.active>.01)getPrimaryInteractionTarget({x:pointer.targetX,y:pointer.targetY,camera:orbitalCamera});
+      else core.setHover(false);
+    }else core.setHover?.(false);
     title.update(time, motionProgress);
     diagnostics.update(motionProgress, motion, direction);
     lastMotionProgress = motionProgress;
@@ -296,6 +322,7 @@ export function createFiveAScene({ cinematicArt = resolveFiveACinematicArt(globa
     group.updateWorldMatrix(true, true);
     primaryRaycaster.setFromCamera(primaryPointer, camera);
     const hit = primaryRaycaster.intersectObject(core.hitTarget, false)[0];
+    core.setHover?.(Boolean(hit));
 
     return hit
       ? FIVE_A_PRIMARY_INTERACTION_TARGET
@@ -1661,6 +1688,11 @@ function createFiveATransferFlow(art) {
   const points = new THREE.Points(geometry, material);
 
   points.name = 'FiveACoreReleaseParticleFlow';
+  if (art?.orbital) points.frustumCulled = false;
+  const orbitalPath = new THREE.Vector3();
+  if (art?.orbital) {
+    sizes.forEach((v,i)=>{sizes[i]=v*.38;});
+  }
 
   function update(delta, time, entrance, globalMotion, stageRootPositions) {
     const positionArray = positionAttribute.array;
@@ -1672,9 +1704,9 @@ function createFiveATransferFlow(art) {
       const i3 = i * 3;
       const stageIndex = stageIndices[i];
       const stage = FIVE_A_STAGES[stageIndex];
-      const timing = getStageTiming(stageIndex);
-      const motion = evaluateStageMotion(stage, stageIndex, entrance, time);
-      const pathProgress = clamp01((entrance - timing.start) / (timing.captureEnd - timing.start));
+      const timing = art?.orbital ? null : getStageTiming(stageIndex);
+      const motion = art?.orbital ? globalMotion : evaluateStageMotion(stage, stageIndex, entrance, time);
+      const pathProgress = art?.orbital ? entrance : clamp01((entrance - timing.start) / (timing.captureEnd - timing.start));
       const packetBurst = i % 53 === 0
         ? (0.5 + Math.sin(time * 0.86 + curlSeeds[i]) * 0.5) * motion.stable
         : 0;
@@ -1682,7 +1714,7 @@ function createFiveATransferFlow(art) {
       const travel = art && stageIndex >= 2
         ? THREE.MathUtils.lerp(entranceTravel, cinematicFlowTravel(time, phases[i], trailRoles[i]), smoothstep(0.8, 1, motion.stable))
         : entranceTravel;
-      const path = evaluateReleaseParticlePosition(
+      const path = art?.orbital ? orbitalFlowPoint(FIVE_A_STAGES[stageIndex-1].id,stage.id,time,travel,orbitalPath,art.orbital.variant) : evaluateReleaseParticlePosition(
         stage,
         stageIndex,
         travel,
@@ -1704,9 +1736,10 @@ function createFiveATransferFlow(art) {
       const microStreakGain = trailRoles[i] < 3 ? 1.18 : 1;
       const packetGain = i % 53 === 0 ? 1.28 + packetBurst * 0.3 : 1;
 
-      positionArray[i3] = path.x;
-      positionArray[i3 + 1] = path.y;
-      positionArray[i3 + 2] = path.z;
+      const actualPath = path;
+      positionArray[i3] = actualPath.x;
+      positionArray[i3 + 1] = actualPath.y;
+      positionArray[i3 + 2] = actualPath.z;
       baseAlphas[i] = Math.min(
         0.86,
         (
@@ -1717,6 +1750,7 @@ function createFiveATransferFlow(art) {
       );
       if (art) baseAlphas[i] *= stageIndex < 2 ? 0.12 :
         (0.8 + 0.35 * trailWindow) * smoothstep(0, 0.06, travel) * (1 - smoothstep(0.93, 1, travel));
+      if (art?.orbital) baseAlphas[i] *= .48;
       alphaArray[i] = baseAlphas[i] * segmentByTargetId.get(stage.id).strength;
     }
 
@@ -2142,11 +2176,15 @@ function createFiveAMotionDiagnostics(group, orbitSystem, transferFlow) {
     : null;
   const resourceCounts = inspectFiveAResources(group);
   const orbitParticleCount = FIVE_A_STAGES.reduce((total, stage) => total + stage.particleCount, 0);
+  let orbitalParticleCount = 0;
+  if (group.userData.orbital) group.traverse((object) => {
+    if (object.isPoints) orbitalParticleCount += object.geometry.attributes.position.count;
+  });
   const status = {
     localProgress: 0,
     currentStage: 'core-charge',
     layers: [],
-    particleCount: orbitParticleCount
+    particleCount: orbitalParticleCount || orbitParticleCount
       + transferFlow.particleCount
       + BACKGROUND_DUST_COUNT
       + FIVE_A_STAGE_GPU_PARTICLE_COUNT

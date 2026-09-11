@@ -2,7 +2,7 @@
 const { chromium } = require('playwright');
 const fs = require('node:fs');
 const path = require('node:path');
-const out = path.resolve('art/fivea-v11');
+const out = path.resolve(process.env.FIVEA_EVIDENCE_OUTPUT || 'art/fivea-v11');
 const base = process.env.FIVEA_URL || 'http://127.0.0.1:5191/?galaxyV3=1&galaxyHero=repaired_m3&homeArt=final&v3UseGpuStars=1&debugV3GpuStars=1&debugV4SupportStars=1&debugV3BusinessNebula=1&debugV3Foreground=0&earthV2=1&earthV3=1&brandMindMemory=1&homeFinalV1=1&earthOrbital=1&earthV13=1&earthHybrid=1&earthHybridProd=1&earthHeroLock=1';
 const variant = process.argv[2] || 'baseline';
 const dataInteraction = process.argv.includes('--data-interaction');

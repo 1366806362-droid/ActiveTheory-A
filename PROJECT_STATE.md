@@ -1,5 +1,37 @@
 # ActiveTheory Project State
 
+## FiveA Orbital System V1.2 — user-approved direction, experimental implementation — 2026-09-11
+
+- Independent `feat/fivea-orbital-system-v12` from verified V1.1 candidate
+  `0913b0fe037957bafec0ef2abf8e3cd74ae97563`, retaining latest common baseline
+  `d4f4a2c40b975dcbcbb96e6284b1aeff2629237c`. No Master integration.
+- The user explicitly approved changing the internal FiveA art direction to
+  one central 5A star plus exactly five orbiting satellites. This is an art
+  direction change, **not a Canonical/Derived/Binding contract change**.
+- Opt-in `fiveAOrbital=B`: real sphere bodies, independent stable-ID art orbits,
+  shared particle detail and weak tracks. Only existing stage scale/energy and
+  four transition-alpha flowStrength bindings are consumed; no density/flowSpeed.
+  Core remains the original data-panel entry; Opportunity is not a satellite.
+- Common scene time pauses on Panel open and resumes without phase reset.
+  Labels, bodies, particle matrices and moving flow endpoints share OrbitPose.
+  HOME/Earth Hybrid Hero Lock/Galaxy/GEO/Brand Mind/global camera and routes
+  remain unchanged. Frozen HOME before/after native pixels are identical.
+- **NOT READY**: two allowed visual corrections are spent. Main-view full-period
+  maximum-scale checks pass, but the open Panel leaves A5 about 4.5px outside
+  the left viewport at its extreme phase (1600×900). Do not promote or freeze.
+- Current complete Node inventory: 42 files / 667 named cases, 10 new, zero
+  failures or skips. Build, Python evidence checks and diff check PASS.
+  Entries/returns, both Panels, all stage/flow bindings pass; browser errors 0,
+  Canvas/RAF/Wheel 1/1/1. Real-time MP4 contains 32+ seconds of orbital motion
+  and click/close/return/reentry; not accelerated debug playback.
+- Evidence remains local in `art/fivea-orbital/`; strategy, remaining gate and
+  reproduction in `FIVEA_ORBITAL_REVIEW.md`. Next correction requires a new
+  user-approved turn; no automatic next module or shared-baseline merge.
+- Same-condition 1600×900 DPR1 / 120Hz measurements: approximately 120 FPS,
+  P95 8.4–8.5ms across steady/pointer/data+Panel windows, zero >50ms frames;
+  30 whole-frame draws versus V1.1's 39. Separate GPU median/P95 2.761/4.024ms.
+  Actual orbital particle vertices 3,992. Performance does not override NOT READY.
+
 ## FiveA Scene V1.1 — independent cinematic journey candidate — 2026-09-11
 
 - Feature `feat/fivea-scene-cinematic-v11` starts at verified latest common
