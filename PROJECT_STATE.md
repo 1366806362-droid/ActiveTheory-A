@@ -1,5 +1,37 @@
 # ActiveTheory Project State
 
+## FiveA Orbital Luminous Particle Stars — experimental, NOT READY — 2026-09-11
+
+- Independent `feat/fivea-orbital-particle-stars` from verified remote
+  `fa68f9bf3bfcc6bf3921dc8aae4c9b95c0f96b16`. No shared-baseline merge.
+- Retains the user-approved central star / five satellites / independent orbit
+  topology. Opt-in `fiveAOrbital=B&fiveAParticleStars=B` replaces the solid skin
+  with 27,000 seeded finite-volume particle samples in one batch; old paths remain.
+  HOME/Earth/Hero Lock/Galaxy/GEO/Brand Mind and business contracts unchanged.
+- A5 Panel clipping CLOSED for the tested desktop envelope: all 750s samples,
+  maximum legal scale, particle outer edge and full label margins fit 1366×768,
+  1600×900 and 1920×1080. Minimum margins 37.5 / 47.2 / 103.2px. Fit updates on
+  Panel/viewport change, never orbital phase; no per-A5 or data-scale workaround.
+- Scale/energy/four flowStrength, stable IDs, missing/rollback/disposal, Core
+  click, pause/resume, ESC, wheel isolation and direct return remain verified.
+  Complete Node inventory: 43 files / 680 named cases, 13 new, failures/skips 0.
+  Build, Python evidence integrity and native HOME pixel identity PASS.
+  Browser console/runtime errors 0; Canvas/RAF/Wheel 1/1/1.
+- Two material corrections were used. Six particle bodies and curvature are
+  readable, including Bloom-off, but Small Read still feels like concentrated
+  fine points rather than sufficiently cohesive luminous stars. **NOT READY**;
+  do not call this a human pass, final art freeze or production replacement.
+- First candidate pacing sample contained sustained ~1s intervals despite a
+  healthy independent data/Panel sample. Evidence retained; do not attribute
+  it to the host without proof. Focus-instrumented repeat and GPU timings are
+  recorded in `FIVEA_PARTICLE_STARS_REVIEW.md` with the initial anomaly.
+- Focus-instrumented repeat: approximately 120 FPS, P95 8.4ms / max 8.6ms,
+  zero >50ms frames; independent data/Panel max 25ms. GPU median/P95 3.025/3.958ms,
+  whole-frame draws 30, actual particle vertices 27,692. Original 1s stalls are
+  not reproduced, not diagnosed; do not call them fixed or discard that sample.
+- Native PNGs, real-time 51s MP4 and machine-readable evidence remain local
+  under `art/fivea-particle-stars/`. No next art correction is automatic.
+
 ## FiveA Orbital System V1.2 — user-approved direction, experimental implementation — 2026-09-11
 
 - Independent `feat/fivea-orbital-system-v12` from verified V1.1 candidate

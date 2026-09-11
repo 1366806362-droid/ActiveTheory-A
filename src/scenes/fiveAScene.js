@@ -4,6 +4,7 @@ import { assertFiveAFlowValues, FIVE_A_FLOW_TRANSITION_IDS } from '../v2/rendere
 import { resolveFiveACinematicArt, cinematicFlowTravel } from './fiveACinematicArt.js';
 import { resolveFiveAOrbital, createFiveAOrbitalParts, advanceOrbitalClock, orbitalFlowPoint } from './fiveAOrbitalArt.js';
 import { getInteractionState } from '../universe/interaction.js';
+import { fitParticleStarPanel } from './fiveAParticleStars.js';
 
 const FIVE_A_STAGES = [
   {
@@ -229,6 +230,7 @@ export function createFiveAScene({ cinematicArt = resolveFiveACinematicArt(globa
   const core = orbital?.core ?? createFiveACore();
   const orbitSystem = orbital?.orbitSystem ?? createFiveAOrbitSystem(cinematicArt);
   const transferFlow = createFiveATransferFlow(orbitalArt ? { orbital: orbitalArt } : cinematicArt);
+  orbital?.attachParticleOcclusion(transferFlow.points.material);
   const dust = createFiveABackgroundDust();
   const title = createSceneTitle();
   let diagnostics;
@@ -238,6 +240,9 @@ export function createFiveAScene({ cinematicArt = resolveFiveACinematicArt(globa
   let orbitalTime = 0;
   let orbitalReviewTime = null;
   let orbitalCamera = null;
+  let particlePanelFit = null;
+  let particlePanelKey = '';
+  const particlePanelPosition = new THREE.Vector3();
   if(orbital)core.hitTarget.onBeforeRender = (renderer,scene,camera)=>{orbitalCamera=camera;};
 
   group.name = 'FiveAScene';
@@ -285,6 +290,23 @@ export function createFiveAScene({ cinematicArt = resolveFiveACinematicArt(globa
     group.rotation.x = Math.sin(time * 0.018) * 0.02 * motion.stable;
     group.scale.setScalar(panelPresentation.scale);
     if (orbital) { group.rotation.set(0,0,0); group.scale.setScalar(THREE.MathUtils.lerp(.68,.26,panelPresentationCurrent)); }
+    if (orbitalArt?.particleStars && orbitalCamera) {
+      const width=globalThis.window?.innerWidth||1600,height=globalThis.window?.innerHeight||900;
+      const key=`${panelPresentationTarget}:${width}:${height}`;
+      if(panelPresentationTarget===1 && key!==particlePanelKey){
+        const panel=globalThis.document?.querySelector?.('.fivea-data-panel');
+        const left=panel?.offsetLeft;
+        if(Number.isFinite(left)&&left>0&&left<width){
+          particlePanelFit=fitParticleStarPanel(orbitalCamera,width,height,left,FIVE_A_PANEL_OPEN_PRESENTATION_STATE.position);
+          particlePanelPosition.fromArray(particlePanelFit.position);
+          particlePanelKey=key;group.userData.particlePanelFit=particlePanelFit;
+        }
+      }else if(panelPresentationTarget===0)particlePanelKey=key;
+      if(particlePanelFit){
+        group.position.set(...FIVE_A_FINAL_POSITION).lerp(particlePanelPosition,panelPresentationCurrent);
+        group.scale.setScalar(THREE.MathUtils.lerp(.68,particlePanelFit.scale,panelPresentationCurrent));
+      }
+    }
 
     renderState.cameraOffset.x += Math.sin(time * 0.038 + 0.6) * 0.18 * cameraExplore;
     renderState.cameraOffset.y += Math.sin(time * 0.032) * 0.07 * cameraExplore;

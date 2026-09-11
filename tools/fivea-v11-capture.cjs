@@ -14,8 +14,13 @@ async function initProbe(page) {
     let last = 0;
     const frames = [];
     window.__FIVEA_TIMING__ = { frames, enabled: false };
+    window.__FIVEA_TIMING__.health=[];
+    const health=type=>window.__FIVEA_TIMING__.health.push({type,time:performance.now(),visibility:document.visibilityState,focused:document.hasFocus()});
+    document.addEventListener('visibilitychange',()=>health('visibility'));
+    window.addEventListener('focus',()=>health('focus'));
+    window.addEventListener('blur',()=>health('blur'));
     window.requestAnimationFrame = callback => raf(t => {
-      if (window.__FIVEA_TIMING__.enabled && last) frames.push(t - last);
+      if (window.__FIVEA_TIMING__.enabled && last) {frames.push(t - last);if(t-last>50)health('long-frame:'+String(t-last));}
       last = t;
       callback(t);
     });
@@ -57,8 +62,9 @@ async function run() {
     if(process.env.FIVEA_CAPTURE_ONLY!=='1' || dataInteraction) {
       await settled(page,base+extra+'&scene=fivea&v2FiveAState=balanced');
       if(dataInteraction)await page.evaluate(()=>window.__FIVEA_CINEMATIC_REVIEW__.applyFixture('stages','balanced'));
+      if(process.env.FIVEA_FOCUS_PROBE==='1')await page.bringToFront();
       await page.waitForTimeout(10000);
-      report.environment=await page.evaluate(()=>{const gl=document.querySelector('canvas').getContext('webgl2');const e=gl.getExtension('WEBGL_debug_renderer_info');return {browser:navigator.userAgent,gpu:e?gl.getParameter(e.UNMASKED_RENDERER_WEBGL):'unavailable',visibility:document.visibilityState,dpr:devicePixelRatio};});
+      report.environment=await page.evaluate(()=>{const gl=document.querySelector('canvas').getContext('webgl2');const e=gl.getExtension('WEBGL_debug_renderer_info');return {browser:navigator.userAgent,gpu:e?gl.getParameter(e.UNMASKED_RENDERER_WEBGL):'unavailable',visibility:document.visibilityState,focused:document.hasFocus(),dpr:devicePixelRatio};});
       report.performance={};
       for(const mode of (dataInteraction ? ['snapshot-panel-interaction'] : ['steady','interaction'])) {
         const start=Date.now();
@@ -81,6 +87,7 @@ async function run() {
         console.log(variant,mode,JSON.stringify(report.performance[mode]));
       }
       report.loop=await page.evaluate(async()=>({...(await import('/src/engine/loop.js')).getLoopStatus(),canvas:document.querySelectorAll('canvas').length}));
+      report.visibilityEvents=await page.evaluate(()=>window.__FIVEA_TIMING__.health);
     }
     await context.close();
     if(process.env.FIVEA_CAPTURE_ONLY!=='1' && !dataInteraction) {

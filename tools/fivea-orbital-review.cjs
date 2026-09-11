@@ -1,9 +1,9 @@
 const {chromium}=require('playwright');
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {spawnSync}=require('node:child_process');
-const out=path.resolve('art/fivea-orbital');fs.mkdirSync(out,{recursive:true});
-const home='http://127.0.0.1:5192/?galaxyV3=1&galaxyHero=repaired_m3&homeArt=final&v3UseGpuStars=1&debugV3GpuStars=1&debugV4SupportStars=1&debugV3BusinessNebula=1&debugV3Foreground=0&earthV2=1&earthV3=1&brandMindMemory=1&homeFinalV1=1&earthOrbital=1&earthV13=1&earthHybrid=1&earthHybridProd=1&earthHeroLock=1';
-const candidate=home+'&fiveAOrbital=B&fiveACinematic=B&fiveACinematicReview=1&v2FiveAState=balanced';
+const out=path.resolve(process.env.FIVEA_ORBITAL_OUTPUT||'art/fivea-orbital');fs.mkdirSync(out,{recursive:true});
+const home=process.env.FIVEA_ORBITAL_HOME||'http://127.0.0.1:5192/?galaxyV3=1&galaxyHero=repaired_m3&homeArt=final&v3UseGpuStars=1&debugV3GpuStars=1&debugV4SupportStars=1&debugV3BusinessNebula=1&debugV3Foreground=0&earthV2=1&earthV3=1&brandMindMemory=1&homeFinalV1=1&earthOrbital=1&earthV13=1&earthHybrid=1&earthHybridProd=1&earthHeroLock=1';
+const candidate=(process.env.FIVEA_ORBITAL_HOME||home)+'&fiveAOrbital=B&fiveACinematic=B&fiveACinematicReview=1&v2FiveAState=balanced'+(process.env.FIVEA_ORBITAL_EXTRA||'');
 const mode=process.argv[2]||'capture';
 const report={mode,errors:[],viewport:[1600,900],dpr:1};
 async function settled(p,url){await p.goto(url,{waitUntil:'networkidle'});await p.waitForFunction(()=>window.__GALAXY_TOUR_STATUS__?.activeScene==='FiveAScene'&&!window.__GALAXY_TOUR_STATUS__?.transitionTo);await p.waitForTimeout(1200);}

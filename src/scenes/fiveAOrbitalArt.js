@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { assertFiveAStageValues, FIVE_A_RENDERER_STAGE_IDS } from '../v2/renderer-adapters/fiveAStageRendererAdapter.js';
+import { makeParticleStarSupport, makeParticleStars, applyParticleStarOcclusion } from './fiveAParticleStars.js';
 
 // Art-only registry. Radius and phase never consume a Snapshot or BindingPlan.
 export const ORBITAL_STAGES = Object.freeze({
@@ -13,7 +14,7 @@ export function resolveFiveAOrbital(search = '') {
   const q = new URLSearchParams(search);
   if (!['1', 'A', 'B'].includes(q.get('fiveAOrbital'))) return null;
   return { variant: q.get('fiveAOrbital') === 'B' ? 'B' : 'A', skeleton: q.get('orbitalSkeleton') === '1',
-    frozen: q.get('v2FiveACapture') === '1' };
+    frozen: q.get('v2FiveACapture') === '1', particleStars: ['1','A','B'].includes(q.get('fiveAParticleStars')) ? (q.get('fiveAParticleStars') === 'A' ? 'A' : 'B') : null };
 }
 export function orbitalPose(id, time, target, variant = 'A') {
   const a = ORBITAL_STAGES[id];
@@ -46,7 +47,7 @@ export function createFiveAOrbitalParts(config) {
   const orbitPositions = [], orbitColors = [];
   let disposed = false, time = 0, reveal = 1, hover = 0, particles = null;
   const coreGroup = new THREE.Group(); coreGroup.name = 'FiveACore';
-  const coreMaterial = config.skeleton ? new THREE.MeshBasicMaterial({ color: 0x8baec5, fog: false }) : makeSphereMaterial(true);
+  const coreMaterial = config.skeleton ? new THREE.MeshBasicMaterial({ color: 0x8baec5, fog: false }) : config.particleStars ? makeParticleStarSupport(true) : makeSphereMaterial(true);
   const coreMesh = new THREE.Mesh(sphereGeometry, coreMaterial);
   coreMesh.name = 'FiveACorePrimaryHitTarget'; coreMesh.scale.setScalar(.48);
   coreGroup.add(coreMesh);
@@ -57,7 +58,7 @@ export function createFiveAOrbitalParts(config) {
     const art = ORBITAL_STAGES[id], pose = new THREE.Group(), visual = new THREE.Group();
     pose.name = `FiveAOrbitPose${id}`; visual.name = `FiveAStageNode${id}`;
     pose.add(visual); group.add(pose);
-    const material = config.skeleton ? new THREE.MeshBasicMaterial({ color: 0x5c9dbb, fog: false }) : makeSphereMaterial(false);
+    const material = config.skeleton ? new THREE.MeshBasicMaterial({ color: 0x5c9dbb, fog: false }) : config.particleStars ? makeParticleStarSupport(false) : makeSphereMaterial(false);
     const mesh = new THREE.Mesh(sphereGeometry, material); mesh.name = `FiveAOrbitalBody${id}`; mesh.scale.setScalar(art.size);
     visual.add(mesh);
     const label = makeLabel(`${id} ${art.label}`, .88); label.group.name = `FiveALabel${id}`; group.add(label.group);
@@ -91,8 +92,9 @@ export function createFiveAOrbitalParts(config) {
   orbitGeometry.setAttribute('color',new THREE.Float32BufferAttribute(orbitColors,3));
   const orbitMaterial = new THREE.LineBasicMaterial({ vertexColors:true, transparent:true, opacity:.36, depthWrite:false, depthTest:true, fog:false });
   const lines = new THREE.LineSegments(orbitGeometry,orbitMaterial); lines.name='FiveAOrbitalTracks'; group.add(lines);
-  particles = config.skeleton ? null : makeOrbitalParticles();
+  particles = config.skeleton ? null : config.particleStars ? makeParticleStars(config.particleStars) : makeOrbitalParticles();
   if(particles)group.add(particles.points);
+  if(config.particleStars && particles)applyParticleStarOcclusion(orbitMaterial,particles.matrices);
 
   function update(delta, seconds, entrance) {
     time = seconds; reveal = THREE.MathUtils.smoothstep(entrance, .10, .72);
@@ -123,11 +125,12 @@ export function createFiveAOrbitalParts(config) {
   const core = { group:coreGroup, hitTarget:coreMesh,
     setHover:active=>{hover=active?1:0;},
     update(delta, seconds) {
-      if(coreMaterial.uniforms){coreMaterial.uniforms.uTime.value=seconds;coreMaterial.uniforms.uHover.value+=((hover?1:0)-coreMaterial.uniforms.uHover.value)*(1-Math.exp(-Math.max(0,delta)*9));}
+      if(coreMaterial.uniforms){coreMaterial.uniforms.uTime.value=seconds;coreMaterial.uniforms.uHover.value+=((hover?1:0)-coreMaterial.uniforms.uHover.value)*(1-Math.exp(-Math.max(0,delta)*9));if(particles?.material.uniforms.uHover)particles.material.uniforms.uHover.value=coreMaterial.uniforms.uHover.value;}
       else coreMaterial.color.set(hover?0x9ec5db:0x8baec5);
     },
     dispose(){coreMaterial.dispose();coreLabel.dispose();sphereGeometry.dispose();coreGroup.clear();} };
   return { core, orbitSystem, config, nodes,
+    attachParticleOcclusion:material=>{if(config.particleStars&&particles)applyParticleStarOcclusion(material,particles.matrices);},
     read:()=>({time,variant:config.variant,stages:Object.fromEntries([...nodes].map(([id,n])=>[id,{position:n.pose.position.toArray(),label:n.label.group.position.toArray(),binding:{...bindings.get(id)}}]))}) };
 }
 
