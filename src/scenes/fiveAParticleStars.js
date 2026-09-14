@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { FIVE_A_RENDERER_STAGE_IDS } from '../v2/renderer-adapters/fiveAStageRendererAdapter.js';
+import { makeFiveAIdentityPalette } from './fiveAColorDepth.js';
 
 export const PARTICLE_STAR_BUDGET = Object.freeze({ core: 14000, satellite: 2600, total: 27000, outerRadius: 1.10 });
 export const ENERGY_STAR_BUDGETS = Object.freeze({
@@ -55,8 +57,8 @@ export function makeParticleStarSupport(core) {
   });
 }
 
-export function makeParticleStars(variant='B', energyVariant=null) {
-  if (energyVariant === 'A' || energyVariant === 'B') return makeEnergyParticleStars(energyVariant);
+export function makeParticleStars(variant='B', energyVariant=null, colorDepth=null) {
+  if (energyVariant === 'A' || energyVariant === 'B') return makeEnergyParticleStars(energyVariant,colorDepth);
   const matrices=Array.from({length:6},()=>new THREE.Matrix4()), energy=new Float32Array(6).fill(1);
   const count=PARTICLE_STAR_BUDGET.total, positions=new Float32Array(count*3), slots=new Float32Array(count), sizes=new Float32Array(count), seeds=new Float32Array(count), radii=new Float32Array(count);
   let seed=381947,at=0; const random=()=>((seed=Math.imul(seed,1664525)+1013904223|0)>>>0)/4294967296;
@@ -110,7 +112,7 @@ export function makeParticleStars(variant='B', energyVariant=null) {
   return {points,material,matrices,energy,dispose(){geometry.dispose();material.dispose();}};
 }
 
-function makeEnergyParticleStars(variant) {
+function makeEnergyParticleStars(variant,colorDepth) {
   const profile=variant==='A'
     ? { coreFraction:.22, midFraction:.50, coreGain:1.18, midGain:1.02, shellGain:.72, dustGain:.34 }
     : { coreFraction:.17, midFraction:.46, coreGain:1.08, midGain:.96, shellGain:.76, dustGain:.30 };
@@ -178,6 +180,17 @@ function makeEnergyParticleStars(variant) {
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`});
+  if(colorDepth){
+    material.uniforms.uIdentityColors={value:makeFiveAIdentityPalette(FIVE_A_RENDERER_STAGE_IDS)};
+    material.vertexShader='uniform vec3 uIdentityColors[6];\n'+material.vertexShader;
+    material.vertexShader=material.vertexShader.replace('vSharpness=aZone<1.5?.78:.58;',`
+      vec3 identity=uIdentityColors[s];
+      vec3 midColor=identity*(.60+.40*mid);
+      float whiteCore=(s==0?.65:.30)*core;
+      vColor=mix(midColor,vec3(.80,.89,.97),whiteCore)*luminance;
+      vColor=mix(vColor,vec3(.82,.90,1.)*luminance,clamp((luminance-3.)*.09,0.,.28));
+      vSharpness=aZone<1.5?.78:.58;`);
+  }
   const points=new THREE.Points(geometry,material);points.name='FiveAOrbitalSurfaceParticles';points.frustumCulled=false;
   const viewport=new THREE.Vector2();points.onBeforeRender=renderer=>{renderer.getSize(viewport);material.uniforms.uHeight.value=viewport.y;material.uniforms.uDpr.value=renderer.getPixelRatio();};
   return {points,material,matrices,energy,budget,energyVariant:variant,dispose(){geometry.dispose();material.dispose();}};

@@ -5,6 +5,7 @@ import { resolveFiveACinematicArt, cinematicFlowTravel } from './fiveACinematicA
 import { resolveFiveAOrbital, createFiveAOrbitalParts, advanceOrbitalClock, orbitalFlowPoint } from './fiveAOrbitalArt.js';
 import { getInteractionState } from '../universe/interaction.js';
 import { fitParticleStarPanel } from './fiveAParticleStars.js';
+import { createFiveAEnvironment } from './fiveAColorDepth.js';
 
 const FIVE_A_STAGES = [
   {
@@ -232,6 +233,8 @@ export function createFiveAScene({ cinematicArt = resolveFiveACinematicArt(globa
   const transferFlow = createFiveATransferFlow(orbitalArt ? { orbital: orbitalArt } : cinematicArt);
   orbital?.attachParticleOcclusion(transferFlow.points.material);
   const dust = createFiveABackgroundDust();
+  const environment=orbitalArt?.colorDepth?.background ? createFiveAEnvironment(orbitalArt.colorDepth.variant) : null;
+  const reducedMotion=orbitalArt?.colorDepth ? globalThis.window?.matchMedia?.('(prefers-reduced-motion: reduce)') : null;
   const title = createSceneTitle();
   let diagnostics;
   let lastMotionProgress = 0;
@@ -249,6 +252,7 @@ export function createFiveAScene({ cinematicArt = resolveFiveACinematicArt(globa
   group.position.set(...FIVE_A_FINAL_POSITION);
   group.visible = false;
   group.add(dust.points, orbitSystem.group, transferFlow.points, core.group, title.group);
+  if(environment){group.add(environment.group);dust.points.visible=false;}
   if (orbital) { title.group.visible = false; group.userData.orbital = orbital.read; }
   if (orbital && import.meta.env?.DEV && new URLSearchParams(window.location.search).get('orbitalReview') === '1') {
     group.userData.setOrbitalSampleTime = value => {
@@ -314,7 +318,9 @@ export function createFiveAScene({ cinematicArt = resolveFiveACinematicArt(globa
     renderState.cameraOffset.targetY += 0.08 * cameraExplore;
 
     dust.update(delta, time, motionProgress);
+    environment?.update(delta,motionProgress,panelPresentationCurrent,globalThis.document?.hidden===true,reducedMotion?.matches===true);
     orbitSystem.update(delta, orbital ? orbitalTime : time, motionProgress);
+    orbital?.settlePanelLabels(orbitalCamera,panelPresentationCurrent>.9);
     transferFlow.update(delta, orbital ? orbitalTime : time, motionProgress, motion, orbitSystem.getJourneyStagePositions());
     core.update(delta, orbital ? orbitalTime : time, motion);
     if(orbital && orbitalCamera && transitionProgress > .99 && panelPresentationTarget === 0){
@@ -328,6 +334,7 @@ export function createFiveAScene({ cinematicArt = resolveFiveACinematicArt(globa
   }
 
   function dispose() {
+    environment?.dispose();
     dust.dispose();
     orbitSystem.dispose();
     transferFlow.dispose();

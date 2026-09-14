@@ -1,5 +1,31 @@
 # ActiveTheory Project State
 
+## FiveA Color & Cosmic Depth — candidate — 2026-09-14
+
+- User-authorized visual refinement from `3b131b8daba07827720b0f59378ac258b8cd17bb`
+  in independent `feat/fivea-color-depth-home-meteors`; shared baseline
+  `d4f4a2c40b975dcbcbb96e6284b1aeff2629237c` is an ancestor. No Master merge.
+- Optional `fiveAColorDepth=A` on the existing orbital energy-star path adds
+  stable-ID ice cyan / teal / lavender / champagne / rose-copper identities,
+  +20% physical Core diameter, and a local gas/far-star/near-dust environment.
+  `fiveABackground=0` isolates environment comparison; default path unchanged.
+- A selected from two environment candidates. One Panel glyph-avoidance
+  correction; orbit geometry/time, Camera, data contracts, global Bloom/exposure
+  unchanged. Same 14,750 star particles, net +1 draw call (30 -> 31).
+- 750s maximum-scale desktop Panel envelope passes at 1366/1600/1920 widths;
+  pause/resume, reduced motion, repeat entry and environment isolation pass.
+  HOME/GEO/Brand Mind, both Panels, stage scale/energy and four flowStrength
+  regression pass. No density/flowSpeed activation or missing-data reinterpretation.
+- Edge 153 / RTX 5060 Ti / 1600x900 DPR1: separate 60s steady/interaction,
+  median/P95/P99 8.3/8.4/8.5ms; max 9.0/24.9ms, no frames over 50ms.
+  Whole-render GPU query median/P95 2.710/3.446ms; Canvas/RAF/Wheel 1/1/1.
+- Full milestone Node entry: 45 files / 108 runner tests / 688 actual named
+  cases, 0 failed/skipped; 7 new cases across the two candidates. Python 6 passed,
+  build/diff check passed; existing large-bundle warning retained.
+- **READY FOR HUMAN REVIEW**, not HUMAN PASS or freeze. Native PNG and real-time
+  51.36s video remain untracked in `art/fivea-color-depth/`.
+  See `FIVEA_COLOR_DEPTH_REVIEW.md`. HOME meteor candidate is independent.
+
 ## FiveA Centered Energy Particle Stars V1.3 — candidate — 2026-09-14
 
 - Independent `feat/fivea-orbital-energy-stars-v13` from verified baseline

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { assertFiveAStageValues, FIVE_A_RENDERER_STAGE_IDS } from '../v2/renderer-adapters/fiveAStageRendererAdapter.js';
 import { makeParticleStarSupport, makeParticleStars, applyParticleStarOcclusion } from './fiveAParticleStars.js';
+import { resolveFiveAColorDepth, FIVE_A_COLOR_CORE_RADIUS } from './fiveAColorDepth.js';
 
 // Art-only registry. Radius and phase never consume a Snapshot or BindingPlan.
 export const ORBITAL_STAGES = Object.freeze({
@@ -13,10 +14,11 @@ export const ORBITAL_STAGES = Object.freeze({
 export function resolveFiveAOrbital(search = '') {
   const q = new URLSearchParams(search);
   if (!['1', 'A', 'B'].includes(q.get('fiveAOrbital'))) return null;
-  const requestedEnergy=q.get('fiveAEnergyStars');
+  const colorDepth=resolveFiveAColorDepth(search);
+  const requestedEnergy=q.get('fiveAEnergyStars') || (colorDepth ? 'A' : null);
   const energyStars=['1','A','B'].includes(requestedEnergy)?(requestedEnergy==='B'?'B':'A'):null;
   return { variant: q.get('fiveAOrbital') === 'B' ? 'B' : 'A', skeleton: q.get('orbitalSkeleton') === '1',
-    frozen: q.get('v2FiveACapture') === '1', energyStars,
+    frozen: q.get('v2FiveACapture') === '1', energyStars, colorDepth,
     particleStars: ['1','A','B'].includes(q.get('fiveAParticleStars')) ? (q.get('fiveAParticleStars') === 'A' ? 'A' : 'B') : energyStars?'B':null };
 }
 export function orbitalPose(id, time, target, variant = 'A') {
@@ -52,10 +54,12 @@ export function createFiveAOrbitalParts(config) {
   const coreGroup = new THREE.Group(); coreGroup.name = 'FiveACore';
   const coreMaterial = config.skeleton ? new THREE.MeshBasicMaterial({ color: 0x8baec5, fog: false }) : config.particleStars ? makeParticleStarSupport(true) : makeSphereMaterial(true);
   const coreMesh = new THREE.Mesh(sphereGeometry, coreMaterial);
-  coreMesh.name = 'FiveACorePrimaryHitTarget'; coreMesh.scale.setScalar(.48);
+  const coreRadius=config.colorDepth?FIVE_A_COLOR_CORE_RADIUS:.48;
+  coreMesh.name = 'FiveACorePrimaryHitTarget'; coreMesh.scale.setScalar(coreRadius);
   coreGroup.add(coreMesh);
   const coreLabel = makeLabel('5A', .56); coreLabel.group.name = 'FiveASceneTitle'; coreLabel.group.position.set(0,.64,0);
   coreGroup.add(coreLabel.group);
+  if(config.colorDepth)coreLabel.group.position.y=.75;
 
   for (const [slot, id] of FIVE_A_RENDERER_STAGE_IDS.entries()) {
     const art = ORBITAL_STAGES[id], pose = new THREE.Group(), visual = new THREE.Group();
@@ -95,7 +99,7 @@ export function createFiveAOrbitalParts(config) {
   orbitGeometry.setAttribute('color',new THREE.Float32BufferAttribute(orbitColors,3));
   const orbitMaterial = new THREE.LineBasicMaterial({ vertexColors:true, transparent:true, opacity:.36, depthWrite:false, depthTest:true, fog:false });
   const lines = new THREE.LineSegments(orbitGeometry,orbitMaterial); lines.name='FiveAOrbitalTracks'; group.add(lines);
-  particles = config.skeleton ? null : config.particleStars ? makeParticleStars(config.particleStars,config.energyStars) : makeOrbitalParticles();
+  particles = config.skeleton ? null : config.particleStars ? makeParticleStars(config.particleStars,config.energyStars,config.colorDepth) : makeOrbitalParticles();
   if(particles)group.add(particles.points);
   if(config.particleStars && particles)applyParticleStarOcclusion(orbitMaterial,particles.matrices);
 
@@ -111,7 +115,7 @@ export function createFiveAOrbitalParts(config) {
     orbitMaterial.opacity = reveal * .36;
     if(particles) {
       particles.material.uniforms.uTime.value=time;
-      particles.matrices[0].makeScale(.48,.48,.48);
+      particles.matrices[0].makeScale(coreRadius,coreRadius,coreRadius);
       for(const n of nodes.values()) {
         particles.matrices[n.slot+1].makeScale(n.art.size*bindings.get(n.id).scale,n.art.size*bindings.get(n.id).scale,n.art.size*bindings.get(n.id).scale).setPosition(n.pose.position);
         particles.energy[n.slot+1]=bindings.get(n.id).energy;
@@ -132,7 +136,26 @@ export function createFiveAOrbitalParts(config) {
       else coreMaterial.color.set(hover?0x9ec5db:0x8baec5);
     },
     dispose(){coreMaterial.dispose();coreLabel.dispose();sphereGeometry.dispose();coreGroup.clear();} };
-  return { core, orbitSystem, config, nodes,
+  const labelWorld=new THREE.Vector3(),labelView=new THREE.Vector3(),labelScale=new THREE.Vector3();
+  // Only glyph anchors move. Fits and OrbitPose remain independent of phase.
+  const labelBoxes=Array.from({length:6},()=>({x:0,y:0,w:0,h:14}));
+  function settlePanelLabels(camera,panelOpen){
+    if(!config.colorDepth||!panelOpen||!camera)return;
+    const width=globalThis.window?.innerWidth||1600,height=globalThis.window?.innerHeight||900;
+    coreGroup.parent.updateWorldMatrix(true,true);
+    const project=(label,box,w)=>{label.getWorldPosition(labelWorld);labelView.copy(labelWorld).applyMatrix4(camera.matrixWorldInverse);labelWorld.project(camera);box.x=(labelWorld.x+1)*width/2;box.y=(1-labelWorld.y)*height/2;box.w=w;};
+    project(coreLabel.group,labelBoxes[0],30);
+    let index=1;
+    for(const n of nodes.values()){
+      const box=labelBoxes[index];project(n.label.group,box,n.id==='A5'?114:90);
+      const originalY=box.y;let tries=0;
+      while(tries++<8&&labelBoxes.slice(0,index).some(b=>Math.abs(box.x-b.x)<(box.w+b.w)/2+5&&Math.abs(box.y-b.y)<18))box.y-=18;
+      n.label.group.parent.getWorldScale(labelScale);
+      n.label.group.position.y+=(originalY-box.y)*2*(-labelView.z)/camera.projectionMatrix.elements[5]/height/labelScale.y;
+      index++;
+    }
+  }
+  return { core, orbitSystem, config, nodes, settlePanelLabels,
     attachParticleOcclusion:material=>{if(config.particleStars&&particles)applyParticleStarOcclusion(material,particles.matrices);},
     read:()=>({time,variant:config.variant,stages:Object.fromEntries([...nodes].map(([id,n])=>[id,{position:n.pose.position.toArray(),label:n.label.group.position.toArray(),binding:{...bindings.get(id)}}]))}) };
 }

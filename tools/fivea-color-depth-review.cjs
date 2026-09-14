@@ -1,0 +1,25 @@
+const {chromium}=require('playwright');
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const out=path.resolve('art/fivea-color-depth');fs.mkdirSync(out,{recursive:true});
+const home='http://127.0.0.1:5195/?galaxyV3=1&galaxyHero=repaired_m3&homeArt=final&v3UseGpuStars=1&debugV3GpuStars=1&debugV4SupportStars=1&debugV3BusinessNebula=1&debugV3Foreground=0&earthV2=1&earthV3=1&brandMindMemory=1&homeFinalV1=1&earthOrbital=1&earthV13=1&earthHybrid=1&earthHybridProd=1&earthHeroLock=1';
+const base=home+'&fiveAOrbital=B&fiveAParticleStars=B&fiveAEnergyStars=A&fiveACinematic=B&fiveACinematicReview=1&v2FiveAState=balanced&orbitalReview=1&scene=fivea';
+const mode=process.argv[2]||'prototype';const report={mode,errors:[],format:'native PNG 1600x900 DPR1'};
+async function point(p,name){return p.evaluate(async name=>{const T=await import('/node_modules/.vite/deps/three.js'),s=(await import('/src/engine/scenes.js')).getActiveScene(),c=(await import('/src/engine/camera.js')).getCamera();s.updateMatrixWorld(true);const v=s.getObjectByName(name).getWorldPosition(new T.Vector3()).project(c);return [(v.x+1)*innerWidth/2,(1-v.y)*innerHeight/2];},name);}
+async function go(p,url){await p.goto(url,{waitUntil:'networkidle'});await p.waitForFunction(()=>window.__GALAXY_TOUR_STATUS__?.activeScene==='FiveAScene'&&!window.__GALAXY_TOUR_STATUS__.transitionTo);await p.waitForTimeout(1300);}
+async function shot(p,name){await p.screenshot({path:path.join(out,name+'.png')});}
+async function sample(p,t){await p.evaluate(async t=>(await import('/src/engine/scenes.js')).getActiveScene().getObjectByName('FiveAScene').userData.setOrbitalSampleTime(t),t);}
+async function fixture(p,kind,state,id){await p.evaluate(args=>window.__FIVEA_CINEMATIC_REVIEW__.applyFixture(...args),[kind,state,id]);await p.waitForTimeout(150);const r=await p.evaluate(()=>window.__FIVEA_CINEMATIC_REVIEW__.read());for(const [id,s]of Object.entries(r.stages.renderer))for(const key of ['scale','energy'])assert.equal(s.binding[key],r.plan.fiveA.stages.find(e=>e.targetId===id&&e.channel===`FIVEA_STAGE_${key.toUpperCase()}`).value);for(const [id,f]of Object.entries(r.flows.renderer)){assert.equal(f.binding.flowStrength,r.plan.fiveA.transitions.find(e=>e.targetId===id&&e.channel==='FIVEA_TRANSITION_FLOW_STRENGTH').value);f.alphas.forEach((v,i)=>assert.ok(Math.abs(v-f.baseAlphas[i]*f.binding.flowStrength)<1e-6));}return r;}
+(async()=>{const b=await chromium.launch({channel:'msedge',headless:false});try{const c=await b.newContext({viewport:{width:1600,height:900},deviceScaleFactor:1}),p=await c.newPage();p.on('pageerror',e=>report.errors.push(e.message));p.on('console',m=>{if(m.type()==='error')report.errors.push(m.text());});
+ if(mode==='prototype'){
+  for(const [name,q]of [['BEFORE',''],['CANDIDATE_A','&fiveAColorDepth=A'],['CANDIDATE_B','&fiveAColorDepth=B']]){await go(p,base+q+'&v2FiveACapture=1');await shot(p,name);}
+ }else if(mode==='capture'){
+  for(const [name,q]of [['BEFORE',''],['FIVEA_COLOR_DEPTH_OVERVIEW','&fiveAColorDepth=A'],['BACKGROUND_OFF','&fiveAColorDepth=A&fiveABackground=0'],['BLOOM_OFF','&fiveAColorDepth=A&showBloom=0']]){await go(p,base+q+'&v2FiveACapture=1');await shot(p,name);}
+  await go(p,base+'&fiveAColorDepth=A&v2FiveACapture=1');
+  const xy=await point(p,'FiveACorePrimaryHitTarget');await p.screenshot({path:path.join(out,'FIVEA_COLOR_DEPTH_CORE.png'),clip:{x:Math.round(xy[0]-200),y:Math.round(xy[1]-200),width:400,height:400}});
+  report.palette=[];for(const id of ['A1','A2','A3','A4','A5']){const xy=await point(p,'FiveAOrbitalBody'+id);await p.screenshot({path:path.join(out,id+'.png'),clip:{x:Math.max(0,Math.round(xy[0]-75)),y:Math.max(0,Math.round(xy[1]-75)),width:150,height:150}});report.palette.push({id,xy});}
+  report.data=[];for(const args of [['stage','low','A3'],['stage','high','A3'],['flow','low','A3_TO_A4'],['flow','high','A3_TO_A4'],['stages','partial',null]]){report.data.push(await fixture(p,...args));await shot(p,args[0]+'_'+args[1]);}
+  await go(p,base+'&fiveAColorDepth=A');await sample(p,12);await p.waitForTimeout(200);await p.mouse.click(...await point(p,'FiveACorePrimaryHitTarget'));await p.waitForFunction(()=>window.__ACTIVE_THEORY_FIVEA_DATA_PANEL__.isOpen());await p.waitForTimeout(1600);await shot(p,'FIVEA_COLOR_DEPTH_PANEL_SETTLED');
+  report.panel=await p.evaluate(async()=>{const g=(await import('/src/engine/scenes.js')).getActiveScene().getObjectByName('FiveAScene');return{position:g.position.toArray(),scale:g.scale.x,fit:g.userData.particlePanelFit};});await p.keyboard.press('Escape');await p.waitForTimeout(1600);await shot(p,'FIVEA_COLOR_DEPTH_PANEL_CLOSED');
+  await p.setViewportSize({width:640,height:360});await go(p,base+'&fiveAColorDepth=A&v2FiveACapture=1');await shot(p,'FIVEA_COLOR_DEPTH_SMALL_READ');
+ }
+ await c.close();}finally{await b.close();fs.writeFileSync(path.join(out,mode+'-report.json'),JSON.stringify(report,null,2));}assert.equal(report.errors.length,0,report.errors.join('\n'));console.log(mode+' PASS');})().catch(e=>{console.error(e);process.exitCode=1;});
