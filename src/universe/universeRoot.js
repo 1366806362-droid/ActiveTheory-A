@@ -38,6 +38,7 @@ import {
   readGalaxyV3State
 } from './galaxy-v3/galaxyV3Config.js';
 import { createGalaxyV3Root } from './galaxy-v3/galaxyV3Root.js';
+import { createHomeMeteorAccent, resolveHomeMeteorAccent } from './homeMeteorAccent.js';
 
 const DEBUG_MAIN_GALAXY_ONLY = readDebugFlag('debugMainGalaxyOnly', false);
 const DEBUG_MAIN_GALAXY_RENDER = readDebugFlag('debugMainGalaxyRender', false);
@@ -134,6 +135,7 @@ const frozenInteraction = {
 };
 
 const universeState = {
+  meteors: null,
   root: null,
   galaxyGroup: null,
   mainGalaxyFrame: null,
@@ -282,6 +284,18 @@ export function createUniverseRoot() {
   root.add(debugBackdrop);
 
   root.add(deepSpaceBackground.group, particleField.points, earthHorizon.group, galaxyGroup);
+  if(resolveHomeMeteorAccent(window.location.search)){
+    const projected=new THREE.Vector3();
+    universeState.meteors=createHomeMeteorAccent({exclusions:()=>{
+      const width=window.innerWidth,height=window.innerHeight;
+      const rectangles=[[0,0,.39,.5],[0,.53,.43,1],[.45,.24,.92,.78]];
+      for(const selector of ['.hero-copy','.hero-scroll-hint']){const element=document.querySelector(selector);if(element){const r=element.getBoundingClientRect();rectangles.push([r.left/width-.01,r.top/height-.01,r.right/width+.01,r.bottom/height+.01]);}}
+      root.updateWorldMatrix(true,true);
+      for(const name of ['5ANebula','GEONebula','BrandMindNebula']){const obj=root.getObjectByName(name);if(obj){obj.getWorldPosition(projected).project(getCamera());const x=(projected.x+1)/2,y=(1-projected.y)/2;rectangles.push([x-.09,y-.07,x+.13,y+.07]);}}
+      return rectangles;
+    }});root.add(universeState.meteors.mesh);
+    if(import.meta.env.DEV)window.__HOME_METEOR_REVIEW__=universeState.meteors.debug;
+  }
   const heroCompositionDebug = DEBUG_HERO_COMPOSITION
     ? createHeroCompositionDebug({
       earth: earthHorizon.group,
@@ -363,6 +377,7 @@ export function updateUniverseRoot(renderState, delta, time, journeyProgress = 0
   }
 
   const cinematicDebug = CINEMATIC_GALAXY_DEBUG;
+  universeState.meteors?.update(delta,time,journeyProgress<.005&&!DEBUG_MAIN_GALAXY_ACTIVE&&!cinematicDebug.enabled&&!EARTH_LAYER_DEBUG.enabled);
 
   syncResponsiveComposition();
 
@@ -602,6 +617,8 @@ function updateGalaxyVersionDiagnostics() {
 }
 
 export function disposeUniverseRoot() {
+  universeState.meteors?.dispose();universeState.meteors=null;
+  if(import.meta.env.DEV)delete window.__HOME_METEOR_REVIEW__;
   if (HERO_GALAXY_VERSION_STATE.diagnostics) {
     delete window.__ACTIVE_THEORY_GALAXY_VERSION__;
   }

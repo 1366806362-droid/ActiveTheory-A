@@ -19,7 +19,7 @@ function pipeline(state) {
   return { consumer, visual, plan: buildVisualBindingPlan(visual), panel: buildFiveADataPanelViewModel(consumer.snapshot, consumer.derivedMetrics) };
 }
 const runs = Object.fromEntries(['low', 'baseline', 'high', 'partial'].map((state) => [state, pipeline(state)]));
-const scene = createFiveAScene();
+const scene = createFiveAScene({ orbitalArt: null });
 const adapter = createFiveAA3RendererAdapter(scene.resolveStageBindingTarget);
 function tick() { scene.update({ cameraOffset: { x: 0, y: 0, z: 0, targetY: 0 } }, 1 / 60, 12, 1); }
 function snapshot() {

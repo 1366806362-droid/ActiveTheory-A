@@ -53,6 +53,7 @@ import { createFiveAStageRendererAdapter } from '../v2/renderer-adapters/fiveASt
 import { resolveFiveAStagesDemo } from '../v2/runtime/fiveAStagesDemo.js';
 import { resolveFiveAFlowDemo, resolveFiveATransitionsDemo } from '../v2/runtime/fiveAFlowDemo.js';
 import { createFiveAFlowRendererAdapter, createFiveATransitionFlowRendererAdapter } from '../v2/renderer-adapters/fiveAFlowRendererAdapter.js';
+import { createFiveACinematicReview } from '../v2/runtime/fiveACinematicReview.js';
 
 const ENGINE_INSTANCE_KEY = '__ACTIVE_THEORY_ENGINE__';
 
@@ -87,7 +88,7 @@ export function initializeEngine() {
   const consumerProvider = createV2ConsumerProvider(activeDemo ? { fiveASnapshot: activeDemo.snapshot } : undefined);
   const fiveAConsumer = consumerProvider.getFiveA();
   const brandMindConsumer = consumerProvider.getBrandMind();
-  const fiveADataPanel = createFiveADataPanel(fiveAConsumer);
+  let fiveADataPanel = createFiveADataPanel(fiveAConsumer);
   const brandMindDataPanel = createBrandMindDataPanel(brandMindConsumer);
   const sceneManager = createSceneManager({
     heroScene,
@@ -95,7 +96,7 @@ export function initializeEngine() {
     onFiveAPrimaryActivate() {
       fiveADataPanel.toggle('primary-sphere');
     },
-    isFiveADataPanelOpen: fiveADataPanel.isOpen,
+    isFiveADataPanelOpen: () => fiveADataPanel.isOpen(),
     onBrandMindPrimaryActivate() {
       brandMindDataPanel.toggle('primary-core');
     },
@@ -183,6 +184,22 @@ export function initializeEngine() {
     fiveADataPanel.element,
     brandMindDataPanel.element
   );
+  // Development-only live fixture switching, never a second interaction or RAF.
+  const reviewParams = new URLSearchParams(window.location.search);
+  const cinematicReview = import.meta.env.DEV && reviewParams.get('fiveACinematicReview') === '1'
+    && ['A', 'B', '1', 'baseline'].includes(reviewParams.get('fiveACinematic'))
+    ? createFiveACinematicReview({
+      scene: sceneManager.scenes.find(candidate => candidate.name === 'FiveAScene'),
+      replacePanel(consumer) {
+        const next = createFiveADataPanel(consumer);
+        const wasOpen = fiveADataPanel.isOpen();
+        fiveADataPanel.element.replaceWith(next.element);
+        fiveADataPanel.destroy();
+        fiveADataPanel = next;
+        if (wasOpen) next.open('snapshot-update');
+      }
+    }) : null;
+  if (cinematicReview) window.__FIVEA_CINEMATIC_REVIEW__ = cinematicReview;
   const postProcessing = createPostProcessing({
     renderer,
     scene: activeScene,
@@ -220,6 +237,8 @@ export function initializeEngine() {
 
       isDisposed = true;
       stopEngineLoop();
+      cinematicReview?.dispose();
+      if (window.__FIVEA_CINEMATIC_REVIEW__ === cinematicReview) delete window.__FIVEA_CINEMATIC_REVIEW__;
       fiveADataPanel.destroy();
       brandMindDataPanel.destroy();
       interaction.dispose();

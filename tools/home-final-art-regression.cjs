@@ -48,7 +48,8 @@ function validate(report){
     });
     await p.goto(base,{waitUntil:'networkidle'});await p.waitForTimeout(2000);
     const status=()=>p.evaluate(()=>({...window.__GALAXY_TOUR_STATUS__}));
-    report.initial=await status();report.listeners=await p.evaluate(()=>window.__HOME_GATE_LISTENERS__());
+    report.url=base;report.initial=await status();report.listeners=await p.evaluate(()=>window.__HOME_GATE_LISTENERS__());
+    await p.screenshot({path:path.join(out,'HOME_DEFAULT.png')});
     for(const [key,name,scene,panel] of [
       ['geo','GEONebula','GeoScene',null],['fivea','5ANebula','FiveAScene','__ACTIVE_THEORY_FIVEA_DATA_PANEL__'],
       ['brandmind','BrandMindNebula','BrandMindScene','__ACTIVE_THEORY_BRAND_MIND_DATA_PANEL__']]){
@@ -65,8 +66,12 @@ function validate(report){
       const entry={key,point,entered:await status()};
       await p.screenshot({path:path.join(out,`ENTRY_${key}.png`)});
       if(panel){
-        await p.evaluate(k=>window[k].open('home-final-gate'),panel);entry.panelOpen=await p.evaluate(k=>window[k].isOpen(),panel);
-        await p.keyboard.press('Escape');entry.panelClosed=await p.evaluate(k=>!window[k].isOpen(),panel);
+        if(key==='fivea'){
+          const corePoint=await p.evaluate(async()=>{const s=(await import('/src/engine/scenes.js')).getActiveScene(),c=(await import('/src/engine/camera.js')).getCamera(),T=await import('/node_modules/.vite/deps/three.js'),v=s.getObjectByName('FiveACorePrimaryHitTarget').getWorldPosition(new T.Vector3()).project(c);return[(v.x+1)*800,(1-v.y)*450];});
+          await p.mouse.click(...corePoint);entry.corePoint=corePoint;await p.waitForFunction(()=>window.__ACTIVE_THEORY_FIVEA_DATA_PANEL__.isOpen());
+        }else await p.evaluate(k=>window[k].open('home-final-gate'),panel);
+        entry.panelOpen=await p.evaluate(k=>window[k].isOpen(),panel);await p.waitForTimeout(1500);await p.screenshot({path:path.join(out,`PANEL_${key}_SETTLED.png`)});
+        await p.keyboard.press('Escape');await p.waitForTimeout(1200);entry.panelClosed=await p.evaluate(k=>!window[k].isOpen(),panel);await p.screenshot({path:path.join(out,`PANEL_${key}_CLOSED.png`)});
         assert.ok(entry.panelOpen&&entry.panelClosed);
       }
       for(let i=0;i<24;i++){

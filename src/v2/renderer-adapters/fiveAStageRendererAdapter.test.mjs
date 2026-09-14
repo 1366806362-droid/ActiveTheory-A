@@ -18,7 +18,7 @@ function pipeline(snapshot) {
   return { consumer, visual, plan:buildVisualBindingPlan(visual), panel:buildFiveADataPanelViewModel(snapshot,consumer.derivedMetrics) };
 }
 const cases = Object.fromEntries(['balanced','contrast','partial'].map(name=>[name,pipeline(createFiveAStagesDemoSnapshot(name))]));
-const scene = createFiveAScene();
+const scene = createFiveAScene({ orbitalArt: null });
 const adapter = createFiveAStageRendererAdapter(scene.resolveStageRendererTarget);
 function tick() { scene.update({cameraOffset:{x:0,y:0,z:0,targetY:0}},0,12,1); }
 function actual() { return adapter.getReport().renderer; }
@@ -105,7 +105,7 @@ test('panel presentation does not change source or binding',()=>{const before=ad
 test('adapter disposal restores all stage art values',()=>{adapter.dispose();tick();for(const id of IDS)assert.deepEqual(scene.resolveStageRendererTarget(id).read(),original[id]);adapter.dispose();assert.equal(adapter.getReport().renderer,null);assert.throws(()=>adapter.apply(cases.balanced.plan));});
 test('scene disposal invalidates targets; reopening gives fresh targets',()=>{
   const target=scene.resolveStageRendererTarget('A1');scene.dispose();assert.throws(()=>target.read());
-  const fresh=createFiveAScene();const other=createFiveAStageRendererAdapter(fresh.resolveStageRendererTarget);other.apply(cases.partial.plan);assert.equal(other.getReport().renderer.A2.binding.energy,0.15);other.dispose();fresh.dispose();
+  const fresh=createFiveAScene({orbitalArt:null});const other=createFiveAStageRendererAdapter(fresh.resolveStageRendererTarget);other.apply(cases.partial.plan);assert.equal(other.getReport().renderer.A2.binding.energy,0.15);other.dispose();fresh.dispose();
 });
 test('production and default entry do not activate demo',()=>{assert.equal(resolveFiveAStagesDemo('?v2FiveAState=contrast',false),null);assert.equal(resolveFiveAStagesDemo('?scene=fivea',true),null);assert.throws(()=>createFiveAStagesDemoSnapshot('unknown'));});
 test('fixtures are deterministic',()=>assert.deepEqual(createFiveAStagesDemoSnapshot('contrast'),createFiveAStagesDemoSnapshot('contrast')));

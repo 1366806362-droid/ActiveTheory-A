@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { assertFiveAStageValues, FIVE_A_RENDERER_STAGE_IDS } from '../v2/renderer-adapters/fiveAStageRendererAdapter.js';
-import { assertFiveAFlowValues } from '../v2/renderer-adapters/fiveAFlowRendererAdapter.js';
+import { assertFiveAFlowValues, FIVE_A_FLOW_TRANSITION_IDS } from '../v2/renderer-adapters/fiveAFlowRendererAdapter.js';
+import { resolveFiveACinematicArt, cinematicFlowTravel } from './fiveACinematicArt.js';
+import { resolveFiveAOrbital, createFiveAOrbitalParts, advanceOrbitalClock, orbitalFlowPoint } from './fiveAOrbitalArt.js';
+import { getInteractionState } from '../universe/interaction.js';
+import { fitParticleStarPanel } from './fiveAParticleStars.js';
+import { createFiveAEnvironment } from './fiveAColorDepth.js';
 
 const FIVE_A_STAGES = [
   {
@@ -218,24 +223,43 @@ export const FIVE_A_VISUAL_V2 = Object.freeze({
 // Kept as a compatibility alias for existing diagnostics and external review scripts.
 export const FIVE_A_VISUAL_V1 = FIVE_A_VISUAL_V2;
 
-export function createFiveAScene() {
+export function createFiveAScene({ cinematicArt = resolveFiveACinematicArt(globalThis.window?.location?.search), orbitalArt = resolveFiveAOrbital(globalThis.window?.location?.search) } = {}) {
   const group = new THREE.Group();
   const primaryRaycaster = new THREE.Raycaster();
   const primaryPointer = new THREE.Vector2();
-  const core = createFiveACore();
-  const orbitSystem = createFiveAOrbitSystem();
-  const transferFlow = createFiveATransferFlow();
+  const orbital = orbitalArt ? createFiveAOrbitalParts(orbitalArt) : null;
+  const core = orbital?.core ?? createFiveACore();
+  const orbitSystem = orbital?.orbitSystem ?? createFiveAOrbitSystem(cinematicArt);
+  const transferFlow = createFiveATransferFlow(orbitalArt ? { orbital: orbitalArt } : cinematicArt);
+  orbital?.attachParticleOcclusion(transferFlow.points.material);
   const dust = createFiveABackgroundDust();
+  const environment=orbitalArt?.colorDepth?.background ? createFiveAEnvironment(orbitalArt.colorDepth.variant) : null;
+  const reducedMotion=orbitalArt?.colorDepth ? globalThis.window?.matchMedia?.('(prefers-reduced-motion: reduce)') : null;
   const title = createSceneTitle();
   let diagnostics;
   let lastMotionProgress = 0;
   let panelPresentationCurrent = 0;
   let panelPresentationTarget = 0;
+  let orbitalTime = 0;
+  let orbitalReviewTime = null;
+  let orbitalCamera = null;
+  let particlePanelFit = null;
+  let particlePanelKey = '';
+  const particlePanelPosition = new THREE.Vector3();
+  if(orbital)core.hitTarget.onBeforeRender = (renderer,scene,camera)=>{orbitalCamera=camera;};
 
   group.name = 'FiveAScene';
   group.position.set(...FIVE_A_FINAL_POSITION);
   group.visible = false;
   group.add(dust.points, orbitSystem.group, transferFlow.points, core.group, title.group);
+  if(environment){group.add(environment.group);dust.points.visible=false;}
+  if (orbital) { title.group.visible = false; group.userData.orbital = orbital.read; }
+  if (orbital && import.meta.env?.DEV && new URLSearchParams(window.location.search).get('orbitalReview') === '1') {
+    group.userData.setOrbitalSampleTime = value => {
+      if(value !== null && (!Number.isFinite(value) || value < 0)) throw new Error('Invalid orbital sample time');
+      orbitalReviewTime = value;
+    };
+  }
   diagnostics = createFiveAMotionDiagnostics(group, orbitSystem, transferFlow);
 
   function update(renderState, delta, time, transitionProgress) {
@@ -257,12 +281,36 @@ export function createFiveAScene() {
       panelPresentationCurrent = panelPresentationTarget;
     }
     const panelPresentation = resolveFiveAPanelPresentation(panelPresentationCurrent);
+    if (orbital) {
+      orbitalTime = orbitalReviewTime ?? (orbitalArt.frozen ? time : advanceOrbitalClock(orbitalTime, delta, {
+        paused: panelPresentationTarget === 1, hidden: globalThis.document?.hidden === true,
+        active: transitionProgress > .99
+      }));
+    }
 
     group.visible = transitionProgress > 0.01 || diagnostics.isDebugEnabled;
     group.position.set(...panelPresentation.position);
     group.rotation.y = Math.sin(time * 0.025) * 0.04 * motion.stable;
     group.rotation.x = Math.sin(time * 0.018) * 0.02 * motion.stable;
     group.scale.setScalar(panelPresentation.scale);
+    if (orbital) { group.rotation.set(0,0,0); group.scale.setScalar(THREE.MathUtils.lerp(.68,.26,panelPresentationCurrent)); }
+    if (orbitalArt?.particleStars && orbitalCamera) {
+      const width=globalThis.window?.innerWidth||1600,height=globalThis.window?.innerHeight||900;
+      const key=`${panelPresentationTarget}:${width}:${height}`;
+      if(panelPresentationTarget===1 && key!==particlePanelKey){
+        const panel=globalThis.document?.querySelector?.('.fivea-data-panel');
+        const left=panel?.offsetLeft;
+        if(Number.isFinite(left)&&left>0&&left<width){
+          particlePanelFit=fitParticleStarPanel(orbitalCamera,width,height,left,FIVE_A_PANEL_OPEN_PRESENTATION_STATE.position);
+          particlePanelPosition.fromArray(particlePanelFit.position);
+          particlePanelKey=key;group.userData.particlePanelFit=particlePanelFit;
+        }
+      }else if(panelPresentationTarget===0)particlePanelKey=key;
+      if(particlePanelFit){
+        group.position.set(...FIVE_A_FINAL_POSITION).lerp(particlePanelPosition,panelPresentationCurrent);
+        group.scale.setScalar(THREE.MathUtils.lerp(.68,particlePanelFit.scale,panelPresentationCurrent));
+      }
+    }
 
     renderState.cameraOffset.x += Math.sin(time * 0.038 + 0.6) * 0.18 * cameraExplore;
     renderState.cameraOffset.y += Math.sin(time * 0.032) * 0.07 * cameraExplore;
@@ -270,15 +318,23 @@ export function createFiveAScene() {
     renderState.cameraOffset.targetY += 0.08 * cameraExplore;
 
     dust.update(delta, time, motionProgress);
-    orbitSystem.update(delta, time, motionProgress);
-    transferFlow.update(delta, time, motionProgress, motion, orbitSystem.getJourneyStagePositions());
-    core.update(delta, time, motion);
+    environment?.update(delta,motionProgress,panelPresentationCurrent,globalThis.document?.hidden===true,reducedMotion?.matches===true);
+    orbitSystem.update(delta, orbital ? orbitalTime : time, motionProgress);
+    orbital?.settlePanelLabels(orbitalCamera,panelPresentationCurrent>.9);
+    transferFlow.update(delta, orbital ? orbitalTime : time, motionProgress, motion, orbitSystem.getJourneyStagePositions());
+    core.update(delta, orbital ? orbitalTime : time, motion);
+    if(orbital && orbitalCamera && transitionProgress > .99 && panelPresentationTarget === 0){
+      const pointer=getInteractionState();
+      if(pointer.active>.01)getPrimaryInteractionTarget({x:pointer.targetX,y:pointer.targetY,camera:orbitalCamera});
+      else core.setHover(false);
+    }else core.setHover?.(false);
     title.update(time, motionProgress);
     diagnostics.update(motionProgress, motion, direction);
     lastMotionProgress = motionProgress;
   }
 
   function dispose() {
+    environment?.dispose();
     dust.dispose();
     orbitSystem.dispose();
     transferFlow.dispose();
@@ -295,6 +351,7 @@ export function createFiveAScene() {
     group.updateWorldMatrix(true, true);
     primaryRaycaster.setFromCamera(primaryPointer, camera);
     const hit = primaryRaycaster.intersectObject(core.hitTarget, false)[0];
+    core.setHover?.(Boolean(hit));
 
     return hit
       ? FIVE_A_PRIMARY_INTERACTION_TARGET
@@ -631,13 +688,13 @@ function createSoftParticleMaterial() {
   });
 }
 
-function createFiveAOrbitSystem() {
+function createFiveAOrbitSystem(art) {
   const group = new THREE.Group();
   const bindings = new Map(FIVE_A_STAGES.map(({ id }) => [id, { scale: 1, energy: 1 }]));
-  const orbits = FIVE_A_STAGES.map((stage, index) => createFiveAOrbit(stage, index, bindings.get(stage.id)));
+  const orbits = FIVE_A_STAGES.map((stage, index) => createFiveAOrbit(stage, index, bindings.get(stage.id), art));
   const orbitById = new Map(FIVE_A_STAGES.map((stage, index) => [stage.id, orbits[index]]));
-  const labels = FIVE_A_STAGES.map((stage, index) => createFiveALabel(stage, index));
-  const stageParticleSpheres = createBatchedStageParticleSpheres(bindings);
+  const labels = FIVE_A_STAGES.map((stage, index) => createFiveALabel(stage, index, art));
+  const stageParticleSpheres = createBatchedStageParticleSpheres(bindings, art);
   let disposed = false;
   const stageTargets = new Map(FIVE_A_RENDERER_STAGE_IDS.map((stageId) => [stageId, Object.freeze({
     stageId,
@@ -719,21 +776,36 @@ function createFiveAOrbitSystem() {
   };
 }
 
-function createFiveAOrbit(stage, index, binding) {
+function createFiveAOrbit(stage, index, binding, art) {
   const group = new THREE.Group();
   const orbitLines = createBrokenOrbitLines(stage, index);
   const population = createOrbitPopulationParticles(stage, index);
-  const stageNode = createStageNode(stage, index, binding);
+  const stageNode = createStageNode(stage, index, binding, art);
 
   group.name = `FiveAOrbit${stage.id}`;
   group.rotation.x = 0.78 + index * 0.055;
   group.rotation.z = -0.22 + index * 0.07;
   group.add(orbitLines.lines, population.points, stageNode.group);
+  // The same orbit root owns GPU matrices, wire children, labels and flow ends.
+  // No independent data-driven position or screen-space placement.
+  const offset = art?.offsets?.[stage.id];
+  if (art) {
+    orbitLines.lines.visible = false;
+    population.points.material.uniforms.uArtWeight = { value: 0.22 };
+    population.points.material.vertexShader = population.points.material.vertexShader
+      .replace('varying vec3 vColor;', 'uniform float uArtWeight;\nvarying vec3 vColor;')
+      .replace('vAlpha = aAlpha;', 'vAlpha = aAlpha * uArtWeight;');
+  }
 
   function update(delta, time, motion) {
     group.rotation.y = motion.orbitRotationY;
     group.position.x = index === 0 ? 0 : FIVE_A_STAGE_GROUP_CORE_PULL * motion.release;
     group.position.z = stage.depthOffset * motion.release;
+    if (offset) {
+      group.position.x += offset[0] * motion.release;
+      group.position.y = offset[1] * motion.release;
+      group.position.z += offset[2] * motion.release;
+    }
     group.scale.setScalar(1);
     orbitLines.update(time, motion);
     population.update(delta, time, motion);
@@ -990,7 +1062,7 @@ function createOrbitPopulationParticles(stage, index) {
   return { points, update, dispose };
 }
 
-function createBatchedStageParticleSpheres(bindings) {
+function createBatchedStageParticleSpheres(bindings, art) {
   const primaryStages = FIVE_A_STAGES.slice(1);
   const random = seededRandom(14731);
   const geometry = new THREE.BufferGeometry();
@@ -1010,7 +1082,7 @@ function createBatchedStageParticleSpheres(bindings) {
 
   primaryStages.forEach((stage, nodeIndex) => {
     const visualRadius = stage.nodeRadius * stage.visualRadiusScale;
-    const base = new THREE.Color(stage.color).lerp(new THREE.Color(0x163b5d), 0.36);
+    const base = art ? new THREE.Color(0x518db1) : new THREE.Color(stage.color).lerp(new THREE.Color(0x163b5d), 0.36);
     const clumps = Array.from({ length: 2 + (nodeIndex % 3) }, () => {
       const theta = random() * Math.PI * 2;
       const phi = Math.acos(2 * random() - 1);
@@ -1026,7 +1098,9 @@ function createBatchedStageParticleSpheres(bindings) {
     for (let localIndex = 0; localIndex < stage.gpuParticleCount; localIndex += 1) {
       const stride = cursor * 3;
       const roll = random();
-      const layer = roll < 0.68 ? 0 : roll < 0.91 ? 1 : 2;
+      const layer = art
+        ? (roll < art.shellFraction ? 0 : roll < art.shellFraction + art.middleFraction ? 1 : 2)
+        : (roll < 0.68 ? 0 : roll < 0.91 ? 1 : 2);
       const theta = random() * Math.PI * 2;
       const phi = Math.acos(2 * random() - 1);
       const unit = new THREE.Vector3(
@@ -1046,6 +1120,11 @@ function createBatchedStageParticleSpheres(bindings) {
       if (layer === 1) {
         const clump = clumps[Math.floor(random() * clumps.length)];
         position.lerp(clump, 0.34 + random() * 0.38);
+        if (art) {
+          // Organized meso-scale aggregation, with genuine voids between clumps.
+          position.multiplyScalar(1.55);
+          position.y *= 0.78;
+        }
       }
 
       const color = base.clone().lerp(
@@ -1091,6 +1170,11 @@ function createBatchedStageParticleSpheres(bindings) {
       const energyAlpha = isHeroHighlight ? 1.25 : isEnergyHighlight ? 1.12 : 1;
 
       alphas[cursor] = (layer === 1 ? baseAlpha : baseAlpha * stage.shellVisibility) * energyAlpha;
+      if (art) {
+        sizes[cursor] *= art.pointSize;
+        alphas[cursor] *= layer === 2 ? 0.32 : layer === 1 ? 1.22 : 1.1;
+        brightness[cursor] *= isHeroHighlight ? 0.84 : 1;
+      }
       cursor += 1;
     }
   });
@@ -1279,7 +1363,7 @@ function createBatchedStageParticleSpheres(bindings) {
   };
 }
 
-function createStageNode(stage, index, binding) {
+function createStageNode(stage, index, binding, art) {
   const group = new THREE.Group();
   let baseScale = 1;
   function refreshBinding() { group.scale.setScalar(baseScale * binding.scale); }
@@ -1320,6 +1404,7 @@ function createStageNode(stage, index, binding) {
       wireMaterial.opacity = motion.release * stage.wireBrightness * (
         0.0025 + motion.capture * 0.008 + sparkle * 0.0015
       );
+      if (art) wireMaterial.opacity *= 0.18;
     }
   }
 
@@ -1480,7 +1565,7 @@ function createStageParticleMaterial() {
   });
 }
 
-function createFiveATransferFlow() {
+function createFiveATransferFlow(art) {
   const random = seededRandom(8851);
   const geometry = new THREE.BufferGeometry();
   const positions = new Float32Array(TRANSFER_PARTICLE_COUNT * 3);
@@ -1506,10 +1591,14 @@ function createFiveATransferFlow() {
   const color = new THREE.Color(0x8df7ff);
   const white = new THREE.Color(0xffffff);
   const purpleBlue = new THREE.Color(0x7185cf);
+  const adjacentTargets = FIVE_A_FLOW_TRANSITION_IDS.map(id => {
+    const targetId = id.split('_TO_')[1];
+    return FIVE_A_STAGES.findIndex(stage => stage.id === targetId);
+  });
 
   for (let i = 0; i < TRANSFER_PARTICLE_COUNT; i += 1) {
     const i3 = i * 3;
-    const stageIndex = i % FIVE_A_STAGES.length;
+    const stageIndex = art ? adjacentTargets[i % adjacentTargets.length] : i % FIVE_A_STAGES.length;
     const stage = FIVE_A_STAGES[stageIndex];
     const stageParticleOrdinal = Math.floor(i / FIVE_A_STAGES.length);
     const migrationClusterRole = stageParticleOrdinal % 12;
@@ -1531,6 +1620,20 @@ function createFiveATransferFlow() {
       : isMigrationCluster
         ? 0.58 + random() * 0.22
         : 0.26 + random() * 0.4;
+    if (art) {
+      // Reuse all 432 points on the four real business edges (108 each).
+      // Three points share one curved trajectory, with a dim trailing pair.
+      // CORE and Opportunity are deliberately not displayed as extra stages.
+      const ordinal = Math.floor(i / adjacentTargets.length);
+      const role = ordinal % 3;
+      const packet = Math.floor(ordinal / 3);
+      phases[i] = ((packet + 0.5) / 36 + (2 - role) * 0.006) % 1;
+      curlSeeds[i] = packet * 2.39996 + stageIndex * 0.37;
+      freedom[i] = packet % 7 === 0 ? 1 : 0;
+      trailRoles[i] = role;
+      gapWeights[i] = role === 0 ? 1 : role === 1 ? 0.58 : 0.28;
+      renderBrightness[i] = role === 0 ? (packet % 11 === 0 ? 1.3 : 0.8) : 0.4;
+    }
     sizes[i] = sizeRoll < 0.55
       ? 0.017
       : sizeRoll < 0.82
@@ -1538,7 +1641,9 @@ function createFiveATransferFlow() {
         : sizeRoll < 0.97
           ? 0.041
           : 0.058;
+    if (art) sizes[i] *= 0.78;
     color.set(stage.color).lerp(white, i % 15 === 0 ? 0.58 : 0.18 + random() * 0.12);
+    if (art) color.set(0x8fbad2).lerp(white, i % 53 === 0 ? 0.35 : 0.06);
     if (i % 67 === 0) color.lerp(purpleBlue, 0.22);
     colors[i3] = color.r * 0.78;
     colors[i3 + 1] = color.g * 0.82;
@@ -1612,6 +1717,11 @@ function createFiveATransferFlow() {
   const points = new THREE.Points(geometry, material);
 
   points.name = 'FiveACoreReleaseParticleFlow';
+  if (art?.orbital) points.frustumCulled = false;
+  const orbitalPath = new THREE.Vector3();
+  if (art?.orbital) {
+    sizes.forEach((v,i)=>{sizes[i]=v*.38;});
+  }
 
   function update(delta, time, entrance, globalMotion, stageRootPositions) {
     const positionArray = positionAttribute.array;
@@ -1623,14 +1733,17 @@ function createFiveATransferFlow() {
       const i3 = i * 3;
       const stageIndex = stageIndices[i];
       const stage = FIVE_A_STAGES[stageIndex];
-      const timing = getStageTiming(stageIndex);
-      const motion = evaluateStageMotion(stage, stageIndex, entrance, time);
-      const pathProgress = clamp01((entrance - timing.start) / (timing.captureEnd - timing.start));
+      const timing = art?.orbital ? null : getStageTiming(stageIndex);
+      const motion = art?.orbital ? globalMotion : evaluateStageMotion(stage, stageIndex, entrance, time);
+      const pathProgress = art?.orbital ? entrance : clamp01((entrance - timing.start) / (timing.captureEnd - timing.start));
       const packetBurst = i % 53 === 0
         ? (0.5 + Math.sin(time * 0.86 + curlSeeds[i]) * 0.5) * motion.stable
         : 0;
-      const travel = clamp01(pathProgress * 1.16 - phases[i] * 0.22 + packetBurst * 0.022);
-      const path = evaluateReleaseParticlePosition(
+      const entranceTravel = clamp01(pathProgress * 1.16 - phases[i] * 0.22 + packetBurst * 0.022);
+      const travel = art && stageIndex >= 2
+        ? THREE.MathUtils.lerp(entranceTravel, cinematicFlowTravel(time, phases[i], trailRoles[i]), smoothstep(0.8, 1, motion.stable))
+        : entranceTravel;
+      const path = art?.orbital ? orbitalFlowPoint(FIVE_A_STAGES[stageIndex-1].id,stage.id,time,travel,orbitalPath,art.orbital.variant) : evaluateReleaseParticlePosition(
         stage,
         stageIndex,
         travel,
@@ -1646,15 +1759,16 @@ function createFiveATransferFlow() {
       const captureGather = smoothstep(0.72, 0.92, travel) * (1 - smoothstep(0.94, 1, travel));
       const chargeAlpha = globalMotion.chargePulse * (1 - phases[i]) * 0.2;
       const depthCue = THREE.MathUtils.clamp(0.86 + path.z * 0.34, 0.62, 1.22);
-      const brokenCadence = (travel > 0.32 && travel < 0.43) || (travel > 0.63 && travel < 0.72)
+      const brokenCadence = !art && ((travel > 0.32 && travel < 0.43) || (travel > 0.63 && travel < 0.72))
         ? 0.24
         : 1;
       const microStreakGain = trailRoles[i] < 3 ? 1.18 : 1;
       const packetGain = i % 53 === 0 ? 1.28 + packetBurst * 0.3 : 1;
 
-      positionArray[i3] = path.x;
-      positionArray[i3 + 1] = path.y;
-      positionArray[i3 + 2] = path.z;
+      const actualPath = path;
+      positionArray[i3] = actualPath.x;
+      positionArray[i3 + 1] = actualPath.y;
+      positionArray[i3 + 2] = actualPath.z;
       baseAlphas[i] = Math.min(
         0.86,
         (
@@ -1663,6 +1777,9 @@ function createFiveATransferFlow() {
           + motion.stable * 0.126
         ) * depthCue * gapWeights[i] * brokenCadence * microStreakGain * packetGain
       );
+      if (art) baseAlphas[i] *= stageIndex < 2 ? 0.12 :
+        (0.8 + 0.35 * trailWindow) * smoothstep(0, 0.06, travel) * (1 - smoothstep(0.93, 1, travel));
+      if (art?.orbital) baseAlphas[i] *= .48;
       alphaArray[i] = baseAlphas[i] * segmentByTargetId.get(stage.id).strength;
     }
 
@@ -1783,7 +1900,7 @@ function createFiveABackgroundDust() {
   return { points, update, dispose };
 }
 
-function createFiveALabel(stage, index) {
+function createFiveALabel(stage, index, art) {
   const group = new THREE.Group();
 
   group.name = `FiveALabel${stage.id}`;
@@ -1795,7 +1912,7 @@ function createFiveALabel(stage, index) {
     };
   }
 
-  const texture = createTextTexture(`${stage.id}  ${stage.label}`);
+  const texture = createTextTexture(`${stage.id}  ${stage.label}`, art ? 62 : 32);
   const material = new THREE.SpriteMaterial({
     map: texture,
     transparent: true,
@@ -1812,6 +1929,7 @@ function createFiveALabel(stage, index) {
     Math.sin(angle) * stage.radius * 0.42 + stage.depthOffset
   );
   sprite.scale.set(0.54 + index * 0.025, 0.105, 1);
+  if (art) sprite.scale.set(index === 1 ? 1.25 : 0.8, index === 1 ? 0.208 : 0.133, 1);
   group.add(sprite);
 
   function update(time, motion, stageRootPosition) {
@@ -1824,6 +1942,11 @@ function createFiveALabel(stage, index) {
       stageRootPosition.z + 0.02
     );
     material.opacity = labelReveal * (0.28 + pulse * 0.025);
+    if (art) {
+      group.position.x = stageRootPosition.x + 0.10;
+      group.position.y = stageRootPosition.y + 0.20;
+      material.opacity = labelReveal * 0.84;
+    }
   }
 
   function dispose() {
@@ -1865,7 +1988,7 @@ function createSceneTitle() {
   return { group, update, dispose };
 }
 
-function createTextTexture(text) {
+function createTextTexture(text, fontSize = 32) {
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
 
@@ -1873,7 +1996,7 @@ function createTextTexture(text) {
   canvas.height = 128;
   context.clearRect(0, 0, canvas.width, canvas.height);
   context.fillStyle = 'rgba(170, 226, 244, 0.82)';
-  context.font = '500 32px Inter, Arial, sans-serif';
+  context.font = `500 ${fontSize}px Inter, Arial, sans-serif`;
   context.fillText(text, 24, 76);
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -2082,11 +2205,15 @@ function createFiveAMotionDiagnostics(group, orbitSystem, transferFlow) {
     : null;
   const resourceCounts = inspectFiveAResources(group);
   const orbitParticleCount = FIVE_A_STAGES.reduce((total, stage) => total + stage.particleCount, 0);
+  let orbitalParticleCount = 0;
+  if (group.userData.orbital) group.traverse((object) => {
+    if (object.isPoints) orbitalParticleCount += object.geometry.attributes.position.count;
+  });
   const status = {
     localProgress: 0,
     currentStage: 'core-charge',
     layers: [],
-    particleCount: orbitParticleCount
+    particleCount: orbitalParticleCount || orbitParticleCount
       + transferFlow.particleCount
       + BACKGROUND_DUST_COUNT
       + FIVE_A_STAGE_GPU_PARTICLE_COUNT
