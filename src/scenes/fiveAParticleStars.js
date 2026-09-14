@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 
 export const PARTICLE_STAR_BUDGET = Object.freeze({ core: 14000, satellite: 2600, total: 27000, outerRadius: 1.10 });
+export const ENERGY_STAR_BUDGETS = Object.freeze({
+  A: Object.freeze({ core: 8000, satellite: 1350, total: 14750, outerRadius: 1.14 }),
+  B: Object.freeze({ core: 7000, satellite: 1100, total: 12500, outerRadius: 1.14 })
+});
 
 // View-ray attenuation through another star's finite volume. This supplements
 // normal depth testing: rear tracks/particles cannot shine through the entire
@@ -51,7 +55,8 @@ export function makeParticleStarSupport(core) {
   });
 }
 
-export function makeParticleStars(variant='B') {
+export function makeParticleStars(variant='B', energyVariant=null) {
+  if (energyVariant === 'A' || energyVariant === 'B') return makeEnergyParticleStars(energyVariant);
   const matrices=Array.from({length:6},()=>new THREE.Matrix4()), energy=new Float32Array(6).fill(1);
   const count=PARTICLE_STAR_BUDGET.total, positions=new Float32Array(count*3), slots=new Float32Array(count), sizes=new Float32Array(count), seeds=new Float32Array(count), radii=new Float32Array(count);
   let seed=381947,at=0; const random=()=>((seed=Math.imul(seed,1664525)+1013904223|0)>>>0)/4294967296;
@@ -103,6 +108,79 @@ export function makeParticleStars(variant='B') {
   const points=new THREE.Points(geometry,material);points.name='FiveAOrbitalSurfaceParticles';points.frustumCulled=false;
   const viewport=new THREE.Vector2();points.onBeforeRender=renderer=>{renderer.getSize(viewport);material.uniforms.uHeight.value=viewport.y;material.uniforms.uDpr.value=renderer.getPixelRatio();};
   return {points,material,matrices,energy,dispose(){geometry.dispose();material.dispose();}};
+}
+
+function makeEnergyParticleStars(variant) {
+  const profile=variant==='A'
+    ? { coreFraction:.22, midFraction:.50, coreGain:1.18, midGain:1.02, shellGain:.72, dustGain:.34 }
+    : { coreFraction:.17, midFraction:.46, coreGain:1.08, midGain:.96, shellGain:.76, dustGain:.30 };
+  const budget=ENERGY_STAR_BUDGETS[variant];
+  const matrices=Array.from({length:6},()=>new THREE.Matrix4()),energy=new Float32Array(6).fill(1);
+  const count=budget.total,positions=new Float32Array(count*3),slots=new Float32Array(count),sizes=new Float32Array(count),seeds=new Float32Array(count),radii=new Float32Array(count),zones=new Float32Array(count),biases=new Float32Array(count);
+  let seed=913731,at=0;const random=()=>((seed=Math.imul(seed,1664525)+1013904223|0)>>>0)/4294967296;
+  for(let slot=0;slot<6;slot++){
+    const bodyCount=slot===0?budget.core:budget.satellite;
+    for(let i=0;i<bodyCount;i++,at++){
+      const pick=random();let zone,r;
+      if(pick<profile.coreFraction){zone=0;r=.025+.34*Math.pow(random(),1.55);}
+      else if(pick<profile.coreFraction+profile.midFraction){zone=1;r=.20+.60*Math.pow(random(),.82);}
+      else if(pick<.955){zone=2;r=.70+.33*Math.pow(random(),.72);}
+      else {zone=3;r=1.01+.13*Math.pow(random(),1.35);}
+      let z,theta,accept;
+      do {
+        z=random()*2-1;theta=random()*Math.PI*2;
+        const lobe=.56+.22*Math.sin(theta*3.0+z*5.1+slot*.71)+.15*Math.cos(theta*5.0-z*3.2-slot*.43);
+        const voidField=.5+.5*Math.sin(theta*2.0-z*4.3+slot*1.17);
+        accept=Math.max(.16,lobe-(voidField>.87?.30:0));
+      } while(random()>accept);
+      const radial=Math.sqrt(Math.max(0,1-z*z)),cluster=.5+.5*Math.sin(theta*4.0+z*6.0+slot*.83);
+      positions.set([radial*Math.cos(theta)*r,z*r,radial*Math.sin(theta)*r],at*3);
+      slots[at]=slot;radii[at]=r;zones[at]=zone;seeds[at]=random()*6.283185;
+      const hero=random()<(zone===0?.020:zone===1?.010:.003);
+      const medium=random()<(zone===0?.22:zone===1?.13:.055);
+      sizes[at]=(hero?2.7:medium?1.65:.72+random()*.50)*(slot===0?1.08:1.0);
+      biases[at]=(zone===0?profile.coreGain:zone===1?profile.midGain:zone===2?profile.shellGain:profile.dustGain)*(.76+.36*cluster)*(hero?2.6:medium?1.32:1);
+    }
+  }
+  const geometry=new THREE.BufferGeometry();
+  for(const [name,array,size]of [['position',positions,3],['aSlot',slots,1],['aSize',sizes,1],['aSeed',seeds,1],['aRadius',radii,1],['aZone',zones,1],['aBias',biases,1]])geometry.setAttribute(name,new THREE.BufferAttribute(array,size));
+  const material=new THREE.ShaderMaterial({uniforms:{uMatrices:{value:matrices},uEnergy:{value:energy},uTime:{value:0},uHover:{value:0},uHeight:{value:900},uDpr:{value:1}},
+    transparent:true,depthWrite:false,depthTest:true,blending:THREE.AdditiveBlending,fog:false,
+    vertexShader:`attribute float aSlot,aSize,aSeed,aRadius,aZone,aBias;uniform mat4 uMatrices[6];uniform float uEnergy[6],uTime,uHover,uHeight,uDpr;
+      varying float vAlpha,vSharpness;varying vec3 vColor;
+      ${OCCLUSION_GLSL}
+      void main(){int s=int(aSlot+.5);vec3 p=position;float t=uTime*.018;
+        float zoneFlow=aZone<1.5?1.:.34;float turn=t*zoneFlow*(.55+.22*sin(aSeed*2.));mat2 rot=mat2(cos(turn),-sin(turn),sin(turn),cos(turn));p.xz=rot*p.xz;
+        p.xy+=vec2(sin(aSeed*5.+t),cos(aSeed*3.-t*.8))*(aZone<1.5?.006:.0025);p*=1.+.0025*sin(uTime*.19+aSeed*4.);
+        vec4 center=modelViewMatrix*uMatrices[s]*vec4(0,0,0,1);vec4 mv=modelViewMatrix*uMatrices[s]*vec4(p,1);
+        vec3 localView=normalize((modelViewMatrix*uMatrices[s]*vec4(p,0.)).xyz);float facing=dot(localView,normalize(-center.xyz));
+        float depth=.24+.76*smoothstep(-.72,.52,facing);float core=1.-smoothstep(.16,.48,aRadius);float mid=1.-smoothstep(.48,.88,aRadius);
+        float zoneAlpha=aZone<.5?.78:aZone<1.5?.48:aZone<2.5?.24:.095;
+        if(s>0)zoneAlpha*=aZone<.5?.76:aZone<1.5?1.12:aZone<2.5?1.92:1.24;
+        float dataEnergy=clamp(uEnergy[s],.55,1.35);float energyResponse=.72+.28*dataEnergy;
+        float activity=.92+.08*sin(uTime*.25+aSeed*4.7);vAlpha=zoneAlpha*(.70+.30*fract(aSeed*2.17))*depth*activity;
+        vAlpha*=energyResponse*(1.+(s==0?uHover*.14:0.))*starVisibility(mv.xyz,s);
+        float centerField=.64+(s==0?1.35:.96)*core+.36*mid;float dataLift=max(0.,dataEnergy-.82)*(core*.62+mid*.24);
+        float satelliteBalance=s==0?1.:(aZone<.5?.80:aZone<1.5?.94:1.12);
+        float luminance=aBias*centerField*(s==0?1.08:.92)*satelliteBalance+dataLift;
+        vec3 deep=vec3(.075,.19,.36),icy=vec3(.48,.73,.94),silver=vec3(.86,.93,1.);
+        float colorMix=clamp(.18+.58*core+.18*fract(aSeed*3.7),0.,1.);vColor=mix(deep,icy,colorMix);
+        vColor=mix(vColor,silver,clamp((luminance-1.55)*.34,0.,.62))*luminance;
+        vSharpness=aZone<1.5?.78:.58;
+        float radius=length((modelViewMatrix*uMatrices[s])[0].xyz);float projected=radius*uHeight*projectionMatrix[1][1]/(2.*-center.z);
+        float shellRead=(s>0 && aZone>1.5 && aZone<2.5)?1.48:1.;
+        gl_PointSize=clamp(aSize*shellRead*sqrt(projected/(s==0?74.:20.)),.62,s==0?4.2:3.35)*uDpr;gl_Position=projectionMatrix*mv;
+      }`,
+    fragmentShader:`varying float vAlpha,vSharpness;varying vec3 vColor;
+      void main(){float r=length(gl_PointCoord-.5)*2.;if(r>1.)discard;
+        float soft=1.-smoothstep(vSharpness,1.,r);float nucleus=1.-smoothstep(0.,.38,r);float shape=soft*(.72+.28*nucleus);
+        gl_FragColor=vec4(vColor,shape*vAlpha);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`});
+  const points=new THREE.Points(geometry,material);points.name='FiveAOrbitalSurfaceParticles';points.frustumCulled=false;
+  const viewport=new THREE.Vector2();points.onBeforeRender=renderer=>{renderer.getSize(viewport);material.uniforms.uHeight.value=viewport.y;material.uniforms.uDpr.value=renderer.getPixelRatio();};
+  return {points,material,matrices,energy,budget,energyVariant:variant,dispose(){geometry.dispose();material.dispose();}};
 }
 
 // Static whole-orbit bound, independent of live phase and Snapshot values.

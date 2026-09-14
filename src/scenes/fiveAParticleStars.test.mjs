@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as T from 'three';
 import { ORBITAL_STAGES, orbitalPose, orbitalFlowPoint, advanceOrbitalClock, resolveFiveAOrbital } from './fiveAOrbitalArt.js';
-import { makeParticleStars, fitParticleStarPanel, PARTICLE_STAR_BUDGET } from './fiveAParticleStars.js';
+import { makeParticleStars, fitParticleStarPanel, PARTICLE_STAR_BUDGET, ENERGY_STAR_BUDGETS } from './fiveAParticleStars.js';
 import { createFiveAScene } from './fiveAScene.js';
 import { createFiveACinematicReview } from '../v2/runtime/fiveACinematicReview.js';
 globalThis.window={location:{search:''}};
@@ -13,6 +13,9 @@ const make=()=>{const s=createFiveAScene({orbitalArt:cfg});tick(s);return s;};
 test('orbital is isolated opt-in with five stable product IDs; no Opportunity satellite',()=>{
  assert.equal(resolveFiveAOrbital(''),null);assert.equal(resolveFiveAOrbital('?fiveAOrbital=no'),null);
  assert.equal(resolveFiveAOrbital('?fiveAOrbital=B').variant,'B');assert.deepEqual(ids,['A1','A2','A3','A4','A5']);
+ assert.equal(resolveFiveAOrbital('?fiveAOrbital=B&fiveAEnergyStars=A').energyStars,'A');
+ assert.equal(resolveFiveAOrbital('?fiveAOrbital=B&fiveAEnergyStars=1').energyStars,'A');
+ assert.equal(resolveFiveAOrbital('?fiveAOrbital=B&fiveAEnergyStars=B').particleStars,'B');
  const s=make();assert.equal(s.resolveStageRendererTarget('O'),null);assert.equal(s.group.getObjectByName('FiveAStageNodeO'),undefined);s.dispose();
 });
 test('five radii increase independently and maximum guardrail bodies never intersect',()=>{
@@ -110,6 +113,19 @@ test('particle sampling is deterministic, finite-thickness, bounded and not a sc
  assert.equal(a.material.depthTest,true);assert.equal(a.material.depthWrite,false);
  assert.ok(a.material.vertexShader.includes('starVisibility(mv.xyz,s)'));
  assert.ok(a.material.fragmentShader.includes('<colorspace_fragment>'));a.dispose();b.dispose();
+});
+test('energy-star candidates reduce count and organize a deterministic four-zone volume',()=>{
+ for(const variant of ['A','B']){
+  const a=makeParticleStars('B',variant),b=makeParticleStars('B',variant),g=a.points.geometry,budget=ENERGY_STAR_BUDGETS[variant];
+  assert.equal(g.attributes.position.count,budget.total);assert.ok(budget.total<PARTICLE_STAR_BUDGET.total);
+  assert.deepEqual(g.attributes.position.array,b.points.geometry.attributes.position.array);
+  const zones=[...g.attributes.aZone.array],radii=[...g.attributes.aRadius.array];
+  assert.deepEqual(new Set(zones),new Set([0,1,2,3]));assert.ok(radii.some(v=>v<.12));assert.ok(radii.some(v=>v>1.05));
+  const core=zones.filter(v=>v===0).length,shell=zones.filter(v=>v===2).length;
+  assert.ok(core>0&&shell>core*.8);assert.equal(a.material.depthWrite,false);assert.equal(a.energyVariant,variant);
+  assert.ok(a.material.vertexShader.includes('centerField'));assert.ok(a.material.fragmentShader.includes('vSharpness'));
+  a.dispose();b.dispose();
+ }
 });
 test('whole-orbit panel envelope contains maximum bodies and labels at all sampled phases',()=>{
  const camera=new T.PerspectiveCamera(45,16/9,.01,100);camera.position.set(-2.35,-.22,3);camera.lookAt(-2.35,-.22,-2.08);

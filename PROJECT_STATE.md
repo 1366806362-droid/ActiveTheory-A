@@ -1,5 +1,28 @@
 # ActiveTheory Project State
 
+## FiveA Centered Energy Particle Stars V1.3 — candidate — 2026-09-14
+
+- Independent `feat/fivea-orbital-energy-stars-v13` from verified baseline
+  `1cc1693cc70bc491ca5ce53757b849b546de6325`; no shared-baseline integration.
+- Opt-in `fiveAOrbital=B&fiveAParticleStars=B&fiveAEnergyStars=A` replaces the
+  uniformly dense particle-star material with one deterministic four-zone GPU
+  batch: luminous core, structured mid field, sparse shell and restrained dust.
+  Candidate A was selected after two material corrections; old paths remain.
+- Particle budget is 8,000 main + 1,350 x 5 satellites = 14,750, down from
+  27,000. One particle draw call; 30 whole-frame draws in the measured scene.
+- Orbit, labels, paths, Core Panel entry, stable A1-A5 identities and existing
+  scale/energy/four-flowStrength bindings remain unchanged. No density or
+  flowSpeed activation. A5 body/label projection remains in-frame at 1366,
+  1600 and 1920 widths across five orbital phases (minimum margin 16.32px).
+- Headed Edge / RTX 5060 Ti / 1600x900 DPR1: 8.3ms median, 8.5ms P95/P99 in
+  steady and pointer samples; Snapshot+Panel max 25ms; zero frames over 50ms.
+  GPU whole-render median/P95 2.784/3.911ms; Canvas/RAF/Wheel 1/1/1, errors 0.
+- Complete Node run (43 files / 101 runner tests), Python 6/6, build and diff
+  check PASS. HOME entries/returns, Panels and renderer bindings remain PASS.
+- **READY FOR HUMAN REVIEW**, not HUMAN PASS or production freeze. Native images,
+  MP4 and machine evidence remain local under `art/fivea-energy-stars/`.
+  Details: `FIVEA_ENERGY_STARS_REVIEW.md`.
+
 ## FiveA Orbital Luminous Particle Stars — experimental, NOT READY — 2026-09-11
 
 - Independent `feat/fivea-orbital-particle-stars` from verified remote

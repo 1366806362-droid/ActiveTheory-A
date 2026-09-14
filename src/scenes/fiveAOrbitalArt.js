@@ -13,8 +13,11 @@ export const ORBITAL_STAGES = Object.freeze({
 export function resolveFiveAOrbital(search = '') {
   const q = new URLSearchParams(search);
   if (!['1', 'A', 'B'].includes(q.get('fiveAOrbital'))) return null;
+  const requestedEnergy=q.get('fiveAEnergyStars');
+  const energyStars=['1','A','B'].includes(requestedEnergy)?(requestedEnergy==='B'?'B':'A'):null;
   return { variant: q.get('fiveAOrbital') === 'B' ? 'B' : 'A', skeleton: q.get('orbitalSkeleton') === '1',
-    frozen: q.get('v2FiveACapture') === '1', particleStars: ['1','A','B'].includes(q.get('fiveAParticleStars')) ? (q.get('fiveAParticleStars') === 'A' ? 'A' : 'B') : null };
+    frozen: q.get('v2FiveACapture') === '1', energyStars,
+    particleStars: ['1','A','B'].includes(q.get('fiveAParticleStars')) ? (q.get('fiveAParticleStars') === 'A' ? 'A' : 'B') : energyStars?'B':null };
 }
 export function orbitalPose(id, time, target, variant = 'A') {
   const a = ORBITAL_STAGES[id];
@@ -92,7 +95,7 @@ export function createFiveAOrbitalParts(config) {
   orbitGeometry.setAttribute('color',new THREE.Float32BufferAttribute(orbitColors,3));
   const orbitMaterial = new THREE.LineBasicMaterial({ vertexColors:true, transparent:true, opacity:.36, depthWrite:false, depthTest:true, fog:false });
   const lines = new THREE.LineSegments(orbitGeometry,orbitMaterial); lines.name='FiveAOrbitalTracks'; group.add(lines);
-  particles = config.skeleton ? null : config.particleStars ? makeParticleStars(config.particleStars) : makeOrbitalParticles();
+  particles = config.skeleton ? null : config.particleStars ? makeParticleStars(config.particleStars,config.energyStars) : makeOrbitalParticles();
   if(particles)group.add(particles.points);
   if(config.particleStars && particles)applyParticleStarOcclusion(orbitMaterial,particles.matrices);
 
