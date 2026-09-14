@@ -26,6 +26,26 @@
   51.36s video remain untracked in `art/fivea-color-depth/`.
   See `FIVEA_COLOR_DEPTH_REVIEW.md`. HOME meteor candidate is independent.
 
+## HOME Subtle Meteor Accent — independent candidate — 2026-09-14
+
+- `homeMeteors=1` is independent of the FiveA candidate; absent flag preserves
+  HOME. No Galaxy, Earth/Hero Lock, labels, entries or global postprocessing edit.
+- One pooled short cool trace, 1.15s visible, 17-29s fresh wait. Whole-path
+  exclusion before playback avoids title/scroll, Earth, Core and entry bounds.
+  Hidden/inactive/reduced-motion pauses without queued catch-up. No new RAF,
+  listener, texture or Renderer; no meteor system inside FiveA.
+- Normal-cadence native recording spans 75.889s (76.0s MP4), three unforced
+  events. The separate frame sequence is explicitly DEV SINGLE TRIGGER.
+- 1600x900 DPR1 / visible Edge / RTX 5060 Ti, 60s OFF and ON: median/P95/P99
+  8.3/8.4/8.5ms, max 8.7/8.6ms, no frames over 50ms. Draw calls 51 idle,
+  52 during the trace; GPU ON median/P95 2.900/4.125ms, no disjoint samples.
+- OFF vs previous HOME differs at only 7 pixels by at most 1/255 per channel;
+  not claimed bit-identical. ON idle vs OFF is exactly equal. Browser regression
+  has Canvas/RAF/Wheel 1/1/1, console/runtime errors 0. Validation totals above
+  include the three new meteor cases. All evidence/cache stays untracked.
+- **READY FOR HUMAN REVIEW**, not HUMAN PASS or replacement of frozen HOME.
+  See `HOME_METEOR_REVIEW.md`; separate commit from FiveA art. No Master merge.
+
 ## FiveA Centered Energy Particle Stars V1.3 — candidate — 2026-09-14
 
 - Independent `feat/fivea-orbital-energy-stars-v13` from verified baseline
