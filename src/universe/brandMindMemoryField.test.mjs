@@ -3,8 +3,9 @@ import {createBrandMindMemoryField,createMemoryParticleData,memoryDensity,readMe
 import {createGalaxyPlanets} from './galaxyPlanets.js';
 const results=[];
 function test(name,fn){try{fn();results.push({name,status:'pass'})}catch(e){results.push({name,status:'fail',message:e.stack})}}
-test('memory flag is explicit; unknown/default values preserve rollback',()=>{
-  for(const q of ['', '?homeArt=final','?brandMindMemory=0','?brandMindMemory=unknown'])assert.equal(readMemoryFieldCandidate(q),null);
+test('reviewed memory field is default; explicit historical values preserve rollback',()=>{
+  assert.equal(readMemoryFieldCandidate(''),'C');
+  for(const q of ['?homeArt=final','?brandMindMemory=0','?brandMindMemory=unknown'])assert.equal(readMemoryFieldCandidate(q),null);
   assert.equal(readMemoryFieldCandidate('?brandMindMemory=1'),'C');
   for(const c of ['A','B','C'])assert.equal(readMemoryFieldCandidate(`?brandMindMemory=${c}`),c);
 });
@@ -54,7 +55,7 @@ test('integration replaces only final-art homepage Brand Mind while preserving t
   globalThis.document={createElement:()=>({width:64,height:64,getContext:()=>context})};
   let baseline,candidate,legacy;
   try{
-    baseline=createGalaxyPlanets({homeComposition:'v4',finalArtDirection:true});
+    baseline=createGalaxyPlanets({homeComposition:'v4',finalArtDirection:true,memoryCandidate:null});
     candidate=createGalaxyPlanets({homeComposition:'v4',finalArtDirection:true,memoryCandidate:'B'});
     legacy=createGalaxyPlanets({memoryCandidate:'B'});
     assert.ok(!legacy.group.getObjectByName('BrandMindContinuousMemoryField'));

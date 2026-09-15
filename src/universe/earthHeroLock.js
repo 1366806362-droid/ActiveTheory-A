@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { getInteractionState } from './interaction.js';
 import { renderState } from '../engine/renderState.js';
+import { resolveHomeRuntimeSearch } from './homeRuntimeProfile.js';
 
 export const EARTH_HERO_STRATEGIES=Object.freeze({
   A:Object.freeze({curve:'smooth',damping:'exponential',xPixels:24,yPixels:11,orientation:.16,cloud:.015}),
@@ -8,7 +9,7 @@ export const EARTH_HERO_STRATEGIES=Object.freeze({
   C:Object.freeze({curve:'piecewise',damping:'critical',xPixels:13,yPixels:7,orientation:1.8,cloud:.06})
 });
 export function readEarthHeroLock(search=''){
-  const p=new URLSearchParams(search);
+  const p=new URLSearchParams(resolveHomeRuntimeSearch(search));
   if(!['earthHeroLock','earthHybrid','earthHybridProd','earthV2','earthV3','earthOrbital','earthV13'].every(k=>p.get(k)==='1'))return null;
   return Object.hasOwn(EARTH_HERO_STRATEGIES,p.get('earthHeroStrategy'))?p.get('earthHeroStrategy'):'B';
 }

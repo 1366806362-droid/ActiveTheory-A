@@ -39,6 +39,7 @@ import {
 } from './galaxy-v3/galaxyV3Config.js';
 import { createGalaxyV3Root } from './galaxy-v3/galaxyV3Root.js';
 import { createHomeMeteorAccent, resolveHomeMeteorAccent } from './homeMeteorAccent.js';
+import { readHomeRuntimeProfile } from './homeRuntimeProfile.js';
 
 const DEBUG_MAIN_GALAXY_ONLY = readDebugFlag('debugMainGalaxyOnly', false);
 const DEBUG_MAIN_GALAXY_RENDER = readDebugFlag('debugMainGalaxyRender', false);
@@ -99,6 +100,9 @@ const DEBUG_GALAXY_ATMOSPHERE_ISOLATION = HERO_GALAXY_VERSION_STATE.isV2
 const CINEMATIC_GALAXY_DEBUG = readCinematicGalaxyDebugState();
 const GPU_GALAXY_V2_STATE = readGpuGalaxyV2State();
 const GALAXY_V3_STATE = readGalaxyV3State();
+const HOME_RUNTIME_PROFILE = readHomeRuntimeProfile(
+  typeof window === 'undefined' ? '' : window.location.search
+);
 const CINEMATIC_HOME_HERO = ['v4', 'v5', 'v5_1', 'v6', 'final_m3', 'repaired_m3'].includes(GALAXY_V3_STATE.heroVersion);
 const EARTH_V2_STATE = readEarthV2State();
 const EARTH_V2_ENABLED = CINEMATIC_HOME_HERO
@@ -173,6 +177,9 @@ export function createUniverseRoot() {
     || EARTH_LAYER_DEBUG.enabled
     || DEBUG_GALAXY_ATMOSPHERE_ISOLATION;
   const root = new THREE.Group();
+  if (typeof document !== 'undefined') {
+    document.documentElement.dataset.homeRuntimeProfile = JSON.stringify(HOME_RUNTIME_PROFILE);
+  }
   const nebulaVolume = createNebulaVolume();
   const deepSpaceBackground = createDeepSpaceBackground(nebulaVolume);
   const energyCore = useCinematicGalaxy && !GALAXY_V3_STATE.enabled

@@ -2,9 +2,10 @@ import * as THREE from 'three';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import { getCamera } from '../engine/camera.js';
 import { createEarthMaterialHandoff } from './earthHybridHandoff.js';
+import { resolveHomeRuntimeSearch } from './homeRuntimeProfile.js';
 
 export function readEarthCinematicHybrid(search=''){
-  const p=new URLSearchParams(search);
+  const p=new URLSearchParams(resolveHomeRuntimeSearch(search));
   return p.get('earthHybrid')==='1'&&p.get('earthV2')==='1'&&p.get('earthV3')==='1';
 }
 

@@ -27,13 +27,15 @@ function test(name, callback) {
   }
 }
 
-test('Galaxy V3 is opt-in and leaves the default route disabled', () => {
-  assert.equal(readGalaxyV3State('').enabled, false);
+test('reviewed Galaxy V3 is the default while explicit legacy remains available', () => {
+  assert.equal(readGalaxyV3State('').enabled, true);
+  assert.equal(readGalaxyV3State('').heroVersion, 'repaired_m3');
+  assert.equal(readGalaxyV3State('?galaxyV3=0').enabled, false);
   assert.equal(readGalaxyV3State('?galaxyV3=1').enabled, true);
 });
 
-test('V3 GPU stars default on only while V3 is active', () => {
-  assert.equal(readGalaxyV3State('').useGpuStars, false);
+test('V3 GPU stars follow the final default and explicit overrides', () => {
+  assert.equal(readGalaxyV3State('').useGpuStars, true);
   assert.equal(readGalaxyV3State('?galaxyV3=1').useGpuStars, true);
   assert.equal(readGalaxyV3State('?galaxyV3=1&v3UseGpuStars=0').useGpuStars, false);
 });

@@ -17,8 +17,8 @@ function test(name, callback) {
   }
 }
 
-test('Earth V2 is explicit opt-in', () => {
-  assert.equal(readEarthV2State('').enabled, false);
+test('Earth V2 is enabled by the final default and keeps explicit fallback', () => {
+  assert.equal(readEarthV2State('').enabled, true);
   assert.equal(readEarthV2State('?earthV2=0').enabled, false);
   assert.equal(readEarthV2State('?earthV2=1').enabled, true);
 });
@@ -31,8 +31,8 @@ test('Earth V2 composition stays cropped in the lower-left foreground', () => {
   assert.ok(EARTH_V2_HERO_COMPOSITION.atmosphereRadius > 1.9);
 });
 
-test('Earth V3 is explicit opt-in and leaves the V2 baseline selectable', () => {
-  assert.equal(readEarthV3State('').enabled, false);
+test('Earth V3 is enabled by the final default and leaves V2 selectable', () => {
+  assert.equal(readEarthV3State('').enabled, true);
   assert.equal(readEarthV3State('?earthV2=1').enabled, false);
   assert.equal(readEarthV3State('?earthV2=1&earthV3=0').enabled, false);
   assert.equal(readEarthV3State('?earthV2=1&earthV3=1').enabled, true);

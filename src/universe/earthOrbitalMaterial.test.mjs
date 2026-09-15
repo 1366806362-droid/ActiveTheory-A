@@ -5,8 +5,9 @@ import {readEarthOrbital,EARTH_ORBITAL_PROFILES,EARTH_ORBITAL_URLS,createEarthOr
 import {createEarthTextureLoader,EARTH_TEXTURE_URLS} from './earthTextureLoader.js';
 import {createEarthTextureLayers} from './earthTextureMaterial.js';
 
-test('orbital opt-in is independent of both frozen Earth and V1.1',()=>{
-  for(const q of ['', '?earthRealism=1&earthV2=1&earthV3=1', '?earthOrbital=1', '?earthV2=1&earthOrbital=1'])assert.equal(readEarthOrbital(q),null);
+test('orbital material is the final default and explicit partial routes stay isolated',()=>{
+  assert.equal(readEarthOrbital(''),'B');
+  for(const q of ['?earthRealism=1&earthV2=1&earthV3=1', '?earthOrbital=1', '?earthV2=1&earthOrbital=1'])assert.equal(readEarthOrbital(q),null);
   const prefix='?earthV2=1&earthV3=1&earthOrbital=1';
   assert.equal(readEarthOrbital(prefix),'B');assert.equal(readEarthOrbital(prefix+'&earthOrbitalCandidate=invalid'),'B');
   for(const c of ['A','B','C'])assert.equal(readEarthOrbital(prefix+'&earthOrbitalCandidate='+c),c);

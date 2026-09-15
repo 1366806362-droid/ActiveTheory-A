@@ -5,8 +5,9 @@ import {readEarthGroundTruth,EARTH_V13_PROFILES,EARTH_V13_PHASES} from './earthG
 import {createEarthOrbitalMaterial} from './earthOrbitalMaterial.js';
 import {createEarthTextureLayers} from './earthTextureMaterial.js';
 const prefix='?earthV2=1&earthV3=1&earthOrbital=1&earthV13=1';
-test('V1.3 is explicit, bounded, and does not replace either earlier Earth route',()=>{
-  for(const s of ['', '?earthV13=1',prefix.replace('&earthV13=1',''),prefix.replace('&earthV3=1','')])assert.equal(readEarthGroundTruth(s),null);
+test('V1.3 ground truth is the final default while partial explicit routes remain isolated',()=>{
+  assert.equal(readEarthGroundTruth('').candidate,'B');
+  for(const s of ['?earthV13=1',prefix.replace('&earthV13=1',''),prefix.replace('&earthV3=1','')])assert.equal(readEarthGroundTruth(s),null);
   const p=readEarthGroundTruth(prefix);assert.equal(p.candidate,'B');assert.equal(p.steps,12);assert.equal(p.phaseDegrees,0);
   for(const phase of EARTH_V13_PHASES)assert.equal(readEarthGroundTruth(prefix+'&earthPhase='+phase).phaseDegrees,phase);
   assert.equal(readEarthGroundTruth(prefix+'&earthPhase=15&earthAirSteps=100&earthV13Candidate=bad').phaseDegrees,0);

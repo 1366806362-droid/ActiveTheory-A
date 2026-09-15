@@ -12,6 +12,7 @@ import { readEarthGroundTruth } from './earthGroundTruthProfile.js';
 import { createEarthCinematicHybrid, readEarthCinematicHybrid } from './earthCinematicHybrid.js';
 import { earthHeroRotation } from './earthHybridHandoff.js';
 import { readEarthHeroLock, createEarthHeroLock, earthHeroSession, heroLockPhases } from './earthHeroLock.js';
+import { resolveHomeRuntimeSearch } from './homeRuntimeProfile.js';
 
 const EARTH_SURFACE_PERIOD = 210;
 const EARTH_CLOUD_SPEED_MULTIPLIER = 1.11;
@@ -451,17 +452,17 @@ export function createEarthHorizon({ heroV2 = false } = {}) {
 }
 
 export function readEarthV2State(search = readLocationSearch()) {
-  const params = new URLSearchParams(search);
+  const params = new URLSearchParams(resolveHomeRuntimeSearch(search));
   return Object.freeze({ enabled: params.get('earthV2') === '1' });
 }
 
 export function readEarthV3State(search = readLocationSearch()) {
-  const params = new URLSearchParams(search);
+  const params = new URLSearchParams(resolveHomeRuntimeSearch(search));
   return Object.freeze({ enabled: params.get('earthV3') === '1' });
 }
 
 function readLocationSearch() {
-  return typeof window === 'undefined' ? '' : window.location.search;
+  return resolveHomeRuntimeSearch(typeof window === 'undefined' ? '' : window.location.search);
 }
 
 function createSurfaceMaterial(sharedTime, debugSeam = false) {
