@@ -1,5 +1,43 @@
 # ActiveTheory Project State
 
+## Brand Mind V1.2 Volumetric Core — single-Core experiment — 2026-09-15
+
+- Branch `feat/brandmind-volumetric-core-v12`, from V1.1
+  `85d6a0bffa04ee743c770b4241f049e88e510f14`. Remote shared baseline remains
+  `58259cf5d173110221145104b9c9dcacbbe5595d`, already included in that ancestry.
+- **SINGLE CORE NOT READY / NOT READY FOR PRODUCTION.** A is a soft central
+  light/envelope; retained B has a coherent ovoid but insufficient readable
+  internal energy/depth and a murky solid appearance. Stopped at the single-Core
+  gate: no peripheral art integration, Panel art correction or shared promotion.
+- Independent `brandMindVolumeV12=1` selects B40 Core-only. Explicit A/B and
+  `brandMindVolumeSteps=24` are retained. No flag/`=0` preserves frozen Brand Mind;
+  `brandMindCognitiveV11=1` preserves the complete V1.1 Before path.
+- One bounded proxy with object-local ray interval, step-length Beer extinction,
+  front-to-back emission/absorption, straight-alpha NormalBlending. Two broad
+  wrapping density layers, offset pearl source, thin contour approximation.
+  No refraction/multiple scattering claim; no new texture/RenderTarget/renderer.
+  Global ACES/Bloom/exposure and HOME/Earth/Galaxy/FiveA/GEO are unchanged.
+- Old wire nucleus/wide membranes are not built in V1.2. Historical art nodes and
+  paths remain registered but hidden by default in this single-Core experiment.
+  Canonical association mapping remains `NEEDS_STABLE_REGISTRY_HOOK`; mock Panel
+  business data and its two associations were not altered or matched by index.
+- Node: 48 files / 134 runner / 714 actual cases, 0 fail/skip, 10 new. Python 6/6,
+  Build/diff check pass (existing bundle warning). Browser smoke: HOME and all
+  three direct entries/returns, both Panels, five stage bindings and four flow
+  bindings pass; console/runtime 0, Canvas/RAF/Wheel 1/1/1.
+- Technical samples ONLY: Edge153/RTX5060Ti/1600x900/DPR1, 5s warmup + 10s per
+  mode, no recording. B40: ~120.01 FPS, median/P95/P99/max 8.3/8.5/8.5/8.6ms,
+  >50ms/>100ms 0/0, 16 total draws (Core draw 1), whole GPU median/P95 2.753/3.966ms.
+  Separate Core-draw timer: 0.1061/0.1108ms median/P95, 601 samples. Proxy bounding
+  rectangle 13.76% of screen; ray interval further rejects outside ellipsoid.
+  V1.1 full scene was 23 draws; this Core-only comparison is not an efficiency
+  claim for a completed V1.2 scene. No final 60s interaction/performance gate.
+- Native Core-only PNGs, same-camera Before, volume/contour and Bloom breakdown,
+  640x360 Small Read and reports remain untracked in `art/brandmind-v12/`.
+  Final integrated video, 10-cycle final lifecycle, Panel visual and small-view
+  parallax acceptance were not pursued after the failed single-Core gate.
+  See `BRANDMIND_VOLUME_V12_REVIEW.md`. Do not replace default Brand Mind.
+
 ## Brand Mind Cognitive Memory V1.1 — experimental — 2026-09-15
 
 - Isolated `feat/brandmind-cognitive-memory-v11` from shared baseline

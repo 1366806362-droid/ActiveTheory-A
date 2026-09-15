@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createCognitiveMemoryScene, resolveCognitiveMemory } from './brandMindCognitiveMemory.js';
+import { createVolumetricCore, resolveVolumetricCore } from './brandMindVolumetricCore.js';
 
 const CORE_PARTICLE_LAYER_COUNTS = Object.freeze([96, 158, 218]);
 const CORE_PARTICLE_LAYER_RADII = Object.freeze([0.2, 0.5, 0.78]);
@@ -74,7 +75,8 @@ export const BRAND_MIND_VISUAL_V131 = Object.freeze({
   palette: Object.freeze(['deep-blue', 'icy-blue', 'silver-white', 'muted-violet-accent'])
 });
 
-export function createBrandMindScene({cognitive=resolveCognitiveMemory(globalThis.window?.location?.search)}={}) {
+export function createBrandMindScene({cognitive=resolveCognitiveMemory(globalThis.window?.location?.search),volumetric=resolveVolumetricCore(globalThis.window?.location?.search)}={}) {
+  if(volumetric)return createCognitiveMemoryScene({variant:'B',background:true,coreOnly:volumetric.coreOnly,volumeCore:createVolumetricCore(volumetric)},BRAND_MIND_ART_REGISTRY,BRAND_MIND_PRIMARY_INTERACTION_TARGET,createLabel());
   if(cognitive)return createCognitiveMemoryScene(cognitive,BRAND_MIND_ART_REGISTRY,BRAND_MIND_PRIMARY_INTERACTION_TARGET,createLabel());
   const group = new THREE.Group();
   const primaryRaycaster = new THREE.Raycaster();

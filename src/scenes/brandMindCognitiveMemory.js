@@ -70,9 +70,10 @@ function makeEnvironment(variant) {
 
 export function createCognitiveMemoryScene(config,registry,interactionTarget,label=null) {
   const group=new THREE.Group();group.name='BrandMindScene';group.position.set(0,-.06,-.82);
-  const variant=config.variant,core=new THREE.Group();core.name='BrandMindMindCore';
+  const variant=config.variant,volume=config.volumeCore,core=new THREE.Group();core.name='BrandMindMindCore';
   if(label)group.add(label.sprite);
   const hit=new THREE.Mesh(new THREE.SphereGeometry(.61,24,18),new THREE.MeshBasicMaterial({colorWrite:false,depthWrite:false}));hit.name='BrandMindCoreVolume';core.add(hit);
+  if(volume){core.add(volume.mesh);hit.scale.set(...volume.axes.map(a=>a*.89/.61));hit.rotation.copy(volume.mesh.rotation);}
   const nodeMap=new Map(),pathMap=new Map(),definitions=new Map(),nodeRecords=[];
   registry.nodes.forEach((d,slot)=>{
     const node=new THREE.Group();node.name=d.visualId;node.userData.visualId=d.visualId;node.userData.associationId=null;
@@ -85,16 +86,16 @@ export function createCognitiveMemoryScene(config,registry,interactionTarget,lab
     }
   });
   const knots=particleBatch('BrandMindMemoryKnots',nodeRecords,{motion:.007});group.add(knots.points);
-  const coreRecords=[];for(let i=0;i<1800;i++){
+  const coreRecords=[];for(let i=0;i<(volume?0:1800);i++){
     const layer=i%4,t=noise(i*2.37),v=noise(i*4.13);let p;
     if(i<1000){const a=(t-.5)*2,phase=layer*1.05;p=[a*(.25+layer*.042)+.035,Math.sin(a*2.35+phase)*(.105+layer*.031)+(v-.5)*.046,Math.cos(a*2.1+phase)*.14+(v-.5)*.03];}
     else {const point=cognitiveShellPoint(variant,layer,t,v);p=point.toArray();p[0]+=(noise(i*17)-.5)*.04;p[1]+=(noise(i*19)-.5)*.04;}
     const hero=i%173===0,gaps=(1-.95*Math.exp(-Math.pow((t-.34-layer*.017)*22,2)))*(1-.93*Math.exp(-Math.pow((t-.77+layer*.023)*21,2)));
     coreRecords.push({p,size:hero?.018:(i<1000?.007:.0045)+noise(i*23)*.005,alpha:(hero?.9:i<1000?.66:.36)*(i<1000?1:gaps),c:hero?palette[0]:i<1000?palette[3]:palette[i%11===0?2:1]});
   }
-  const nuclei=particleBatch('BrandMindCognitiveNucleusAndShell',coreRecords,{motion:.004});core.add(nuclei.points);
-  const membranes=makeMembranes(variant);core.add(membranes.mesh);group.add(core);
-  const haloRecords=[];for(let i=0;i<720;i++){
+  const nuclei=volume?null:particleBatch('BrandMindCognitiveNucleusAndShell',coreRecords,{motion:.004});if(nuclei)core.add(nuclei.points);
+  const membranes=volume?null:makeMembranes(variant);if(membranes)core.add(membranes.mesh);group.add(core);
+  const haloRecords=[];for(let i=0;i<(volume?0:720);i++){
     const layer=i%3,t=noise(i*3.73),angle=(variant==='A'?-.5:.3)+layer*1.85+t*1.8;
     const r=.85+layer*.36+noise(i*7.9)*.24;
     haloRecords.push({p:[Math.cos(angle)*r*1.18,Math.sin(angle)*r*.74,(-.3-layer*.36)+Math.sin(angle*1.2)*.22],size:.0045+noise(i*9.2)*.007,alpha:.16+noise(i*5.2)*.21,c:palette[i%7===0?2:1]});
@@ -115,11 +116,12 @@ export function createCognitiveMemoryScene(config,registry,interactionTarget,lab
     vertexShader:`attribute float aT,aPath;uniform float uTime,uReveal,uHeight,uDpr;uniform vec3 uEnds[3];varying vec3 vColor;varying float vAlpha;void main(){float t=aT;vec3 end=uEnds[int(aPath+.5)];vec3 p=end*t;p.y+=sin(t*3.14159)*(.13+aPath*.045);p.z+=sin(t*3.14159)*(.14-aPath*.17);float cycle=mod(uTime*.043+aPath*.31,1.42);float packet=exp(-pow((t-cycle)*38.,2.));float gap=smoothstep(.3,.65,.5+.5*sin(t*47.+aPath*2.));float edge=smoothstep(.22,.39,t)*(1.-smoothstep(.9,1.,t));vAlpha=uReveal*edge*(.16*gap+packet*.88);vColor=mix(color,vec3(.72,.86,.92),packet*.6);vec4 mv=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*mv;gl_PointSize=max(1.,(.006+packet*.012)*length(modelViewMatrix[0].xyz)*uHeight*uDpr*projectionMatrix[1][1]/max(.3,-mv.z));}`,
     fragmentShader:`varying vec3 vColor;varying float vAlpha;void main(){float r=length(gl_PointCoord-.5)*2.;if(r>1.)discard;gl_FragColor=vec4(vColor,exp(-r*r*5.)*(1.-smoothstep(.65,1.,r))*vAlpha);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}`});
   const flow=new THREE.Points(fg,fm);flow.name='BrandMindCognitiveFibers';flow.frustumCulled=false;flow.raycast=()=>{};group.add(flow);
+  if(config.coreOnly){knots.points.visible=false;halo.points.visible=false;flow.visible=false;environment.stars.points.visible=false;environment.cloud.visible=false;if(label)label.sprite.visible=false;}
   const flowSize=new THREE.Vector2();flow.onBeforeRender=r=>{r.getSize(flowSize);fm.uniforms.uHeight.value=flowSize.y;fm.uniforms.uDpr.value=r.getPixelRatio();};
   const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2(),reference=new THREE.Vector3(0,-.06,-.82),fitTarget=reference.clone(),fitTemp=new THREE.Vector3();
   const motion=globalThis.window?.matchMedia?.('(prefers-reduced-motion: reduce)');
   let panelOpen=false,panelMix=0,clock=0,disposed=false,sample=null,fitScale=1;
-  const batches=[nuclei,knots,halo,environment.stars];
+  const batches=[nuclei,knots,halo,environment.stars].filter(Boolean);
   function fitPanel(){const camera=getCamera();if(!camera)return;const w=window.innerWidth,h=window.innerHeight;
     const panel=document.querySelector('.brandmind-data-panel'),right=panel?.getBoundingClientRect().left||w*.35;
     const center=fitTemp.copy(reference).applyMatrix4(camera.matrixWorldInverse),depth=-center.z,radius=2.35,pad=24;
@@ -128,7 +130,7 @@ export function createCognitiveMemoryScene(config,registry,interactionTarget,lab
     center.x=(right*.5/w*2-1)*depth/camera.projectionMatrix.elements[0];center.y=0;fitTarget.copy(center.applyMatrix4(camera.matrixWorld));
   }
   function update(renderState,delta,time,progress=1){if(disposed)return;const dt=Math.max(0,delta),reveal=smooth((progress-.06)/.88);
-    if(sample!==null)clock=sample;else if(!panelOpen&&!motion?.matches)clock+=dt;
+    if(sample!==null)clock=sample;else if(!panelOpen&&!motion?.matches&&(!volume||!globalThis.document?.hidden))clock+=dt;
     panelMix+=(Number(panelOpen)-panelMix)*(1-Math.exp(-dt*12));if(panelOpen)fitPanel();
     group.visible=progress>.001;group.position.copy(reference).lerp(fitTarget,panelMix);group.scale.setScalar((.78+reveal*.22)*mix(1,fitScale,panelMix));
     group.rotation.set(Math.sin(clock*.013+.8)*.008,Math.sin(clock*.018)*.018,0);
@@ -136,20 +138,20 @@ export function createCognitiveMemoryScene(config,registry,interactionTarget,lab
     for(const [id,d]of definitions){const node=nodeMap.get(id);node.position.copy(d.base);node.position.x+=Math.sin(clock*.031+d.phase)*.022;node.position.y+=Math.sin(clock*.023+d.phase*1.3)*.018;node.position.z+=Math.cos(clock*.019+d.phase)*.022;knots.material.uniforms.uNodes.value[d.slot].copy(node.position);}
     registry.paths.forEach((d,i)=>fm.uniforms.uEnds.value[i].copy(nodeMap.get(d.targetVisualId).position));
     for(const b of batches){b.material.uniforms.uTime.value=clock;b.material.uniforms.uReveal.value=reveal;}
-    halo.points.rotation.y=Math.sin(clock*.011)*.018;membranes.material.uniforms.uTime.value=clock;membranes.material.uniforms.uReveal.value=reveal;
+    halo.points.rotation.y=Math.sin(clock*.011)*.018;if(membranes){membranes.material.uniforms.uTime.value=clock;membranes.material.uniforms.uReveal.value=reveal;}volume?.update(clock,reveal);
     environment.material.uniforms.uTime.value=clock;environment.material.uniforms.uReveal.value=reveal*(1-panelMix*.6);environment.stars.material.uniforms.uReveal.value=reveal*(1-panelMix*.6);
     fm.uniforms.uTime.value=clock;fm.uniforms.uReveal.value=reveal;if(label)label.material.opacity=smooth((reveal-.72)/.24)*.54;renderState.exposure+=reveal*.008;
   }
-  const read=()=>({variant,clock,panelOpen,panelMix,fitScale,particleCount:recordsCount(),visualNodeIds:[...nodeMap.keys()],visualPathKeys:[...pathMap.keys()],canonicalRegistryStatus:'NEEDS_STABLE_REGISTRY_HOOK',nodes:[...nodeMap].map(([id,n])=>({id,position:n.position.toArray()}))});
+  const read=()=>({variant,volume:volume?{variant:volume.config.variant,steps:volume.config.steps,axes:volume.axes}:null,clock,panelOpen,panelMix,fitScale,particleCount:recordsCount(),visualNodeIds:[...nodeMap.keys()],visualPathKeys:[...pathMap.keys()],canonicalRegistryStatus:'NEEDS_STABLE_REGISTRY_HOOK',nodes:[...nodeMap].map(([id,n])=>({id,position:n.position.toArray()}))});
   function recordsCount(){return batches.reduce((n,b)=>n+b.geometry.attributes.position.count,0)+fg.attributes.position.count;}
-  const review={read,sample(value){if(value!==null&&(!Number.isFinite(value)||value<0))throw new Error('Invalid sample time');sample=value;},background(on){environment.cloud.visible=environment.stars.points.visible=!!on;}};
-  if(import.meta.env?.DEV&&new URLSearchParams(window.location.search).get('brandMindCognitiveReview')==='1'){group.userData.cognitiveReview=review;window.__BRANDMIND_COGNITIVE_REVIEW__=review;}
+  const review={read,sample(value){if(value!==null&&(!Number.isFinite(value)||value<0))throw new Error('Invalid sample time');sample=value;},layers(interior,surface){volume?.layers(interior,surface);},background(on){environment.cloud.visible=environment.stars.points.visible=!!on;}};
+  if(import.meta.env?.DEV&&['brandMindCognitiveReview','brandMindVolumeReview'].some(key=>new URLSearchParams(window.location.search).get(key)==='1')){group.userData.cognitiveReview=review;window.__BRANDMIND_COGNITIVE_REVIEW__=review;}
   return{name:'BrandMindScene',group,isShell:false,primaryInteractionTargetName:interactionTarget.objectName,
     getPrimaryInteractionTarget({x,y,camera}){if(disposed||!group.visible||!camera||!Number.isFinite(x)||!Number.isFinite(y))return null;camera.updateMatrixWorld();group.updateWorldMatrix(true,true);pointer.set(x,y);raycaster.setFromCamera(pointer,camera);return raycaster.intersectObject(hit,false).length?interactionTarget:null;},
     setPanelPresentationOpen(value){panelOpen=!!value;},getPanelPresentationState:()=>({open:panelOpen,progress:panelMix,position:group.position.toArray(),scale:group.scale.x}),
     resolveVisualNode:id=>disposed?null:nodeMap.get(id)||null,
     resolveVisualPath:(source,target)=>disposed?null:pathMap.get(source+'>'+target)||null,
     readVisualRegistry:read,update,
-    dispose(){if(disposed)return;disposed=true;for(const b of batches)b.dispose();membranes.dispose();environment.cloud.geometry.dispose();environment.material.dispose();fg.dispose();fm.dispose();hit.geometry.dispose();hit.material.dispose();label?.dispose();nodeMap.clear();pathMap.clear();group.clear();if(globalThis.window?.__BRANDMIND_COGNITIVE_REVIEW__===review)delete window.__BRANDMIND_COGNITIVE_REVIEW__;delete group.userData.cognitiveReview;}
+    dispose(){if(disposed)return;disposed=true;for(const b of batches)b.dispose();membranes?.dispose();volume?.dispose();environment.cloud.geometry.dispose();environment.material.dispose();fg.dispose();fm.dispose();hit.geometry.dispose();hit.material.dispose();label?.dispose();nodeMap.clear();pathMap.clear();group.clear();if(globalThis.window?.__BRANDMIND_COGNITIVE_REVIEW__===review)delete window.__BRANDMIND_COGNITIVE_REVIEW__;delete group.userData.cognitiveReview;}
   };
 }
