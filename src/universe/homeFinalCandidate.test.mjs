@@ -10,8 +10,9 @@ const results=[];
 function test(name,fn){try{fn();results.push({name,status:'pass'})}catch(e){results.push({name,status:'fail',message:e.stack})}}
 const flag='?galaxyV3=1&galaxyHero=repaired_m3&homeArt=final&homeFinalV1=1';
 
-test('HOME final requires every frozen home opt-in and keeps historical defaults',()=>{
-  for(const q of ['', '?homeFinalV1=1',flag.replace('&homeFinalV1=1',''),flag.replace('repaired_m3','v5_1'),flag.replace('&homeArt=final','')]){
+test('HOME final is the default and explicit historical queries keep their contracts',()=>{
+  assert.deepEqual(readHomeFinalCandidate(''),{enabled:true,journey:'B',earth:'B'});
+  for(const q of ['?homeFinalV1=1',flag.replace('&homeFinalV1=1',''),flag.replace('repaired_m3','v5_1'),flag.replace('&homeArt=final','')]){
     assert.equal(readHomeFinalCandidate(q).enabled,false);assert.equal(readHomeFinalCandidate(q).journey,null);assert.equal(readHomeFinalCandidate(q).earth,null);
   }
   assert.deepEqual(readHomeFinalCandidate(flag),{enabled:true,journey:'B',earth:'B'});

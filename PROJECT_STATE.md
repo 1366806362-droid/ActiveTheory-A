@@ -1,5 +1,25 @@
 # ActiveTheory Project State
 
+## HOME Final Default Promotion — 2026-09-15
+
+- The normal `/` runtime now resolves to the already reviewed final HOME stack:
+  repaired M3 Galaxy with final art direction, HOME Final V1 composition,
+  Brand Mind Memory Field C, Hybrid Cinematic Earth production handoff with
+  V1.2 orbital/V1.3 ground-truth materials, Earth Hero Lock B, and the accepted
+  low-frequency HOME Meteor accent.
+- `src/universe/homeRuntimeProfile.js` is the single pure configuration boundary.
+  With no HOME visual selector it supplies the frozen final profile without
+  rewriting the URL. Existing `scene`, debug, accessibility and `homeMeteors`
+  parameters keep the final default; `homeMeteors=0`/`false` still disables only
+  the accent.
+- Any existing HOME visual selector preserves the complete historical explicit
+  query contract. In particular `galaxyV3=0` retains the H1-HD/legacy Galaxy
+  path and `earthV2=0` retains legacy Earth. Historical A/B/C, isolated-debug
+  and fully explicit final URLs remain available and are not deleted.
+- This is a runtime default-configuration closure only. Camera, composition,
+  Galaxy/Earth assets and transforms, business-entry positions, exposure,
+  Bloom, particle parameters, meteor timing and FiveA art are unchanged.
+
 ## FiveA Color & Cosmic Depth — shared baseline — 2026-09-15
 
 - Human-accepted source `310cffe310eedcaca31d1664aba16900f4f80342`

@@ -1,3 +1,5 @@
+import { resolveHomeRuntimeSearch } from '../homeRuntimeProfile.js';
+
 export const GALAXY_V3_ASSET_TYPES = Object.freeze([
   'placeholder',
   'transparent-image',
@@ -182,7 +184,7 @@ export const HOME_FINAL_ART_M3_CONFIG = Object.freeze({
 });
 
 export function readGalaxyV3State(search = readLocationSearch()) {
-  const params = new URLSearchParams(search);
+  const params = new URLSearchParams(resolveHomeRuntimeSearch(search));
   const enabled = params.get('galaxyV3') === '1';
   const requestedHero = params.get('galaxyHero');
   const heroVersion = enabled && ['v4', 'v5', 'v5_1', 'v6', 'final_m3', 'repaired_m3'].includes(requestedHero)

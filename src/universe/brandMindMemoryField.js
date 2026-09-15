@@ -1,8 +1,10 @@
 import * as THREE from 'three';
+import { resolveHomeRuntimeSearch } from './homeRuntimeProfile.js';
 
-// Homepage-only, opt-in. The approved legacy homepage and internal scene remain intact.
+// Homepage-only. The reviewed C field is part of the final default profile;
+// explicit historical queries and the internal scene remain intact.
 export function readMemoryFieldCandidate(search = '') {
-  const value = new URLSearchParams(search).get('brandMindMemory');
+  const value = new URLSearchParams(resolveHomeRuntimeSearch(search)).get('brandMindMemory');
   return value === '1' ? 'C' : ['A', 'B', 'C'].includes(value) ? value : null;
 }
 

@@ -4,8 +4,9 @@ import { readGalaxyV3State, HOME_FINAL_ART_M3_CONFIG, GALAXY_V3_REPAIRED_M3_CONF
 import { limitHeroPointerParallax } from './galaxy-v3/galaxyV3HeroAsset.js';
 const results=[];
 function test(name,fn){try{fn();results.push({name,status:'pass'})}catch(e){results.push({name,status:'fail',message:e.stack})}}
-test('candidate is explicitly opt-in and never replaces default or historical heroes',()=>{
-  for(const query of ['', '?homeArt=final','?galaxyV3=1&galaxyHero=v5_1&homeArt=final','?galaxyV3=1&galaxyHero=repaired_m3'])assert.equal(readGalaxyV3State(query).finalArtDirection,false);
+test('final art is the default while incomplete and historical queries remain unchanged',()=>{
+  assert.equal(readGalaxyV3State('').finalArtDirection,true);
+  for(const query of ['?homeArt=final','?galaxyV3=1&galaxyHero=v5_1&homeArt=final','?galaxyV3=1&galaxyHero=repaired_m3'])assert.equal(readGalaxyV3State(query).finalArtDirection,false);
   assert.equal(readGalaxyV3State('?galaxyV3=1&galaxyHero=repaired_m3&homeArt=final').finalArtDirection,true);
 });
 test('asset swap preserves camera-relative transforms, LDI semantics and core bloom',()=>{
@@ -33,8 +34,8 @@ test('nested business groups consistently honor the existing V3 presentation ord
   globalThis.document={createElement:()=>({width:64,height:64,getContext:()=>context})};
   let oldArt,newArt;
   try{
-    oldArt=createGalaxyPlanets({homeComposition:'v4'});
-    newArt=createGalaxyPlanets({homeComposition:'v4',finalArtDirection:true});
+    oldArt=createGalaxyPlanets({homeComposition:'v4',memoryCandidate:null,journeyCandidate:null});
+    newArt=createGalaxyPlanets({homeComposition:'v4',finalArtDirection:true,memoryCandidate:null,journeyCandidate:null});
     assert.equal(newArt.pointCount,oldArt.pointCount);
     for(const orbit of newArt.group.children)orbit.traverse(o=>{if(o.isGroup)assert.equal(o.renderOrder,7)});
     const count=art=>{let n=0;art.group.traverse(o=>{if(o.isPoints||o.isSprite)n++});return n};

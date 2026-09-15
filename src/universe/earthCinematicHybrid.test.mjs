@@ -7,8 +7,9 @@ const assets=new URL('../../public/textures/hero/earth/hybrid-v1/',import.meta.u
 const buffer=name=>{const b=fs.readFileSync(new URL(name,assets));return b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength);};
 const manifest=JSON.parse(fs.readFileSync(new URL('manifest.json',assets)));
 
-test('hybrid is explicit opt-in; existing Earth paths remain the default',()=>{
-  for(const p of ['','?earthHybrid=1','?earthV2=1&earthHybrid=1','?earthV2=1&earthV3=1'])assert.equal(readEarthCinematicHybrid(p),false);
+test('hybrid is the final default and partial explicit Earth paths retain prior behavior',()=>{
+  assert.equal(readEarthCinematicHybrid(''),true);
+  for(const p of ['?earthHybrid=1','?earthV2=1&earthHybrid=1','?earthV2=1&earthV3=1'])assert.equal(readEarthCinematicHybrid(p),false);
   assert.equal(readEarthCinematicHybrid('?earthV2=1&earthV3=1&earthHybrid=1'),true);
 });
 test('hero body is a quantized, curved 3D surface, not a billboard',()=>{

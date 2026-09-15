@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { earthGroundTruthBody } from './earthGroundTruthShaders.js';
+import { resolveHomeRuntimeSearch } from './homeRuntimeProfile.js';
 
 export const EARTH_ORBITAL_URLS = Object.freeze(Object.fromEntries([
   ['surface','surface'],['city','city'],['clouds','cloud'],['normal','normal-land']
@@ -11,7 +12,7 @@ export const EARTH_ORBITAL_PROFILES = Object.freeze({
   C: Object.freeze({roughness:.28,normal:.16,cloud:3.5,height:.0080,mie:.80,bounce:.9,relief:.10,indirect:1.1,urban:.94,aerosol:.38})
 });
 export function readEarthOrbital(search=typeof window==='undefined'?'':window.location.search) {
-  const q=new URLSearchParams(search);
+  const q=new URLSearchParams(resolveHomeRuntimeSearch(search));
   if(q.get('earthOrbital')!=='1'||q.get('earthV2')!=='1'||q.get('earthV3')!=='1')return null;
   return Object.hasOwn(EARTH_ORBITAL_PROFILES,q.get('earthOrbitalCandidate'))?q.get('earthOrbitalCandidate'):'B';
 }

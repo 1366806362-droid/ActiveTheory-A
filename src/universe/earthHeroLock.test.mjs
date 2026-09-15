@@ -6,8 +6,8 @@ import {cinematicCurve,dampCritical,earthHeroSession,heroLockPhases,readEarthHer
 import {renderState} from '../engine/renderState.js';
 import {getInteractionState} from './interaction.js';
 const flags='earthHeroLock=1&earthHybrid=1&earthHybridProd=1&earthV2=1&earthV3=1&earthOrbital=1&earthV13=1';
-test('explicit opt-in; historical paths are unchanged',()=>{
-  assert.equal(readEarthHeroLock(''),null);assert.equal(readEarthHeroLock(flags),'B');
+test('hero lock is the final default and historical explicit paths are unchanged',()=>{
+  assert.equal(readEarthHeroLock(''),'B');assert.equal(readEarthHeroLock(flags),'B');
   for(const f of flags.split('&'))assert.equal(readEarthHeroLock(flags.replace(f,'')),null);
   assert.equal(readEarthHeroLock(flags+'&earthHeroStrategy=C'),'C');
 });
