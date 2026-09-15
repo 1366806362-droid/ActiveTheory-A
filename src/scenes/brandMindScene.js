@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createCognitiveMemoryScene, resolveCognitiveMemory } from './brandMindCognitiveMemory.js';
 
 const CORE_PARTICLE_LAYER_COUNTS = Object.freeze([96, 158, 218]);
 const CORE_PARTICLE_LAYER_RADII = Object.freeze([0.2, 0.5, 0.78]);
@@ -26,6 +27,18 @@ const ASSOCIATION_NODE_LAYOUT = Object.freeze([
 ]);
 
 const ASSOCIATION_PATH_NODE_INDICES = Object.freeze([0, 2, 4]);
+
+// These are the already-existing VISUAL object identities, not canonical IDs.
+// The V2 inventory still requires an approved associationId/relationship mapping.
+export const BRAND_MIND_ART_REGISTRY = Object.freeze({
+  nodes: Object.freeze(ASSOCIATION_NODE_LAYOUT.map((definition,index)=>Object.freeze({
+    ...definition, visualId:`BrandMindAssociationNode${index+1}`
+  }))),
+  paths: Object.freeze(ASSOCIATION_PATH_NODE_INDICES.map((nodeIndex,index)=>Object.freeze({
+    visualId:`BrandMindAssociationPath${index+1}`, sourceVisualId:'BrandMindCoreVolume',
+    targetVisualId:`BrandMindAssociationNode${nodeIndex+1}`
+  })))
+});
 
 export const BRAND_MIND_PANEL_OPEN_PRESENTATION_STATE = Object.freeze({
   position: Object.freeze([-2.45, -0.04, -0.85]),
@@ -61,7 +74,8 @@ export const BRAND_MIND_VISUAL_V131 = Object.freeze({
   palette: Object.freeze(['deep-blue', 'icy-blue', 'silver-white', 'muted-violet-accent'])
 });
 
-export function createBrandMindScene() {
+export function createBrandMindScene({cognitive=resolveCognitiveMemory(globalThis.window?.location?.search)}={}) {
+  if(cognitive)return createCognitiveMemoryScene(cognitive,BRAND_MIND_ART_REGISTRY,BRAND_MIND_PRIMARY_INTERACTION_TARGET,createLabel());
   const group = new THREE.Group();
   const primaryRaycaster = new THREE.Raycaster();
   const primaryPointer = new THREE.Vector2();

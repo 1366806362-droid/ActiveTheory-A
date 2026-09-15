@@ -1,5 +1,49 @@
 # ActiveTheory Project State
 
+## Brand Mind Cognitive Memory V1.1 — experimental — 2026-09-15
+
+- Isolated `feat/brandmind-cognitive-memory-v11` from shared baseline
+  `58259cf5d173110221145104b9c9dcacbbe5595d`, including HOME default promotion
+  `247efad8ae3ede47b586aee0ab21a5097e92a9c1`. No merge to shared Master.
+- **NOT READY FOR PRODUCTION.** Retain B Memory Bloom after two candidates and
+  two corrections. Core remains too wiry, background depth too weak, and the
+  Panel-scale association structure too faint. Do not replace frozen Brand Mind.
+- Opt-in `brandMindCognitiveV11=1` or `=B`; explicit `=A` retains Cognitive Lens.
+  Missing/off flag keeps original scene. `brandMindCognitiveBackground=0` turns
+  off candidate background only. Global camera, Bloom, exposure and all HOME/
+  Earth/Galaxy/FiveA/GEO implementations remain unchanged.
+- Layered nucleus/open membranes, six existing visual knots, three existing
+  visual fibers, broken halo and local depth environment. 3,988 displayed
+  particles, shared batches, no downloaded/generated textures or new renderer.
+- Actual baseline canonical association registry remains
+  `NEEDS_STABLE_REGISTRY_HOOK`. Historical visual IDs/endpoints are preserved;
+  six visual knots are NOT the Panel's two mock business associations. No new
+  business mapping, data source, density or flowSpeed channel was introduced.
+- Browser: Core click/Panel/ESC/wheel isolation/reduced motion and ten direct
+  entry/return cycles pass. Objects, GPU resources and listener counts stabilize;
+  Canvas/main RAF/Wheel = 1/1/1, console/runtime errors = 0. Panel captures at
+  1366x768, 1600x900 and 1920x1080; local fit only, no shared camera changes.
+- HOME and original Brand Mind fixed-camera/time native screenshots are exactly
+  unchanged. HOME natural meteors observed over 60s (two cycles); scene isolation
+  and explicit off pass. Earth Hybrid/Hero Lock, GEO/FiveA/Brand Mind entry and
+  return, both Panels, five stage scale/energy and four flowStrength checks pass.
+- Full Node run: 47 files / 124 runner tests / 704 actual cases, 0 failed/skipped,
+  11 new cases. Related Python 6/6; build and diff check pass. Existing Vite bundle
+  size warning retained; no unrelated dependency or architecture work.
+- Edge 153 / RTX 5060 Ti / 1600x900 DPR1, visible foreground, ~120Hz. No capture
+  during performance sampling, 10s warmup, old/steady/interaction each 60s.
+  Old: 120.01 FPS, P95/P99/max 8.4/8.5/8.6ms, 39 total draw calls.
+  B steady: 119.81 FPS, 8.4/8.5/108.4ms, one >50ms and >100ms frame.
+  B interaction: 119.98 FPS, 8.4/8.5/50.0ms, zero >50ms/>100ms frames.
+  B steady repeat: 120.01 FPS, 8.4/8.5/8.6ms, zero >50ms/>100ms frames.
+  All medians 8.3ms. Candidate total draw calls 23 (interaction mean 22.99).
+  Whole-frame GPU timer median/P95 2.93/4.02ms, 600 valid samples, no disjoint.
+  The isolated 108.4ms event was not reproduced; its cause is NOT established.
+  An earlier sample overlapped a flag-alias edit and is retained but excluded.
+- Native PNG evidence and 35.257s real-time browser capture (35.36s encoded MP4)
+  are untracked under `art/brandmind-v11/`. No grading, acceleration or fake
+  effects. See `BRANDMIND_COGNITIVE_V11_REVIEW.md`. Art/cache/video not committed.
+
 ## HOME Final Default Promotion — 2026-09-15
 
 - The normal `/` runtime now resolves to the already reviewed final HOME stack:
