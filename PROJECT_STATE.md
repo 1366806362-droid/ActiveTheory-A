@@ -1,5 +1,50 @@
 # ActiveTheory Project State
 
+## Brand Mind Core Depth Clarity — 2026-09-16 — 未达到视觉要求
+
+- Independent `feat/brandmind-core-depth-clarity` / `ActiveTheory-BrandMind-Core-Clarity`.
+  Before is preserved at `87dcfb5084c6ece69b0781bdfec7b6830c156e1b`.
+  Explicit remote fetch confirmed shared baseline `58259cf5d173110221145104b9c9dcacbbe5595d`
+  is already its ancestor. No shared branch was changed or merged.
+- **SINGLE CORE NOT READY / NOT READY FOR PRODUCTION.** Two medium/source
+  organizations were compared; A received two bounded corrections. The old
+  murky enclosure is reduced, but the resulting three soft condensations do not
+  convincingly read as one deep cognitive energy body at normal/Small Read size.
+  No peripheral integration was performed and default Brand Mind is unchanged.
+- Explicit candidate `?scene=brandmind&brandMindCoreClarity=A` (or `=1`), B remains
+  available. Legacy `brandMindVolumeV12=B` selects the exact previous field.
+  `brandMindVolumeReview=1` enables the existing fixed-time review hook;
+  `brandMindVolumeSteps=24` retains the comparison against default 40 steps.
+- Diagnosis: actual Core target and canvas 1600x900/DPR1, no Core intermediate
+  target. Bloom-off remains murky. Legacy emission is modulated by the same
+  dense crossing sheets that absorb it. Raw pre-OutputPass transmission in the
+  fixed diagnostic ROI: legacy median ~0.189, 34.4% below 0.1; candidate median
+  ~0.937, none below 0.1. This confirms over-clearing in the candidate, not a
+  successful volume/art gate. ROI support counts differ and are recorded.
+- Candidate separates emission from density, integrates independent emission
+  with step length/vacuum limit, retains single bounded draw and straight alpha.
+  Three finite middle regions and low-density channels replace full crossing
+  sheets; a compact asymmetric source remains inside a weak enclosure.
+  No global exposure/Bloom, camera, route, Panel schema or business bindings changed.
+- Checks: 49 Node files / 141 runner tests / 721 actual cases, 0 failed/skipped,
+  7 added cases. Related Python 6/6; Build/diff check pass (existing bundle warning).
+  Fresh browser smoke: HOME/GEO/FiveA/Brand Mind entry-return, both Panel toggles,
+  five stage scale/energy and four flowStrength bindings pass; errors 0,
+  Canvas/RAF/Wheel 1/1/1. HOME Earth Hybrid Hero Lock ready, mix 0.
+- Evidence in untracked `art/brandmind-core-clarity/`: native 1600x900 PNGs,
+  identical-camera/time12/exposure0.733 Before/After, cropped detail, Bloom
+  comparison, 640x360 Small Read, raw transmission stats, diagnostic perspective
+  clip. Clip changes only the camera during the Core draw and restores it;
+  it is NOT a completed normal interaction/parallax acceptance.
+- Only fresh 10s fixed-time single-Core technical samples were measured.
+  Full-scene 60s steady + 60s interaction, 10 enter/return cycles, Panel visual
+  layout, restored-node composition and final GPU cost gate were NOT performed.
+  See `BRANDMIND_CORE_CLARITY_REVIEW.md` and `technical.json` for exact limits.
+- Handoff: retain diagnostic separation and independent emission integration.
+  Remaining art problem is coherent middle-scale volume versus excessive clear
+  space, not evidence for more ray steps or global postprocessing changes.
+  Do not promote the candidate, begin data integration, or modify other modules.
+
 ## Brand Mind V1.2 Volumetric Core — single-Core experiment — 2026-09-15
 
 - Branch `feat/brandmind-volumetric-core-v12`, from V1.1

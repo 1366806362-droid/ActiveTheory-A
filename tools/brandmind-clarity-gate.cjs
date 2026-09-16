@@ -1,0 +1,47 @@
+const {chromium}=require('playwright');
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const out=path.resolve('art/brandmind-core-clarity'),base=process.env.BRANDMIND_URL||'http://127.0.0.1:5199/';
+fs.mkdirSync(out,{recursive:true});
+const mode=process.argv[2]||'diagnosis',report={mode,errors:[],captures:[]};
+(async()=>{const browser=await chromium.launch({channel:'msedge',headless:false}),page=await browser.newPage({viewport:{width:1600,height:900},deviceScaleFactor:1});
+try{
+ page.on('pageerror',e=>report.errors.push(e.message));page.on('console',m=>{if(m.type()==='error')report.errors.push(m.text());});
+ const go=async(q)=>{await page.goto(base+'?scene=brandmind&brandMindVolumeV12=B&brandMindVolumeOnly=1&brandMindVolumeReview=1&'+q,{waitUntil:'networkidle'});await page.waitForTimeout(1800);await page.evaluate(()=>window.__BRANDMIND_COGNITIVE_REVIEW__.sample(12));await page.waitForTimeout(120);};
+ const shot=async(name)=>{await page.screenshot({path:path.join(out,name+'.png')});report.captures.push({name,...await page.evaluate(async()=>{const s=(await import('/src/engine/scenes.js')).getActiveScene(),c=(await import('/src/engine/camera.js')).getCamera(),m=s.getObjectByName('BrandMindVolumetricMedium');return{render:m.userData.volumeRenderInfo,camera:{position:c.position.toArray(),quaternion:c.quaternion.toArray(),fov:c.fov},review:window.__BRANDMIND_COGNITIVE_REVIEW__.read(),canvas:document.querySelectorAll('canvas').length};})});};
+ if(mode==='diagnosis'){
+  await go('');await shot('BEFORE');
+  await go('showBloom=0');await shot('BEFORE_NO_BLOOM');
+  for(const [name,value]of [['BEFORE_SOURCE',1],['BEFORE_TRANSMISSION',2],['BEFORE_DENSITY_SLICE',3],['BEFORE_CONTOUR',4]]){await page.evaluate(async value=>{const s=(await import('/src/engine/scenes.js')).getActiveScene();s.getObjectByName('BrandMindVolumetricMedium').material.uniforms.uDebug.value=value;},value);await page.waitForTimeout(100);await shot(name);}
+ }else if(mode==='correction'||mode==='final'){
+  const prefix=mode==='final'?'CLARITY_FINAL':'CORRECTION_1';
+  await go('brandMindCoreClarity=A');await shot(prefix);await go('brandMindCoreClarity=A&showBloom=0');await shot(prefix+'_NO_BLOOM');
+ }else if(mode==='evidence'){
+  report.transmission=[];
+  for(const [name,q]of [['BEFORE',''],['AFTER','brandMindCoreClarity=A']]){
+   await go(q+'&showBloom=0');
+   for(const [suffix,value]of [['SOURCE',1],['TRANSMISSION',2],['DENSITY_SLICE',3],['CONTOUR',4]]){
+    await page.evaluate(async value=>{const s=(await import('/src/engine/scenes.js')).getActiveScene();s.getObjectByName('BrandMindVolumetricMedium').material.uniforms.uDebug.value=value;},value);await page.waitForTimeout(100);await shot(name+'_'+suffix);
+    if(value===2){const raw=await page.evaluate(async()=>{const T=await import('/node_modules/.vite/deps/three.js'),s=(await import('/src/engine/scenes.js')).getActiveScene(),m=s.getObjectByName('BrandMindVolumetricMedium');return new Promise(resolve=>{const previous=m.onAfterRender;m.onAfterRender=function(renderer,...args){previous.call(this,renderer,...args);m.onAfterRender=previous;const rt=renderer.getRenderTarget(),half=rt.texture.type===T.HalfFloatType,buffer=half?new Uint16Array(340*380*4):new Float32Array(340*380*4);renderer.readRenderTargetPixels(rt,640,250,340,380,buffer);const values=[];for(let i=0;i<buffer.length;i+=4){let r=half?T.DataUtils.fromHalfFloat(buffer[i]):buffer[i],g=half?T.DataUtils.fromHalfFloat(buffer[i+1]):buffer[i+1],b=half?T.DataUtils.fromHalfFloat(buffer[i+2]):buffer[i+2];if(r>0&&Math.abs(r-g)<1e-6&&Math.abs(g-b)<1e-6)values.push(r);}values.sort((a,b)=>a-b);resolve({samples:values.length,transmissionMedian:values[Math.floor(values.length*.5)],transmissionP10:values[Math.floor(values.length*.1)],fractionUnder10Percent:values.filter(x=>x<.1).length/values.length,targetType:rt.texture.type,targetColorSpace:rt.texture.colorSpace,scope:'raw linear T read before OutputPass; grayscale-only projected ellipsoid pixels; fixed ROI'});};});});report.transmission.push({name,...raw});}
+   }
+  }
+  for(const steps of [24,40]){await go('brandMindCoreClarity=A&brandMindVolumeSteps='+steps);await shot('AFTER_'+steps);}
+ }else if(mode==='technical'){
+  await page.addInitScript(()=>{const m=window.__CLARITY_COST__={active:false,frames:[],draws:0},raf=requestAnimationFrame.bind(window);let last=0;window.requestAnimationFrame=cb=>raf(t=>{if(m.active&&last)m.frames.push(t-last);last=t;cb(t);});for(const name of ['drawArrays','drawElements']){const original=WebGL2RenderingContext.prototype[name];WebGL2RenderingContext.prototype[name]=function(...a){if(m.active)m.draws++;return original.apply(this,a);};}});
+  report.samples=[];
+  for(const [name,q]of [['BEFORE',''],['AFTER','brandMindCoreClarity=A']]){
+   await go(q);await page.bringToFront();await page.waitForTimeout(5000);await page.evaluate(()=>{const m=window.__CLARITY_COST__;m.frames=[];m.draws=0;m.active=true;});await page.waitForTimeout(10000);
+   report.samples.push({name,...await page.evaluate(async()=>{const m=window.__CLARITY_COST__;m.active=false;const a=m.frames.sort((a,b)=>a-b),q=p=>a[Math.floor((a.length-1)*p)],gl=document.querySelector('canvas').getContext('webgl2'),ext=gl.getExtension('WEBGL_debug_renderer_info');return{seconds:10,frames:a.length,median:q(.5),p95:q(.95),p99:q(.99),max:a.at(-1),over50:a.filter(x=>x>50).length,over100:a.filter(x=>x>100).length,fps:1000*a.length/a.reduce((n,x)=>n+x,0),drawCalls:m.draws/a.length,canvas:document.querySelectorAll('canvas').length,raf:(await import('/src/engine/loop.js')).getLoopStatus().activeRafChains,gpu:ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):null,browser:navigator.userAgent,dpr:devicePixelRatio,viewport:[innerWidth,innerHeight],visibility:document.visibilityState,focus:document.hasFocus()};})});
+  }
+  report.scope='10s fixed-time single-Core technical samples only. No final 60s steady/interaction acceptance; GPU time not measured.';
+  await page.goto(base+'?brandMindCoreClarity=A',{waitUntil:'networkidle'});await page.waitForFunction(()=>window.__ACTIVE_THEORY_EARTH_HYBRID__?.ready);report.earth=await page.evaluate(()=>window.__ACTIVE_THEORY_EARTH_HYBRID__);assert.equal(report.earth.mix,0);
+ }else if(mode==='video'){
+  const {spawnSync}=require('node:child_process');await go('brandMindCoreClarity=A');
+  // Local QA camera on this existing Mesh draw only. No shared camera mutation,
+  // new RAF, object rotation, or fake 2D image warp. Picking is not tested here.
+  await page.evaluate(async()=>{const T=await import('/node_modules/.vite/deps/three.js'),s=(await import('/src/engine/scenes.js')).getActiveScene(),c=(await import('/src/engine/camera.js')).getCamera(),m=s.getObjectByName('BrandMindVolumetricMedium'),before=m.onBeforeRender,after=m.onAfterRender,original=c.clone(),eye=c.position.clone(),look=m.getWorldPosition(new T.Vector3()),start=performance.now();window.__CLARITY_PARALLAX__={offsets:[],scope:'diagnostic real perspective camera +/-0.10 world X during Core draw; fixed sample12; no interaction acceptance'};m.onBeforeRender=function(r,s,c,...args){const x=.10*Math.sin((performance.now()-start)/2600);original.copy(c);c.position.copy(eye);c.position.x+=x;c.lookAt(look);c.updateMatrixWorld();this.modelViewMatrix.multiplyMatrices(c.matrixWorldInverse,this.matrixWorld);this.normalMatrix.getNormalMatrix(this.modelViewMatrix);before.call(this,r,s,c,...args);if(window.__CLARITY_PARALLAX__.offsets.length<180)window.__CLARITY_PARALLAX__.offsets.push({time:performance.now()-start,x});};m.onAfterRender=function(r,s,c,...args){after.call(this,r,s,c,...args);c.copy(original);c.updateMatrixWorld();};});
+  const cdp=await page.context().newCDPSession(page),frames=[],dir=path.join(out,'parallax-frames',String(Date.now()));fs.mkdirSync(dir,{recursive:true});await cdp.send('Page.enable');cdp.on('Page.screencastFrame',e=>{const file='f-'+String(frames.length).padStart(6,'0')+'.png';fs.writeFileSync(path.join(dir,file),Buffer.from(e.data,'base64'));frames.push({file,time:e.metadata.timestamp});cdp.send('Page.screencastFrameAck',{sessionId:e.sessionId}).catch(()=>{});});await cdp.send('Page.startScreencast',{format:'png',maxWidth:1600,maxHeight:900,everyNthFrame:4});await page.waitForTimeout(17000);await cdp.send('Page.stopScreencast');assert.ok(frames.length>50);report.parallax=await page.evaluate(()=>window.__CLARITY_PARALLAX__);report.video={frames:frames.length,seconds:frames.at(-1).time-frames[0].time,source:'native PNG CDP frames',speed:1};const manifest=path.join(dir,'timeline.txt');fs.writeFileSync(manifest,frames.map((f,i)=>`file '${f.file}'\nduration ${Math.max(.001,(frames[i+1]?.time??f.time+.04)-f.time).toFixed(6)}\n`).join('')+`file '${frames.at(-1).file}'\n`);const result=spawnSync('ffmpeg',['-hide_banner','-loglevel','error','-y','-f','concat','-safe','0','-i',manifest,'-fps_mode','vfr','-c:v','libx264','-threads','2','-crf','16','-pix_fmt','yuv420p','-movflags','+faststart',path.join(out,'BRANDMIND_CLARITY_DEMO.mp4')],{encoding:'utf8'});assert.equal(result.status,0,result.stderr);
+ }else if(mode==='candidates'){
+  for(const v of ['A','B']){await go('brandMindCoreClarity='+v);await shot('CLARITY_'+v);await go('brandMindCoreClarity='+v+'&showBloom=0');await shot('CLARITY_'+v+'_NO_BLOOM');}
+ }
+ assert.equal(report.errors.length,0,report.errors.join('\n'));
+}finally{fs.writeFileSync(path.join(out,mode+'.json'),JSON.stringify(report,null,2));await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});
