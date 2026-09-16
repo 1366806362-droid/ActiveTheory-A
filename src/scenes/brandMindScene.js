@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { resolveBrandMindStarfield, createBrandMindStarfield } from './brandMindStarfield.js';
 
 const CORE_PARTICLE_LAYER_COUNTS = Object.freeze([96, 158, 218]);
 const CORE_PARTICLE_LAYER_RADII = Object.freeze([0.2, 0.5, 0.78]);
@@ -62,6 +63,8 @@ export const BRAND_MIND_VISUAL_V131 = Object.freeze({
 });
 
 export function createBrandMindScene() {
+  const starfield = resolveBrandMindStarfield(globalThis.window?.location?.search || '');
+  if (starfield) return createBrandMindStarfield(starfield, BRAND_MIND_PRIMARY_INTERACTION_TARGET);
   const group = new THREE.Group();
   const primaryRaycaster = new THREE.Raycaster();
   const primaryPointer = new THREE.Vector2();

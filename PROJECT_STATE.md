@@ -1,5 +1,63 @@
 # ActiveTheory Project State
 
+## Brand Mind Association Starfield — 2026-09-16 — 未达到要求 / NOT READY
+
+- Independent `feat/brandmind-association-starfield`, worktree
+  `ActiveTheory-BrandMind-Starfield`, from freshly fetched shared baseline
+  `58259cf5d173110221145104b9c9dcacbbe5595d`. None of the failed V1.1/volume/
+  clarity/form histories were merged. Local form checkpoint `cad5af2fc940289ec59f3a774e46399717ab01b8`
+  and all original worktrees/WIP remain untouched. No shared/default promotion.
+- Opt-in `?scene=brandmind&brandMindStarfield=1` selects A; no flag/`=0` retains
+  frozen Brand Mind. `brandMindStarfieldBackground=0` isolates local environment.
+  Existing HOME route, Camera, global Bloom/exposure/output, other scene art,
+  Panel schemas and business data remain unchanged. Full-view physical Core
+  diameter is about 320px at 1600x900. Only local art layout and Panel fit differ.
+- Real 3D sphere/envelope and compact emissive nucleus, nine tapered open ribbon
+  surfaces, organized particle batches; six finite colored association bodies;
+  three staggered short particle flows. No ray-marching/refraction claim,
+  no image impostor, new Renderer/Composer/Canvas/RAF or new business relationships.
+  Environment uses a weak world-space gas plane, organized far dust and sparse
+  stars/near dust; inactive outside Brand Mind. 5,188 point vertices allocated once.
+- Art identities: six historical nodes and three historical paths. **Business
+  mappings: zero**; all associationId/relationshipId values remain null and
+  `NEEDS_STABLE_REGISTRY_HOOK` remains explicit. Panel still shows its unchanged
+  two MOCK/SYNTHETIC associations/one relationship. No fabricated labels or data.
+- One composition, initial A/B source-intensity comparison, two documented
+  corrections. The Core still has patterned-shell and clumped-nucleus character;
+  cinematic coherent energy/space quality does NOT match the supplied reference.
+  Stop here: **NOT READY FOR PRODUCTION, not human passed or a frozen candidate.**
+- Interaction checked: actual Core click, single Panel, open fit at 1366/1600/1920,
+  close/ESC, wheel isolation, pause/resume, reduced motion and ten entry/return
+  cycles. Objects, listeners and live GPU resource counts stable after warm-up;
+  Canvas/RAF/Wheel 1/1/1, console/runtime errors 0. HOME fixed-time candidate-flag
+  ON/OFF captures are pixel-identical. Original Brand Mind and explicit candidate
+  OFF captures are also pixel-identical; the enabled internal candidate differs.
+- Fresh browser regression: HOME/GEO/FiveA/Brand Mind entry-return, two Panels,
+  five stage scale/energy and four flowStrength bindings pass. Default Earth Hybrid
+  Hero Lock ready, mix0; HOME meteors show two natural events in60s, stop inside
+  Brand Mind, and explicit OFF creates no system. No data-window redesign.
+- Edge153 / RTX5060Ti D3D11 / 1600x900 DPR1, visible/focused, observed ~120Hz.
+  Separate no-capture 60s samples after10s warm-up: old steady median/P95/P99/max
+  8.3/8.4/8.5/9.3ms (39 draws); candidate steady 8.3/8.4/8.5/8.6ms (49 draws);
+  interaction 8.3/8.5/8.5/49.9ms (~49 draws). All >50/>100ms counts0.
+  Independent60s interaction repeat reproduced49.9ms max, P95/P998.5ms. This
+  interaction hitch remains unlocalized; NOT attributed to the host or dismissed.
+  Separate whole-WebGL-frame GPU timer601 samples median3.152/P954.128ms,
+  no disjoint. Not GPU cost of Core alone or a measurement of total VRAM.
+- Full existing Node entry:47 files,121 runner tests,701 actual cases,0 failed/
+  skipped;8 new cases in1 new file. Related Python6/6; Build/diff pass, existing
+  >900kB bundle warning. npm ci reported2 existing high dependency vulnerabilities;
+  no dependency upgrade/audit-fix attempted outside scope.
+- Evidence under untracked `art/brandmind-starfield/`, review page on local5201.
+  Native1600x900 PNGs, unchanged camera/time12/exposure0.7423964547368532 for
+  Before/After, original-pixel crops, explicit640x360 downsample, Bloom OFF/ON,
+  three Panel sizes.35.247s timestamp-preserving MP4 covers real HOME click,
+  observation/flows, QA +/-0.08rad perspective, actual Core click/ESC and return.
+  QA camera transform is temporary and restored, not a production camera change.
+- Handoff: see `BRANDMIND_STARFIELD_REVIEW.md`. Keep the useful identity/lifecycle/
+  fixture work; await human art direction before another material attempt.
+  Do not resume another density/sampling sweep, data integration or shared merge.
+
 ## HOME Final Default Promotion — 2026-09-15
 
 - The normal `/` runtime now resolves to the already reviewed final HOME stack:
